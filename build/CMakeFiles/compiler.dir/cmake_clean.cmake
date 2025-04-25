@@ -2,6 +2,8 @@ file(REMOVE_RECURSE
   "CMakeFiles/compiler.dir/link.d"
   "CMakeFiles/compiler.dir/src/main.cpp.o"
   "CMakeFiles/compiler.dir/src/main.cpp.o.d"
+  "CMakeFiles/compiler.dir/src/token.cpp.o"
+  "CMakeFiles/compiler.dir/src/token.cpp.o.d"
   "compiler"
   "compiler.pdb"
 )

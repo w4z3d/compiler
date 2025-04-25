@@ -1,14 +1,12 @@
 #include "token.hpp"
-#include <fstream>
-#include <iostream>
-#include <string>
+#include <spdlog/common.h>
+#include <spdlog/spdlog.h>
 int main(int argc, char *argv[]) {
-  std::ifstream stream{argv[0]};
-  std::string content;
 
-  stream >> content;
-  std::cout << content;
-  Token token{TokenType::STRING};
+  token::Token tok{token::TokenType::STRING};
+  auto type = tok.get_token_type();
+
+  spdlog::log(spdlog::level::info, "Test Hello World!");
 
   return 0;
 }

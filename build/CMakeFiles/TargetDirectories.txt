@@ -1,3 +1,6 @@
 /home/matthis/Documents/compiler/build/CMakeFiles/compiler.dir
 /home/matthis/Documents/compiler/build/CMakeFiles/edit_cache.dir
 /home/matthis/Documents/compiler/build/CMakeFiles/rebuild_cache.dir
+/home/matthis/Documents/compiler/build/lib/spdlog/CMakeFiles/spdlog.dir
+/home/matthis/Documents/compiler/build/lib/spdlog/CMakeFiles/edit_cache.dir
+/home/matthis/Documents/compiler/build/lib/spdlog/CMakeFiles/rebuild_cache.dir

@@ -1,7 +1,8 @@
 {
 	"InstallScripts" : 
 	[
-		"/home/matthis/Documents/compiler/build/cmake_install.cmake"
+		"/home/matthis/Documents/compiler/build/cmake_install.cmake",
+		"/home/matthis/Documents/compiler/build/lib/spdlog/cmake_install.cmake"
 	],
 	"Parallel" : false
 }

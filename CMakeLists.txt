@@ -4,6 +4,7 @@ project(compiler)
 set(CMAKE_CXX_STANDDARD 26)
 set(CMAKE_CXX_STANDDARD_REQUIRED ON)
 
+# Build types
 if(NOT CMAKE_BUILD_TYPE)
   set(default_build_type "Debug")
   message(
@@ -26,5 +27,18 @@ set(PROJECT_VERSION
     "${myProject_Version_Major}.${myProject_Version_Minor}.${myProject_Version_Patch}${myProject_Version_Status}"
 )
 message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
-set(SOURCES src/main.cpp src/token.hpp)
+
+# Multithreaded builds
+set(CMAKE_BUILD_PARALLEL_LEVEL 8)
+
+# Add sourcefiles
+file(GLOB_RECURSE SOURCES "src/*.cpp" "include/*.hpp")
+
+# Add target
 add_executable(compiler ${SOURCES})
+
+# Add spdlog
+add_subdirectory(lib/spdlog)
+
+# Link spdlog
+target_link_libraries(compiler PRIVATE spdlog::spdlog_header_only)
