@@ -65,21 +65,63 @@ CMAKE_BINARY_DIR = /home/matthis/Documents/compiler/build
 # The main recursive "all" target.
 all: CMakeFiles/compiler.dir/all
 all: lib/spdlog/all
+all: lib/lexy/all
 .PHONY : all
 
 # The main recursive "codegen" target.
 codegen: CMakeFiles/compiler.dir/codegen
 codegen: lib/spdlog/codegen
+codegen: lib/lexy/codegen
 .PHONY : codegen
 
 # The main recursive "preinstall" target.
 preinstall: lib/spdlog/preinstall
+preinstall: lib/lexy/preinstall
 .PHONY : preinstall
 
 # The main recursive "clean" target.
 clean: CMakeFiles/compiler.dir/clean
 clean: lib/spdlog/clean
+clean: lib/lexy/clean
 .PHONY : clean
+
+#=============================================================================
+# Directory level rules for directory lib/lexy
+
+# Recursive "all" directory target.
+lib/lexy/all: lib/lexy/src/all
+.PHONY : lib/lexy/all
+
+# Recursive "codegen" directory target.
+lib/lexy/codegen: lib/lexy/src/codegen
+.PHONY : lib/lexy/codegen
+
+# Recursive "preinstall" directory target.
+lib/lexy/preinstall: lib/lexy/src/preinstall
+.PHONY : lib/lexy/preinstall
+
+# Recursive "clean" directory target.
+lib/lexy/clean: lib/lexy/src/clean
+.PHONY : lib/lexy/clean
+
+#=============================================================================
+# Directory level rules for directory lib/lexy/src
+
+# Recursive "all" directory target.
+lib/lexy/src/all: lib/lexy/src/CMakeFiles/lexy_file.dir/all
+.PHONY : lib/lexy/src/all
+
+# Recursive "codegen" directory target.
+lib/lexy/src/codegen: lib/lexy/src/CMakeFiles/lexy_file.dir/codegen
+.PHONY : lib/lexy/src/codegen
+
+# Recursive "preinstall" directory target.
+lib/lexy/src/preinstall:
+.PHONY : lib/lexy/src/preinstall
+
+# Recursive "clean" directory target.
+lib/lexy/src/clean: lib/lexy/src/CMakeFiles/lexy_file.dir/clean
+.PHONY : lib/lexy/src/clean
 
 #=============================================================================
 # Directory level rules for directory lib/spdlog
@@ -104,15 +146,15 @@ lib/spdlog/clean: lib/spdlog/CMakeFiles/spdlog.dir/clean
 # Target rules for target CMakeFiles/compiler.dir
 
 # All Build rule for target.
-CMakeFiles/compiler.dir/all:
+CMakeFiles/compiler.dir/all: lib/lexy/src/CMakeFiles/lexy_file.dir/all
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3,4 "Built target compiler"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3,4,5 "Built target compiler"
 .PHONY : CMakeFiles/compiler.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/compiler.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 4
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 7
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/compiler.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 0
 .PHONY : CMakeFiles/compiler.dir/rule
@@ -124,7 +166,7 @@ compiler: CMakeFiles/compiler.dir/rule
 # codegen rule for target.
 CMakeFiles/compiler.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3,4 "Finished codegen for target compiler"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3,4,5 "Finished codegen for target compiler"
 .PHONY : CMakeFiles/compiler.dir/codegen
 
 # clean rule for target.
@@ -139,7 +181,7 @@ CMakeFiles/compiler.dir/clean:
 lib/spdlog/CMakeFiles/spdlog.dir/all:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/depend
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=5,6,7,8,9,10,11,12 "Built target spdlog"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=8,9,10,11,12,13,14,15 "Built target spdlog"
 .PHONY : lib/spdlog/CMakeFiles/spdlog.dir/all
 
 # Build rule for subdir invocation for target.
@@ -156,13 +198,45 @@ spdlog: lib/spdlog/CMakeFiles/spdlog.dir/rule
 # codegen rule for target.
 lib/spdlog/CMakeFiles/spdlog.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=5,6,7,8,9,10,11,12 "Finished codegen for target spdlog"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=8,9,10,11,12,13,14,15 "Finished codegen for target spdlog"
 .PHONY : lib/spdlog/CMakeFiles/spdlog.dir/codegen
 
 # clean rule for target.
 lib/spdlog/CMakeFiles/spdlog.dir/clean:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/clean
 .PHONY : lib/spdlog/CMakeFiles/spdlog.dir/clean
+
+#=============================================================================
+# Target rules for target lib/lexy/src/CMakeFiles/lexy_file.dir
+
+# All Build rule for target.
+lib/lexy/src/CMakeFiles/lexy_file.dir/all:
+	$(MAKE) $(MAKESILENT) -f lib/lexy/src/CMakeFiles/lexy_file.dir/build.make lib/lexy/src/CMakeFiles/lexy_file.dir/depend
+	$(MAKE) $(MAKESILENT) -f lib/lexy/src/CMakeFiles/lexy_file.dir/build.make lib/lexy/src/CMakeFiles/lexy_file.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=6,7 "Built target lexy_file"
+.PHONY : lib/lexy/src/CMakeFiles/lexy_file.dir/all
+
+# Build rule for subdir invocation for target.
+lib/lexy/src/CMakeFiles/lexy_file.dir/rule: cmake_check_build_system
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 2
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lib/lexy/src/CMakeFiles/lexy_file.dir/all
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 0
+.PHONY : lib/lexy/src/CMakeFiles/lexy_file.dir/rule
+
+# Convenience name for target.
+lexy_file: lib/lexy/src/CMakeFiles/lexy_file.dir/rule
+.PHONY : lexy_file
+
+# codegen rule for target.
+lib/lexy/src/CMakeFiles/lexy_file.dir/codegen:
+	$(MAKE) $(MAKESILENT) -f lib/lexy/src/CMakeFiles/lexy_file.dir/build.make lib/lexy/src/CMakeFiles/lexy_file.dir/codegen
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=6,7 "Finished codegen for target lexy_file"
+.PHONY : lib/lexy/src/CMakeFiles/lexy_file.dir/codegen
+
+# clean rule for target.
+lib/lexy/src/CMakeFiles/lexy_file.dir/clean:
+	$(MAKE) $(MAKESILENT) -f lib/lexy/src/CMakeFiles/lexy_file.dir/build.make lib/lexy/src/CMakeFiles/lexy_file.dir/clean
+.PHONY : lib/lexy/src/CMakeFiles/lexy_file.dir/clean
 
 #=============================================================================
 # Special targets to cleanup operation of make.

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.0)
+cmake_minimum_required(VERSION 3.31.6)
 project(compiler)
 
 set(CMAKE_CXX_STANDDARD 26)
@@ -28,6 +28,8 @@ set(PROJECT_VERSION
 )
 message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Multithreaded builds Min 8 jobs
 set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
@@ -40,5 +42,8 @@ add_executable(compiler ${SOURCES})
 # Add spdlog
 add_subdirectory(lib/spdlog)
 
+add_subdirectory(lib/lexy)
+
 # Link spdlog
-target_link_libraries(compiler PRIVATE spdlog::spdlog_header_only)
+target_link_libraries(compiler PRIVATE spdlog::spdlog_header_only
+                                       foonathan::lexy)

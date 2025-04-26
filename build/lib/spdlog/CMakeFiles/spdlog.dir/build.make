@@ -76,99 +76,99 @@ lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o: lib/spdlog/CMakeFiles/spdlog.
 lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o -MF CMakeFiles/spdlog.dir/src/spdlog.cpp.o.d -o CMakeFiles/spdlog.dir/src/spdlog.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o -MF CMakeFiles/spdlog.dir/src/spdlog.cpp.o.d -o CMakeFiles/spdlog.dir/src/spdlog.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/spdlog.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp > CMakeFiles/spdlog.dir/src/spdlog.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp > CMakeFiles/spdlog.dir/src/spdlog.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/spdlog.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp -o CMakeFiles/spdlog.dir/src/spdlog.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/spdlog.cpp -o CMakeFiles/spdlog.dir/src/spdlog.cpp.s
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/flags.make
 lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o -MF CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o.d -o CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o -MF CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o.d -o CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp > CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp > CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp -o CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/stdout_sinks.cpp -o CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.s
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/flags.make
 lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o -MF CMakeFiles/spdlog.dir/src/color_sinks.cpp.o.d -o CMakeFiles/spdlog.dir/src/color_sinks.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o -MF CMakeFiles/spdlog.dir/src/color_sinks.cpp.o.d -o CMakeFiles/spdlog.dir/src/color_sinks.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/color_sinks.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp > CMakeFiles/spdlog.dir/src/color_sinks.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp > CMakeFiles/spdlog.dir/src/color_sinks.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/color_sinks.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp -o CMakeFiles/spdlog.dir/src/color_sinks.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/color_sinks.cpp -o CMakeFiles/spdlog.dir/src/color_sinks.cpp.s
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/flags.make
 lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o -MF CMakeFiles/spdlog.dir/src/file_sinks.cpp.o.d -o CMakeFiles/spdlog.dir/src/file_sinks.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o -MF CMakeFiles/spdlog.dir/src/file_sinks.cpp.o.d -o CMakeFiles/spdlog.dir/src/file_sinks.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/file_sinks.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp > CMakeFiles/spdlog.dir/src/file_sinks.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp > CMakeFiles/spdlog.dir/src/file_sinks.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/file_sinks.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp -o CMakeFiles/spdlog.dir/src/file_sinks.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/file_sinks.cpp -o CMakeFiles/spdlog.dir/src/file_sinks.cpp.s
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/flags.make
 lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o -MF CMakeFiles/spdlog.dir/src/async.cpp.o.d -o CMakeFiles/spdlog.dir/src/async.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o -MF CMakeFiles/spdlog.dir/src/async.cpp.o.d -o CMakeFiles/spdlog.dir/src/async.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/async.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp > CMakeFiles/spdlog.dir/src/async.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp > CMakeFiles/spdlog.dir/src/async.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/async.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp -o CMakeFiles/spdlog.dir/src/async.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/async.cpp -o CMakeFiles/spdlog.dir/src/async.cpp.s
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/flags.make
 lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o -MF CMakeFiles/spdlog.dir/src/cfg.cpp.o.d -o CMakeFiles/spdlog.dir/src/cfg.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o -MF CMakeFiles/spdlog.dir/src/cfg.cpp.o.d -o CMakeFiles/spdlog.dir/src/cfg.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/cfg.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp > CMakeFiles/spdlog.dir/src/cfg.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp > CMakeFiles/spdlog.dir/src/cfg.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/cfg.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp -o CMakeFiles/spdlog.dir/src/cfg.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/cfg.cpp -o CMakeFiles/spdlog.dir/src/cfg.cpp.s
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/flags.make
 lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o: /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp
 lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o: lib/spdlog/CMakeFiles/spdlog.dir/compiler_depend.ts
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o -MF CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o.d -o CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o -MF CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o.d -o CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o -c /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.i"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp > CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.i
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp > CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.i
 
 lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.s"
-	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp -o CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.s
+	cd /home/matthis/Documents/compiler/build/lib/spdlog && /usr/bin/clang++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/lib/spdlog/src/bundled_fmtlib_format.cpp -o CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.s
 
 # Object files for target spdlog
 spdlog_OBJECTS = \
@@ -183,21 +183,21 @@ spdlog_OBJECTS = \
 # External object files for target spdlog
 spdlog_EXTERNAL_OBJECTS =
 
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/build.make
-lib/spdlog/libspdlog.a: lib/spdlog/CMakeFiles/spdlog.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX static library libspdlog.a"
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/spdlog.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/stdout_sinks.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/color_sinks.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/file_sinks.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/async.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/cfg.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/src/bundled_fmtlib_format.cpp.o
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/build.make
+lib/spdlog/libspdlogd.a: lib/spdlog/CMakeFiles/spdlog.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX static library libspdlogd.a"
 	cd /home/matthis/Documents/compiler/build/lib/spdlog && $(CMAKE_COMMAND) -P CMakeFiles/spdlog.dir/cmake_clean_target.cmake
 	cd /home/matthis/Documents/compiler/build/lib/spdlog && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/spdlog.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
-lib/spdlog/CMakeFiles/spdlog.dir/build: lib/spdlog/libspdlog.a
+lib/spdlog/CMakeFiles/spdlog.dir/build: lib/spdlog/libspdlogd.a
 .PHONY : lib/spdlog/CMakeFiles/spdlog.dir/build
 
 lib/spdlog/CMakeFiles/spdlog.dir/clean:

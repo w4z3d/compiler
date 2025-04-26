@@ -85,6 +85,51 @@ rebuild_cache:
 rebuild_cache/fast: rebuild_cache
 .PHONY : rebuild_cache/fast
 
+# Special rule for the target list_install_components
+list_install_components:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Available install components are: \"Unspecified\""
+.PHONY : list_install_components
+
+# Special rule for the target list_install_components
+list_install_components/fast: list_install_components
+.PHONY : list_install_components/fast
+
+# Special rule for the target install
+install: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install
+
+# Special rule for the target install
+install/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Install the project..."
+	/usr/bin/cmake -P cmake_install.cmake
+.PHONY : install/fast
+
+# Special rule for the target install/local
+install/local: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local
+
+# Special rule for the target install/local
+install/local/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing only the local directory..."
+	/usr/bin/cmake -DCMAKE_INSTALL_LOCAL_ONLY=1 -P cmake_install.cmake
+.PHONY : install/local/fast
+
+# Special rule for the target install/strip
+install/strip: preinstall
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip
+
+# Special rule for the target install/strip
+install/strip/fast: preinstall/fast
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Installing the project stripped..."
+	/usr/bin/cmake -DCMAKE_INSTALL_DO_STRIP=1 -P cmake_install.cmake
+.PHONY : install/strip/fast
+
 # The main all target
 all: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles /home/matthis/Documents/compiler/build//CMakeFiles/progress.marks
@@ -149,6 +194,19 @@ spdlog/fast:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/build
 .PHONY : spdlog/fast
 
+#=============================================================================
+# Target rules for targets named lexy_file
+
+# Build rule for target.
+lexy_file: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 lexy_file
+.PHONY : lexy_file
+
+# fast build rule for target.
+lexy_file/fast:
+	$(MAKE) $(MAKESILENT) -f lib/lexy/src/CMakeFiles/lexy_file.dir/build.make lib/lexy/src/CMakeFiles/lexy_file.dir/build
+.PHONY : lexy_file/fast
+
 src/defs/ast.o: src/defs/ast.cpp.o
 .PHONY : src/defs/ast.o
 
@@ -197,6 +255,30 @@ src/defs/token.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/token.cpp.s
 .PHONY : src/defs/token.cpp.s
 
+src/lexer/lexer.o: src/lexer/lexer.cpp.o
+.PHONY : src/lexer/lexer.o
+
+# target to build an object file
+src/lexer/lexer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/lexer/lexer.cpp.o
+.PHONY : src/lexer/lexer.cpp.o
+
+src/lexer/lexer.i: src/lexer/lexer.cpp.i
+.PHONY : src/lexer/lexer.i
+
+# target to preprocess a source file
+src/lexer/lexer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/lexer/lexer.cpp.i
+.PHONY : src/lexer/lexer.cpp.i
+
+src/lexer/lexer.s: src/lexer/lexer.cpp.s
+.PHONY : src/lexer/lexer.s
+
+# target to generate assembly for a file
+src/lexer/lexer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/lexer/lexer.cpp.s
+.PHONY : src/lexer/lexer.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -229,8 +311,13 @@ help:
 	@echo "... depend"
 	@echo "... codegen"
 	@echo "... edit_cache"
+	@echo "... install"
+	@echo "... install/local"
+	@echo "... install/strip"
+	@echo "... list_install_components"
 	@echo "... rebuild_cache"
 	@echo "... compiler"
+	@echo "... lexy_file"
 	@echo "... spdlog"
 	@echo "... src/defs/ast.o"
 	@echo "... src/defs/ast.i"
@@ -238,6 +325,9 @@ help:
 	@echo "... src/defs/token.o"
 	@echo "... src/defs/token.i"
 	@echo "... src/defs/token.s"
+	@echo "... src/lexer/lexer.o"
+	@echo "... src/lexer/lexer.i"
+	@echo "... src/lexer/lexer.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
