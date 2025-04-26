@@ -6,5 +6,5 @@ CXX_DEFINES = -DSPDLOG_COMPILED_LIB -DSPDLOG_FWRITE_UNLOCKED
 
 CXX_INCLUDES = -I/home/matthis/Documents/compiler/lib/spdlog/include
 
-CXX_FLAGS = -g -std=c++11
+CXX_FLAGS = -O3 -DNDEBUG -std=c++11
 

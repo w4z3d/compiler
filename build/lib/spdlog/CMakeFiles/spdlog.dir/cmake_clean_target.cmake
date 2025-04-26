@@ -1,3 +1,3 @@
 file(REMOVE_RECURSE
-  "libspdlogd.a"
+  "libspdlog.a"
 )

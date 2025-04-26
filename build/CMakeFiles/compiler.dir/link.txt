@@ -1,1 +1,1 @@
-/usr/bin/c++ -g -Wl,--dependency-file=CMakeFiles/compiler.dir/link.d CMakeFiles/compiler.dir/src/main.cpp.o CMakeFiles/compiler.dir/src/token.cpp.o -o compiler
+/usr/bin/c++ -O3 -DNDEBUG -Wl,--dependency-file=CMakeFiles/compiler.dir/link.d CMakeFiles/compiler.dir/src/defs/ast.cpp.o CMakeFiles/compiler.dir/src/defs/token.cpp.o CMakeFiles/compiler.dir/src/main.cpp.o -o compiler

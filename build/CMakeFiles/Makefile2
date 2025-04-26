@@ -107,12 +107,12 @@ lib/spdlog/clean: lib/spdlog/CMakeFiles/spdlog.dir/clean
 CMakeFiles/compiler.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3 "Built target compiler"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3,4 "Built target compiler"
 .PHONY : CMakeFiles/compiler.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/compiler.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 3
+	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 4
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/compiler.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/matthis/Documents/compiler/build/CMakeFiles 0
 .PHONY : CMakeFiles/compiler.dir/rule
@@ -124,7 +124,7 @@ compiler: CMakeFiles/compiler.dir/rule
 # codegen rule for target.
 CMakeFiles/compiler.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3 "Finished codegen for target compiler"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=1,2,3,4 "Finished codegen for target compiler"
 .PHONY : CMakeFiles/compiler.dir/codegen
 
 # clean rule for target.
@@ -139,7 +139,7 @@ CMakeFiles/compiler.dir/clean:
 lib/spdlog/CMakeFiles/spdlog.dir/all:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/depend
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11 "Built target spdlog"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=5,6,7,8,9,10,11,12 "Built target spdlog"
 .PHONY : lib/spdlog/CMakeFiles/spdlog.dir/all
 
 # Build rule for subdir invocation for target.
@@ -156,7 +156,7 @@ spdlog: lib/spdlog/CMakeFiles/spdlog.dir/rule
 # codegen rule for target.
 lib/spdlog/CMakeFiles/spdlog.dir/codegen:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/codegen
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=4,5,6,7,8,9,10,11 "Finished codegen for target spdlog"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=5,6,7,8,9,10,11,12 "Finished codegen for target spdlog"
 .PHONY : lib/spdlog/CMakeFiles/spdlog.dir/codegen
 
 # clean rule for target.

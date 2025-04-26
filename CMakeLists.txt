@@ -12,7 +12,7 @@ if(NOT CMAKE_BUILD_TYPE)
       "Set the build type to `${default_build_type}` as none was specified.")
   set(CMAKE_BUILD_TYPE
       ${default_build_type}
-      CACHE STRING "Chooce the build type." FORCE)
+      CACHE STRING "Choose the build type." FORCE)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"
                                                "MinSizeRel" "RelWithDebInfo")
 endif()
@@ -28,7 +28,7 @@ set(PROJECT_VERSION
 )
 message(STATUS "${PROJECT_NAME} version: ${PROJECT_VERSION}")
 
-# Multithreaded builds
+# Multithreaded builds Min 8 jobs
 set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
 # Add sourcefiles

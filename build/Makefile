@@ -149,6 +149,54 @@ spdlog/fast:
 	$(MAKE) $(MAKESILENT) -f lib/spdlog/CMakeFiles/spdlog.dir/build.make lib/spdlog/CMakeFiles/spdlog.dir/build
 .PHONY : spdlog/fast
 
+src/defs/ast.o: src/defs/ast.cpp.o
+.PHONY : src/defs/ast.o
+
+# target to build an object file
+src/defs/ast.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/ast.cpp.o
+.PHONY : src/defs/ast.cpp.o
+
+src/defs/ast.i: src/defs/ast.cpp.i
+.PHONY : src/defs/ast.i
+
+# target to preprocess a source file
+src/defs/ast.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/ast.cpp.i
+.PHONY : src/defs/ast.cpp.i
+
+src/defs/ast.s: src/defs/ast.cpp.s
+.PHONY : src/defs/ast.s
+
+# target to generate assembly for a file
+src/defs/ast.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/ast.cpp.s
+.PHONY : src/defs/ast.cpp.s
+
+src/defs/token.o: src/defs/token.cpp.o
+.PHONY : src/defs/token.o
+
+# target to build an object file
+src/defs/token.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/token.cpp.o
+.PHONY : src/defs/token.cpp.o
+
+src/defs/token.i: src/defs/token.cpp.i
+.PHONY : src/defs/token.i
+
+# target to preprocess a source file
+src/defs/token.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/token.cpp.i
+.PHONY : src/defs/token.cpp.i
+
+src/defs/token.s: src/defs/token.cpp.s
+.PHONY : src/defs/token.s
+
+# target to generate assembly for a file
+src/defs/token.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/defs/token.cpp.s
+.PHONY : src/defs/token.cpp.s
+
 src/main.o: src/main.cpp.o
 .PHONY : src/main.o
 
@@ -173,30 +221,6 @@ src/main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/main.cpp.s
 .PHONY : src/main.cpp.s
 
-src/token.o: src/token.cpp.o
-.PHONY : src/token.o
-
-# target to build an object file
-src/token.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/token.cpp.o
-.PHONY : src/token.cpp.o
-
-src/token.i: src/token.cpp.i
-.PHONY : src/token.i
-
-# target to preprocess a source file
-src/token.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/token.cpp.i
-.PHONY : src/token.cpp.i
-
-src/token.s: src/token.cpp.s
-.PHONY : src/token.s
-
-# target to generate assembly for a file
-src/token.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/compiler.dir/build.make CMakeFiles/compiler.dir/src/token.cpp.s
-.PHONY : src/token.cpp.s
-
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -208,12 +232,15 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... compiler"
 	@echo "... spdlog"
+	@echo "... src/defs/ast.o"
+	@echo "... src/defs/ast.i"
+	@echo "... src/defs/ast.s"
+	@echo "... src/defs/token.o"
+	@echo "... src/defs/token.i"
+	@echo "... src/defs/token.s"
 	@echo "... src/main.o"
 	@echo "... src/main.i"
 	@echo "... src/main.s"
-	@echo "... src/token.o"
-	@echo "... src/token.i"
-	@echo "... src/token.s"
 .PHONY : help
 
 

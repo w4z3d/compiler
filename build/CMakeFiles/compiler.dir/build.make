@@ -72,10 +72,38 @@ include CMakeFiles/compiler.dir/flags.make
 CMakeFiles/compiler.dir/codegen:
 .PHONY : CMakeFiles/compiler.dir/codegen
 
+CMakeFiles/compiler.dir/src/defs/ast.cpp.o: CMakeFiles/compiler.dir/flags.make
+CMakeFiles/compiler.dir/src/defs/ast.cpp.o: /home/matthis/Documents/compiler/src/defs/ast.cpp
+CMakeFiles/compiler.dir/src/defs/ast.cpp.o: CMakeFiles/compiler.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/compiler.dir/src/defs/ast.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/compiler.dir/src/defs/ast.cpp.o -MF CMakeFiles/compiler.dir/src/defs/ast.cpp.o.d -o CMakeFiles/compiler.dir/src/defs/ast.cpp.o -c /home/matthis/Documents/compiler/src/defs/ast.cpp
+
+CMakeFiles/compiler.dir/src/defs/ast.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/compiler.dir/src/defs/ast.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/src/defs/ast.cpp > CMakeFiles/compiler.dir/src/defs/ast.cpp.i
+
+CMakeFiles/compiler.dir/src/defs/ast.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/compiler.dir/src/defs/ast.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/src/defs/ast.cpp -o CMakeFiles/compiler.dir/src/defs/ast.cpp.s
+
+CMakeFiles/compiler.dir/src/defs/token.cpp.o: CMakeFiles/compiler.dir/flags.make
+CMakeFiles/compiler.dir/src/defs/token.cpp.o: /home/matthis/Documents/compiler/src/defs/token.cpp
+CMakeFiles/compiler.dir/src/defs/token.cpp.o: CMakeFiles/compiler.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/compiler.dir/src/defs/token.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/compiler.dir/src/defs/token.cpp.o -MF CMakeFiles/compiler.dir/src/defs/token.cpp.o.d -o CMakeFiles/compiler.dir/src/defs/token.cpp.o -c /home/matthis/Documents/compiler/src/defs/token.cpp
+
+CMakeFiles/compiler.dir/src/defs/token.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/compiler.dir/src/defs/token.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/src/defs/token.cpp > CMakeFiles/compiler.dir/src/defs/token.cpp.i
+
+CMakeFiles/compiler.dir/src/defs/token.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/compiler.dir/src/defs/token.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/src/defs/token.cpp -o CMakeFiles/compiler.dir/src/defs/token.cpp.s
+
 CMakeFiles/compiler.dir/src/main.cpp.o: CMakeFiles/compiler.dir/flags.make
 CMakeFiles/compiler.dir/src/main.cpp.o: /home/matthis/Documents/compiler/src/main.cpp
 CMakeFiles/compiler.dir/src/main.cpp.o: CMakeFiles/compiler.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/compiler.dir/src/main.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/compiler.dir/src/main.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/compiler.dir/src/main.cpp.o -MF CMakeFiles/compiler.dir/src/main.cpp.o.d -o CMakeFiles/compiler.dir/src/main.cpp.o -c /home/matthis/Documents/compiler/src/main.cpp
 
 CMakeFiles/compiler.dir/src/main.cpp.i: cmake_force
@@ -86,34 +114,22 @@ CMakeFiles/compiler.dir/src/main.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/compiler.dir/src/main.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/src/main.cpp -o CMakeFiles/compiler.dir/src/main.cpp.s
 
-CMakeFiles/compiler.dir/src/token.cpp.o: CMakeFiles/compiler.dir/flags.make
-CMakeFiles/compiler.dir/src/token.cpp.o: /home/matthis/Documents/compiler/src/token.cpp
-CMakeFiles/compiler.dir/src/token.cpp.o: CMakeFiles/compiler.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/compiler.dir/src/token.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/compiler.dir/src/token.cpp.o -MF CMakeFiles/compiler.dir/src/token.cpp.o.d -o CMakeFiles/compiler.dir/src/token.cpp.o -c /home/matthis/Documents/compiler/src/token.cpp
-
-CMakeFiles/compiler.dir/src/token.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/compiler.dir/src/token.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/matthis/Documents/compiler/src/token.cpp > CMakeFiles/compiler.dir/src/token.cpp.i
-
-CMakeFiles/compiler.dir/src/token.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/compiler.dir/src/token.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/matthis/Documents/compiler/src/token.cpp -o CMakeFiles/compiler.dir/src/token.cpp.s
-
 # Object files for target compiler
 compiler_OBJECTS = \
-"CMakeFiles/compiler.dir/src/main.cpp.o" \
-"CMakeFiles/compiler.dir/src/token.cpp.o"
+"CMakeFiles/compiler.dir/src/defs/ast.cpp.o" \
+"CMakeFiles/compiler.dir/src/defs/token.cpp.o" \
+"CMakeFiles/compiler.dir/src/main.cpp.o"
 
 # External object files for target compiler
 compiler_EXTERNAL_OBJECTS =
 
+compiler: CMakeFiles/compiler.dir/src/defs/ast.cpp.o
+compiler: CMakeFiles/compiler.dir/src/defs/token.cpp.o
 compiler: CMakeFiles/compiler.dir/src/main.cpp.o
-compiler: CMakeFiles/compiler.dir/src/token.cpp.o
 compiler: CMakeFiles/compiler.dir/build.make
 compiler: CMakeFiles/compiler.dir/compiler_depend.ts
 compiler: CMakeFiles/compiler.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX executable compiler"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/matthis/Documents/compiler/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX executable compiler"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/compiler.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
