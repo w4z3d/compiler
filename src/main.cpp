@@ -1,20 +1,23 @@
-#include "defs/ast.hpp"
+#include "alloc/arena.hpp"
+#include "defs/token.hpp"
 #include "lexer/lexer.hpp"
-#include <memory>
-#include <spdlog/common.h>
-#include <spdlog/spdlog.h>
+#include "spdlog/common.h"
+#include "spdlog/spdlog.h"
+#include <cstdint>
+#include <string>
+#include <vector>
+
+struct Test {
+  std::uint8_t alignme;
+  std::size_t test_alignment;
+};
+
 int main(int argc, char *argv[]) {
-  auto lhs = std::make_shared<ast::LiteralExpr>("12");
-  auto rhs = std::make_shared<ast::LiteralExpr>("22");
-  const auto bin_exp = std::make_shared<ast::BinaryExpression>("+", lhs, rhs);
 
-  const auto lhs1 = std::make_shared<ast::LiteralExpr>("1337");
-  ast::BinaryExpression next_expression{"*", lhs1, bin_exp};
+  arena::Arena arena{16000};
+  Test *test = arena.make(Test{8, 100});
 
-  grammar::parse();
-
-  ast::PrintVisitor visitor{};
-  next_expression.accept(visitor);
-  // spdlog::log(spdlog::level::info, "{}", visitor.content);
+  spdlog::log(spdlog::level::info, "Struct: {} {}", test->test_alignment,
+              test->alignme);
   return 0;
 }

@@ -1,20 +1,34 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-#include <string>
+#include <string_view>
 namespace token {
 
-enum class TokenType { STRING = 0 };
+enum class TokenKind {
+  String,
+  Eof,
+  Identifier,
+  Number,
+  Char,
+  Plus,
+  Minus,
+  LParen,
+  RParen,
+  LBrace,
+  RBrace,
+  LBracket,
+  RBracket,
 
-class Token {
-  TokenType token_type;
-  std::string literal;
+  Unsupported = -1
+};
 
-public:
-  TokenType get_token_type() const;
+struct Token {
+  TokenKind kind;
+  std::string_view text;
+  int line;
+  int column;
 
-  Token(TokenType token_type);
-  ~Token();
+  bool invalid = false;
 };
 
 } // namespace token
