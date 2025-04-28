@@ -5,9 +5,14 @@
 #include <iostream>
 
 const io::SourceFile io::read_file(std::string path) {
-  std::ifstream file(path, std::ios::in);
-  const auto size = std::filesystem::file_size(path);
-  std::string buffer(size, '\0');
-  file.read(buffer.data(), size);
-  return io::SourceFile{path, buffer};
+  std::ifstream file(path);
+  if (!file.is_open()) {
+    throw std::runtime_error("Failed to open file: " + path);
+  }
+
+  // Read the file content into a string without assuming its size
+  std::stringstream buffer;
+  buffer << file.rdbuf();
+
+  return io::SourceFile{path, buffer.str()};
 }

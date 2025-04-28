@@ -6,7 +6,7 @@
 namespace io {
 struct SourceFile {
   std::string name;
-  std::string_view content;
+  std::string content;
 };
 
 const SourceFile read_file(std::string path);

@@ -11,6 +11,7 @@ public:
 
   token::Token next_token();
   bool eof() const;
+  const std::string_view get_file_name() const { return file_name; }
 
 private:
   std::string_view file_name;

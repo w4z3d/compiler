@@ -1,15 +1,15 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
-#include <memory>
+#include <algorithm>
 #include <string>
 #include <vector>
 struct SourceLocation {
-  std::string file_name;
+  std::string_view file_name;
   int line;
   int column;
 
-  SourceLocation(std::string file_name = "", int line = 0, int column = 0)
+  SourceLocation(std::string_view file_name = "", int line = 0, int column = 0)
       : file_name(file_name), line(line), column(column) {}
 };
 
@@ -34,37 +34,53 @@ public:
 
 private:
   Kind kind;
-  std::string name;
+  std::string_view name;
 
 public:
-  Declaration(Kind k, std::string n, SourceLocation loc = {})
+  Declaration(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(std::move(loc)), kind(k), name(std::move(n)) {}
 
   Kind getKind() const { return kind; }
-  const std::string &getName() const { return name; }
-  virtual void accept(class ASTVisitor &visitor) override;
+  const std::string_view getName() const { return name; }
+  void accept(class ASTVisitor &visitor) override;
 };
 
 class FunctionDeclaration : public Declaration {
 private:
-  std::string name;
+  std::string_view name;
+  std::string_view ret_type;
 
-}
+public:
+  FunctionDeclaration(std::string_view name, std::string_view ret_type,
+                      SourceLocation loc = {})
+      : Declaration(Kind::Function, std::move(name), std::move(loc)),
+        name(name), ret_type(ret_type) {}
+  void accept(ASTVisitor &visitor) override;
+};
 
 class TranslationUnit : public ASTNode {
 private:
-  std::vector<std::shared_ptr<Declaration>> declarations;
+  std::vector<Declaration *> declarations;
 
 public:
-  inline void addDeclaration(std::shared_ptr<Declaration> declaration) {
+  TranslationUnit(SourceLocation loc = {}) : ASTNode(std::move(loc)) {}
+
+  inline void addDeclaration(Declaration *declaration) {
     declarations.push_back(declaration);
   }
 
-  const std::vector<std::shared_ptr<Declaration>> &getDeclarations() const {
+  const std::vector<Declaration *> &getDeclarations() const {
     return declarations;
   }
 
   void accept(ASTVisitor &visitor) override;
+};
+
+class ASTVisitor {
+public:
+  virtual void visit(Declaration &decl) {}
+  virtual void visit(FunctionDeclaration &decl) {}
+  virtual void visit(TranslationUnit &unit) {}
 };
 
 #endif // !DEFS_AST_H
