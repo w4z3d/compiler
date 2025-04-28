@@ -4,59 +4,118 @@
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <new>
+#include <ranges>
 #include <type_traits>
+#include <vector>
 
 namespace arena {
 class Arena {
+private:
+  struct Block {
+    std::unique_ptr<std::uint8_t[]> data;
+    std::size_t size;
+    std::size_t used;
+
+    Block(std::size_t block_size) : size(block_size), used(0) {
+      data = std::make_unique<std::uint8_t[]>(block_size);
+    }
+  };
+
+  std::vector<Block> blocks_;
+  std::size_t block_size_;
+  std::size_t alignment_;
+
+  inline std::size_t align(std::size_t n) const noexcept {
+    return (n + alignment_ - 1) & ~(alignment_ - 1);
+  }
+
 public:
-  explicit Arena(std::size_t size) : size(size), offset(0) {
-    memory = static_cast<char *>(std::malloc(size));
-    if (!memory) {
-      spdlog::log(spdlog::level::critical, "Failed to allocate arena!");
-      throw std::bad_alloc();
+  Arena(std::size_t block_size = 4096, size_t alignment = 8)
+      : block_size_(block_size), alignment_(alignment) {
+    blocks_.emplace_back(Block{block_size_});
+  }
+
+  void *allocate(std::size_t size) {
+    if (size == 0)
+      return nullptr;
+
+    // Allocate a dedicated block if the size exceedes the standard blocksize
+    // (So we dont end up in a loop of generating blocks)
+    if (size > block_size_) {
+      blocks_.emplace_back(Block{size});
+      auto &block = blocks_.back();
+      block.used = size;
+      return block.data.get();
+    }
+
+    auto &current_block = blocks_.back();
+    size_t align_used = align(current_block.used);
+
+    // Check if enough space in current block
+    if (align_used + size <= current_block.size) {
+      void *ptr = current_block.data.get() + align_used;
+      current_block.used = align_used + size;
+      return ptr;
+    }
+
+    // Not enough space, create new block
+    blocks_.emplace_back(block_size_);
+    auto &new_block = blocks_.back();
+    new_block.used = size;
+    return new_block.data.get();
+  }
+
+  template <typename T, typename... Args> T *create(Args &&...args) {
+    void *mem = allocate(sizeof(T));
+    if (!mem)
+      return nullptr;
+    return new (mem) T(std::forward<Args>(args)...);
+  }
+
+  // Reset but dont free
+  void reset() noexcept {
+    if (!blocks_.empty()) {
+      // Take ownership
+      auto first_block = std::move(blocks_.front());
+      blocks_.clear();
+      first_block.used = 0;
+      // Move ownership
+      blocks_.push_back(std::move(first_block));
     }
   }
+
+  void clear() noexcept {
+    blocks_.clear();
+    blocks_.emplace_back(block_size_);
+  }
+
+  std::size_t size() const noexcept {
+    std::size_t total = 0;
+    for (const auto &block : blocks_) {
+      total += block.size;
+    }
+    return total;
+  }
+
+  std::size_t used() const {
+    std::size_t total = 0;
+    for (const auto &block : blocks_) {
+      total += block.used;
+    }
+    return total;
+  }
+
+  ~Arena() = default;
 
   Arena(const Arena &) = delete;
   Arena &operator=(const Arena &) = delete;
-
-  Arena(Arena &&) noexcept = default;
-  Arena &operator=(Arena &&) noexcept = default;
-
-  ~Arena() { std::free(memory); }
-
-  template <typename T> T *make(T value) {
-    spdlog::log(spdlog::level::info, "Allocating {} in arena", sizeof(value));
-    static_assert(std::is_trivially_destructible<T>(),
-                  "Type is not destructable");
-    void *mem = allocate_raw(sizeof(T), alignof(T));
-    const auto ptr = static_cast<T *>(mem);
-    *ptr = value;
-    return ptr;
-  }
-
-  void *allocate_raw(size_t allocation_size,
-                     size_t alignment = alignof(std::max_align_t)) {
-    std::size_t space = size - offset;
-    void *ptr = memory + offset;
-    void *aligned_ptr = std::align(alignment, allocation_size, ptr, space);
-
-    // TODO: Make buffer auto grow
-    if (!aligned_ptr || space < allocation_size) {
-      throw std::bad_alloc();
-    }
-
-    offset = size - space + size;
-    return aligned_ptr;
-  }
-
-private:
-  size_t size;
-  size_t offset;
-  char *memory;
+  Arena(Arena &&) = delete;
+  Arena &operator=(Arena &&) = delete;
 };
 } // namespace arena
 
