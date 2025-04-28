@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
 
   const auto test = arena.create<Test>(10, 200);
   const auto test2 = arena.create<Test>(20, 300);
-  const auto test3 = arena.create<Test>(30, 400);
+  const auto test3 = arena.create<Test>(320, 400);
 
   spdlog::log(spdlog::level::info, "Struct: {} {}, {}", test->test_alignment,
               test2->alignme, test3->test_alignment);
