@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include "spdlog/common.h"
 
 FunctionDeclaration *Parser::parse_function_declaration() {
   const auto ret_type{expect(token::TokenKind::Identifier)};
@@ -15,14 +16,19 @@ TranslationUnit *Parser::parse_translation_unit() {
   TranslationUnit *unit = arena.create<TranslationUnit>(
       SourceLocation{lexer.get_file_name(), 0, 0});
   while (!is_eof()) {
-    if (check_sequence({token::TokenKind::Identifier,
-                        token::TokenKind::Identifier,
-                        token::TokenKind::LParen})) {
+    try {
+      if (check_sequence({token::TokenKind::Identifier,
+                          token::TokenKind::Identifier,
+                          token::TokenKind::LParen})) {
 
-      unit->addDeclaration(parse_function_declaration());
+        unit->addDeclaration(parse_function_declaration());
+      } else {
+        throw ParseError("Lmao wie dumm");
+      }
+    } catch (ParseError &error) {
+      spdlog::log(spdlog::level::err, error.what());
+      synchronize();
     }
-
-    next_token();
   }
   return unit;
 }

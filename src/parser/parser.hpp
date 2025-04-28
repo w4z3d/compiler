@@ -6,9 +6,18 @@
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
 #include <cstddef>
+#include <exception>
 #include <iostream>
 #include <optional>
 #include <vector>
+
+class ParseError : public std::exception {
+  std::string message;
+
+public:
+  ParseError(std::string message) : message(message) {}
+  const char *what() const noexcept override { return message.c_str(); }
+};
 
 class Parser {
 private:
@@ -21,7 +30,7 @@ private:
   const token::Token peek(std::size_t n = 0) {
     while (token_buffer.size() <= n) {
       const auto next_token{lexer.next_token()};
-      spdlog::log(spdlog::level::info, "Peeking {}", std::string{next_token});
+      spdlog::log(spdlog::level::debug, "Peeking {}", std::string{next_token});
       token_buffer.push_back(next_token);
     }
     return token_buffer[n];
@@ -39,21 +48,25 @@ private:
 
   const token::Token next_token() {
     if (token_buffer.empty()) {
-      return lexer.next_token();
+      const auto token{lexer.next_token()};
+      return token;
     } else {
       const auto result{token_buffer.front()};
+      spdlog::log(spdlog::level::debug, "Lexing {}", std::string{result});
       token_buffer.erase(token_buffer.begin());
       return result;
     }
   }
 
-  const std::optional<token::Token> expect(token::TokenKind expected) noexcept {
+  const std::optional<token::Token> expect(token::TokenKind expected) {
     const auto token{peek()};
     if (token.kind == expected) {
       next_token();
       return token;
     }
-    spdlog::log(spdlog::level::err, "Unexpected token {}", std::string{token});
+    throw ParseError{std::format("Unexpected token \'{}\' expected {}",
+                                 token.text,
+                                 token::token_kind_to_string(expected))};
     return std::nullopt;
   }
 
@@ -64,6 +77,18 @@ private:
       return true;
     }
     return false;
+  }
+
+  void synchronize() {
+    next_token();
+
+    while (peek().kind != token::TokenKind::Eof) {
+      if (peek().kind == token::TokenKind::Semi) {
+        next_token();
+        return;
+      }
+      next_token();
+    }
   }
 
   FunctionDeclaration *parse_function_declaration();
