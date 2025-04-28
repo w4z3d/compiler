@@ -1,22 +1,17 @@
-#include "alloc/arena.hpp"
+#include "io/io.hpp"
+#include "lexer/lexer.hpp"
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
-#include <cstdint>
-
-struct Test {
-  std::uint8_t alignme;
-  std::size_t test_alignment;
-};
 
 int main(int argc, char *argv[]) {
+  const auto file = io::read_file(argv[1]);
 
-  arena::Arena arena{16};
+  Lexer lexer{file.name, file.content};
 
-  const auto test = arena.create<Test>(10, 200);
-  const auto test2 = arena.create<Test>(20, 300);
-  const auto test3 = arena.create<Test>(320, 400);
+  while (!lexer.eof()) {
+    const auto token{lexer.next_token()};
+    spdlog::log(spdlog::level::info, "{}", std::string{token});
+  }
 
-  spdlog::log(spdlog::level::info, "Struct: {} {}, {}", test->test_alignment,
-              test2->alignme, test3->test_alignment);
   return 0;
 }

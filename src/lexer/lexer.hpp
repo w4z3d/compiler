@@ -7,11 +7,13 @@
 
 class Lexer {
 public:
-  Lexer(std::string_view source);
+  Lexer(std::string_view file_name, std::string_view source);
 
   token::Token next_token();
+  bool eof() const;
 
 private:
+  std::string_view file_name;
   std::string_view source;
   std::size_t index = 0;
   int line = 1;
@@ -19,7 +21,6 @@ private:
 
   char peek() const;
   char get();
-  bool eof() const;
 
   void skip_whitespace();
 

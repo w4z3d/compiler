@@ -3,8 +3,10 @@
 #include <spdlog/common.h>
 #include <spdlog/spdlog.h>
 #include <string_view>
+#include <tuple>
 
-Lexer::Lexer(std::string_view src) : source(src) {}
+Lexer::Lexer(std::string_view file_name, std::string_view src)
+    : file_name(file_name), source(src) {}
 
 char Lexer::peek() const {
   return index < source.size() ? source[index] : '\0';
@@ -15,7 +17,7 @@ char Lexer::get() {
     return '\0';
 
   char c = source[index++];
-  if (c == '\0') {
+  if (c == '\n') {
     line++;
     column = 1;
   } else {
@@ -36,7 +38,9 @@ token::Token Lexer::next_token() {
   skip_whitespace();
 
   if (eof()) {
-    return {token::TokenKind::Eof, "EOF", line, column};
+    return {token::TokenKind::Eof, "EOF",
+            token::Span{file_name, std::make_tuple(line, column),
+                        std::make_tuple(line, column)}};
   }
 
   char c = peek();
@@ -57,29 +61,36 @@ token::Token Lexer::next_token() {
 }
 
 token::Token Lexer::lex_identifier_or_keyword() {
-  size_t start = index;
+  size_t start_index = index;
+  const auto start{std::make_tuple(line, column)};
+
   while (std::isalnum(peek()) || peek() == '_')
     get();
 
-  std::string_view ident = source.substr(start, index - start);
+  std::string_view ident = source.substr(start_index, index - start_index);
 
-  return token::Token{token::TokenKind::Identifier, ident, line, column};
+  const auto end{std::make_tuple(line, column)};
+  token::Span span{file_name, start, end};
+  return token::Token{token::TokenKind::Identifier, ident, span};
 }
 
 token::Token Lexer::lex_number() {
-  spdlog::log(spdlog::level::info, "Lexing number...");
-  size_t start = index;
+  size_t start_index = index;
 
+  const auto start{std::make_tuple(line, column)};
   while (std::isdigit(peek()))
     get();
 
-  std::string_view text = source.substr(start, index - start);
+  std::string_view text = source.substr(start_index, index - start_index);
 
-  return token::Token{token::TokenKind::Number, text, line, column};
+  const auto end{std::make_tuple(line, column)};
+  token::Span span{file_name, start, end};
+  return token::Token{token::TokenKind::Number, text, span};
 }
 
 token::Token Lexer::lex_string_literal() {
-  size_t start = index;
+  size_t start_index = index;
+  const auto start{std::make_tuple(line, column)};
   // Consume "
   get();
 
@@ -89,13 +100,16 @@ token::Token Lexer::lex_string_literal() {
   // Consume "
   get();
 
-  std::string_view text = source.substr(start, index - start);
+  std::string_view text = source.substr(start_index, index - start_index);
 
-  return token::Token{token::TokenKind::String, text, line, column};
+  const auto end{std::make_tuple(line, column)};
+  token::Span span{file_name, start, end};
+  return token::Token{token::TokenKind::String, text, span};
 }
 
 token::Token Lexer::lex_char_literal() {
-  size_t start = index;
+  size_t start_index = index;
+  const auto start{std::make_tuple(line, column)};
   bool is_invalid = false;
 
   // Consume initial
@@ -113,28 +127,71 @@ token::Token Lexer::lex_char_literal() {
 
   get();
 
-  std::string_view text = source.substr(start, index - start);
+  std::string_view text = source.substr(start_index, index - start_index);
 
-  return token::Token{token::TokenKind::Char, text, line, column, is_invalid};
+  const auto end{std::make_tuple(line, column)};
+  token::Span span{file_name, start, end};
+  return token::Token{token::TokenKind::Char, text, span, is_invalid};
 }
 
+// TODO: Support doubled punctuation (>>, <<, <=, >=, ...)
 token::Token Lexer::lex_operator_or_punctuation() {
   std::string_view text = source.substr(index, 1);
+  const auto start{std::make_tuple(line, column)};
+  const auto end{std::make_tuple(line, column + 1)};
+  const token::Span span{file_name, start, end};
+
   char c = get();
   switch (c) {
   case '+':
-    return token::Token{token::TokenKind::Plus, text, line, column};
+    return token::Token{token::TokenKind::Plus, text, span};
   case '-':
-    return token::Token{token::TokenKind::Minus, text, line, column};
+    return token::Token{token::TokenKind::Minus, text, span};
   case '(':
-    return token::Token{token::TokenKind::LParen, text, line, column};
+    return token::Token{token::TokenKind::LParen, text, span};
   case ')':
-    return token::Token{token::TokenKind::RParen, text, line, column};
+    return token::Token{token::TokenKind::RParen, text, span};
   case '{':
-    return token::Token{token::TokenKind::LBrace, text, line, column};
+    return token::Token{token::TokenKind::LBrace, text, span};
   case '}':
-    return token::Token{token::TokenKind::RBrace, text, line, column};
+    return token::Token{token::TokenKind::RBrace, text, span};
+  case '[':
+    return token::Token{token::TokenKind::LBracket, text, span};
+  case ']':
+    return token::Token{token::TokenKind::RBracket, text, span};
+  case '/':
+    return token::Token{token::TokenKind::Slash, text, span};
+  case '*':
+    return token::Token{token::TokenKind::Asterisk, text, span};
+  case '#':
+    return token::Token{token::TokenKind::Hash, text, span};
+  case '<':
+    return token::Token{token::TokenKind::LAngleBracket, text, span};
+  case '>':
+    return token::Token{token::TokenKind::RAngleBracket, text, span};
+  case ',':
+    return token::Token{token::TokenKind::Comma, text, span};
+  case ';':
+    return token::Token{token::TokenKind::Semi, text, span};
+  case '@':
+    return token::Token{token::TokenKind::At, text, span};
+  case '\\':
+    return token::Token{token::TokenKind::BackSlash, text, span};
+  case '=':
+    return token::Token{token::TokenKind::Equals, text, span};
+  case '!':
+    return token::Token{token::TokenKind::Exclamation, text, span};
+  case ':':
+    return token::Token{token::TokenKind::Colon, text, span};
+  case '.':
+    return token::Token{token::TokenKind::Dot, text, span};
+  case '|':
+    return token::Token{token::TokenKind::Pipe, text, span};
+  case '&':
+    return token::Token{token::TokenKind::And, text, span};
+  case '?':
+    return token::Token{token::TokenKind::Question, text, span};
   default:
-    return token::Token{token::TokenKind::Unsupported, text, line, column};
+    return token::Token{token::TokenKind::Unsupported, text, span};
   };
 }
