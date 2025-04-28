@@ -1,8 +1,11 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
+#include "spdlog/fmt/bundled/base.h"
 #include <algorithm>
+#include <format>
 #include <string>
+#include <string_view>
 #include <vector>
 struct SourceLocation {
   std::string_view file_name;
@@ -40,8 +43,8 @@ public:
   Declaration(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(std::move(loc)), kind(k), name(std::move(n)) {}
 
-  Kind getKind() const { return kind; }
-  const std::string_view getName() const { return name; }
+  Kind get_kindd() const { return kind; }
+  const std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -56,6 +59,8 @@ public:
       : Declaration(Kind::Function, std::move(name), std::move(loc)),
         name(name), ret_type(ret_type) {}
   void accept(ASTVisitor &visitor) override;
+
+  const std::string_view get_return_type() const { return ret_type; }
 };
 
 class TranslationUnit : public ASTNode {
@@ -81,6 +86,34 @@ public:
   virtual void visit(Declaration &decl) {}
   virtual void visit(FunctionDeclaration &decl) {}
   virtual void visit(TranslationUnit &unit) {}
+};
+
+class PrintVisitor : public ASTVisitor {
+private:
+  std::string content;
+
+public:
+  PrintVisitor() : content("") {}
+
+  const std::string_view get_content() const { return content; }
+
+  void visit(FunctionDeclaration &decl) {
+    content += std::format("─FunctionDeclaration {:#12x} File: {} Name: {} "
+                           "Return type: {} Loc: {}:{}\n",
+                           reinterpret_cast<std::size_t>(std::addressof(decl)),
+                           decl.getLocation().file_name, decl.get_name(),
+                           decl.get_return_type(), decl.getLocation().line,
+                           decl.getLocation().column);
+  }
+  void visit(TranslationUnit &unit) {
+    content += std::format("┌TranslationUnit {:#12x} File: {}\n",
+                           reinterpret_cast<std::size_t>(std::addressof(unit)),
+                           unit.getLocation().file_name);
+    for (const auto &decl : unit.getDeclarations()) {
+      content += "├";
+      decl->accept(*this);
+    }
+  }
 };
 
 #endif // !DEFS_AST_H

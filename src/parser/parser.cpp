@@ -7,8 +7,10 @@ FunctionDeclaration *Parser::parse_function_declaration() {
   expect(token::TokenKind::LParen);
   expect(token::TokenKind::RParen);
   expect(token::TokenKind::Semi);
-  const auto declaration =
-      arena.create<FunctionDeclaration>(ident->text, ret_type->text);
+  const auto declaration = arena.create<FunctionDeclaration>(
+      ident->text, ret_type->text,
+      SourceLocation{lexer.get_file_name(), std::get<0>(ident->span.start),
+                     std::get<1>(ident->span.start)});
   return declaration;
 }
 
