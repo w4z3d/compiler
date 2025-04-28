@@ -64,9 +64,10 @@ private:
       next_token();
       return token;
     }
-    throw ParseError{std::format("Unexpected token \'{}\' expected {}",
-                                 token.text,
-                                 token::token_kind_to_string(expected))};
+    throw ParseError{std::format(
+        "Unexpected token on line {}:{} \'{}\' expected {}",
+        std::get<0>(token.span.start), std::get<1>(token.span.start),
+        token.text, token::token_kind_to_string(expected))};
     return std::nullopt;
   }
 
