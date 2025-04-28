@@ -1,16 +1,11 @@
 #ifndef ALLOC_ARENA_H
 #define ALLOC_ARENA_H
 
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <new>
-#include <ranges>
-#include <type_traits>
 #include <vector>
 
 namespace arena {
@@ -70,7 +65,8 @@ public:
     return new_block.data.get();
   }
 
-  template <typename T, typename... Args> T *create(Args &&...args) {
+  template <typename T, typename... Args>
+  [[nodiscard]] T *create(Args &&...args) {
     void *mem = allocate(sizeof(T));
     if (!mem)
       return nullptr;
@@ -94,7 +90,7 @@ public:
     blocks_.emplace_back(block_size_);
   }
 
-  std::size_t size() const noexcept {
+  [[nodiscard]] std::size_t size() const noexcept {
     std::size_t total = 0;
     for (const auto &block : blocks_) {
       total += block.size;
@@ -102,7 +98,7 @@ public:
     return total;
   }
 
-  std::size_t used() const {
+  [[nodiscard]] std::size_t used() const {
     std::size_t total = 0;
     for (const auto &block : blocks_) {
       total += block.used;

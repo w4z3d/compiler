@@ -10,7 +10,7 @@ struct Test {
 
 int main(int argc, char *argv[]) {
 
-  arena::Arena arena{};
+  arena::Arena arena{16};
 
   const auto test = arena.create<Test>(10, 200);
   const auto test2 = arena.create<Test>(20, 300);
