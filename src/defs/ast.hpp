@@ -111,12 +111,12 @@ public:
   const std::string_view get_content() const { return content; }
 
   void visit(FunctionDeclaration &decl) {
-    content += std::format(
-        "─FunctionDeclaration {:#12x} File: {} Name: {} "
-        "Return type: {} Loc: {}:{}\n" reinterpret_cast<std::size_t>(
-            std::addressof(decl)),
-        decl.getLocation().file_name, decl.get_name(), decl.get_return_type(),
-        decl.getLocation().line, decl.getLocation().column);
+    content += std::format("─FunctionDeclaration {:#12x} File: {} Name: {} "
+                           "Return type: {} Loc: {}:{}\n",
+                           reinterpret_cast<std::size_t>(std::addressof(decl)),
+                           decl.getLocation().file_name, decl.get_name(),
+                           decl.get_return_type(), decl.getLocation().line,
+                           decl.getLocation().column);
   }
   void visit(TranslationUnit &unit) {
     content += std::format("┌TranslationUnit {:#12x} File: {}\n",
