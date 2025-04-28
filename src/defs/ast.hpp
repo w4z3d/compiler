@@ -33,7 +33,7 @@ public:
 
 class Declaration : public ASTNode {
 public:
-  enum class Kind { Function, Class, Struct, Const };
+  enum class Kind { Function, Parameter, Class, Struct, Const };
 
 private:
   Kind kind;
@@ -46,6 +46,19 @@ public:
   Kind get_kindd() const { return kind; }
   const std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
+};
+
+class ParameterDeclaration : public Declaration {
+private:
+  std::string_view name;
+  std::string_view type;
+
+public:
+  ParameterDeclaration(std::string_view name, std::string_view type,
+                       SourceLocation loc = {})
+      : Declaration(Kind::Parameter, std::move(name), std::move(loc)),
+        name(name), type(type) {}
+  void accept(ASTVisitor &visitor) override;
 };
 
 class FunctionDeclaration : public Declaration {
@@ -98,12 +111,12 @@ public:
   const std::string_view get_content() const { return content; }
 
   void visit(FunctionDeclaration &decl) {
-    content += std::format("─FunctionDeclaration {:#12x} File: {} Name: {} "
-                           "Return type: {} Loc: {}:{}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(decl)),
-                           decl.getLocation().file_name, decl.get_name(),
-                           decl.get_return_type(), decl.getLocation().line,
-                           decl.getLocation().column);
+    content += std::format(
+        "─FunctionDeclaration {:#12x} File: {} Name: {} "
+        "Return type: {} Loc: {}:{}\n" reinterpret_cast<std::size_t>(
+            std::addressof(decl)),
+        decl.getLocation().file_name, decl.get_name(), decl.get_return_type(),
+        decl.getLocation().line, decl.getLocation().column);
   }
   void visit(TranslationUnit &unit) {
     content += std::format("┌TranslationUnit {:#12x} File: {}\n",
