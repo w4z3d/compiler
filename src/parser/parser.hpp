@@ -65,7 +65,8 @@ private:
       return token;
     }
     throw ParseError{std::format(
-        "Unexpected token on line {}:{} \'{}\' expected {}",
+        "Unexpected {} token on line {}:{} \'{}\' expected {}",
+        token_kind_to_string(token.kind),
         std::get<0>(token.span.start), std::get<1>(token.span.start),
         token.text, token::token_kind_to_string(expected))};
     return std::nullopt;
@@ -93,6 +94,14 @@ private:
   }
 
   FunctionDeclaration *parse_function_declaration();
+  ParameterDeclaration *parse_parameter_declaration();
+
+  CompoundStmt *parse_compound_statement();
+  ReturnStmt *parse_return_statement();
+  Statement *parse_statement();
+
+  Expression *parse_expression();
+  NumericExpression *parse_numeric_expression();
 
 public:
   TranslationUnit *parse_translation_unit();

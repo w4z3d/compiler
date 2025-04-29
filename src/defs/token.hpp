@@ -6,6 +6,8 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <unordered_map>
+
 namespace token {
 
 enum class TokenKind {
@@ -39,7 +41,34 @@ enum class TokenKind {
   And,
   Question,
 
+  Return,
+  If,
+  Else,
+  While,
+  For,
+  Assert,
+  Error,
+  Struct,
+  Typedef,
+  Alloc,
+  Alloc_array, // TODO: what about: true, false, NULL
+
+
   Unsupported = -1
+};
+
+const std::unordered_map<std::string_view, TokenKind> keywordTable = {
+    {"return", TokenKind::Return},
+    {"if",     TokenKind::If},
+    {"else",    TokenKind::Else},
+    {"while",  TokenKind::While},
+    {"for",    TokenKind::For},
+    {"assert",    TokenKind::Assert},
+    {"error",    TokenKind::Error},
+    {"struct",    TokenKind::Struct},
+    {"typedef",    TokenKind::Typedef},
+    {"alloc",    TokenKind::Alloc},
+    {"alloc_array",    TokenKind::Alloc_array}
 };
 
 struct Span {
@@ -137,6 +166,30 @@ inline std::string token_kind_to_string(TokenKind kind) {
   case TokenKind::Question:
     return "Question";
     break;
+
+  case TokenKind::Return:
+    return "Return";
+  case TokenKind::If:
+    return "If";
+  case TokenKind::Else:
+    return "Else";
+  case TokenKind::While:
+    return "While";
+  case TokenKind::For:
+    return "For";
+  case TokenKind::Assert:
+    return "Assert";
+  case TokenKind::Error:
+    return "Error";
+  case TokenKind::Struct:
+    return "Struct";
+  case TokenKind::Typedef:
+    return "Typedef";
+  case TokenKind::Alloc:
+    return "Alloc";
+  case TokenKind::Alloc_array:
+    return "Alloc_array";
+
   case TokenKind::Unsupported:
     return "Unsupported";
     break;

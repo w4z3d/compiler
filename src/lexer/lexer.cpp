@@ -71,6 +71,11 @@ token::Token Lexer::lex_identifier_or_keyword() {
 
   const auto end{std::make_tuple(line, column)};
   token::Span span{file_name, start, end};
+
+  // check if identifier is keyword
+  if (token::keywordTable.contains(ident)) {
+    return token::Token{token::keywordTable.at(ident), ident, span};
+  }
   return token::Token{token::TokenKind::Identifier, ident, span};
 }
 
