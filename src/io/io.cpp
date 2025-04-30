@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <fstream>
 
-const io::SourceFile io::read_file(std::string path) {
+io::SourceFile io::read_file(const std::string &path) {
   std::ifstream file(path);
   if (!file.is_open()) {
     throw std::runtime_error("Failed to open file: " + path);

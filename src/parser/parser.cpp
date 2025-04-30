@@ -21,6 +21,7 @@ NumericExpression *Parser::parse_integer_literal() {
 }
 
 Statement *Parser::parse_statement() {
+
   if (check_sequence({token::TokenKind::Return})) {
     return parse_return_statement();
   } else {
@@ -48,7 +49,7 @@ ReturnStmt *Parser::parse_return_statement() {
   const auto retStmt = arena.create<ReturnStmt>(
       SourceLocation{lexer.get_file_name(), std::get<0>(ret->span.start),
                      std::get<1>(ret->span.start)});
-  if (!check_sequence({token::TokenKind::Semi})) {
+  if (!is_next(token::TokenKind::Semi)) {
     // parse expression
     retStmt->setExpression(parse_integer_literal());
   }
@@ -93,7 +94,7 @@ FunctionDeclaration *Parser::parse_function_declaration() {
 }
 
 TranslationUnit *Parser::parse_translation_unit() {
-  TranslationUnit *unit = arena.create<TranslationUnit>(
+  auto *unit = arena.create<TranslationUnit>(
       SourceLocation{lexer.get_file_name(), 0, 0});
   while (!is_eof()) {
     try {

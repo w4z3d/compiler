@@ -7,27 +7,28 @@
 #include "spdlog/spdlog.h"
 #include <cstddef>
 #include <exception>
-#include <iostream>
 #include <optional>
+#include <utility>
 #include <vector>
 
 class ParseError : public std::exception {
   std::string message;
 
 public:
-  ParseError(std::string message) : message(message) {}
-  const char *what() const noexcept override { return message.c_str(); }
+  explicit ParseError(std::string message) : message(std::move(message)) {}
+  [[nodiscard]] const char *what() const noexcept override {
+    return message.c_str();
+  }
 };
 
 class Parser {
 private:
   Lexer lexer;
   arena::Arena arena;
-  TranslationUnit *unit;
 
   std::vector<token::Token> token_buffer;
 
-  const token::Token peek(std::size_t n = 0) {
+  token::Token peek(std::size_t n = 0) {
     while (token_buffer.size() <= n) {
       const auto next_token{lexer.next_token()};
       spdlog::log(spdlog::level::debug, "Peeking {}", std::string{next_token});
@@ -48,7 +49,7 @@ private:
 
   bool is_next(const token::TokenKind token) { return peek().kind == token; }
 
-  const token::Token next_token() {
+  token::Token next_token() {
     if (token_buffer.empty()) {
       const auto token{lexer.next_token()};
       return token;
@@ -60,7 +61,7 @@ private:
     }
   }
 
-  const std::optional<token::Token> expect(token::TokenKind expected) {
+  std::optional<token::Token> expect(token::TokenKind expected) {
     const auto token{peek()};
     if (token.kind == expected) {
       next_token();
@@ -74,7 +75,7 @@ private:
     return std::nullopt;
   }
 
-  const bool match(token::TokenKind expected) noexcept {
+  bool match(token::TokenKind expected) noexcept {
     const auto token{peek()};
     if (token.kind == expected) {
       next_token();
@@ -108,8 +109,8 @@ private:
 public:
   TranslationUnit *parse_translation_unit();
 
-  const bool is_eof() { return peek().kind == token::TokenKind::Eof; }
-  Parser(Lexer lexer) : lexer(lexer), arena(arena::Arena{}) {}
+  bool is_eof() { return peek().kind == token::TokenKind::Eof; }
+  explicit Parser(Lexer lexer) : lexer(lexer), arena(arena::Arena{}) {}
 };
 
 #endif

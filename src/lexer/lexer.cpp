@@ -5,8 +5,8 @@
 #include <string_view>
 #include <tuple>
 
-Lexer::Lexer(std::string_view file_name, std::string_view src)
-    : file_name(file_name), source(src) {}
+Lexer::Lexer(std::string_view file_name, std::string_view source)
+    : file_name(file_name), source(source) {}
 
 char Lexer::peek() const {
   return index < source.size() ? source[index] : '\0';
@@ -73,8 +73,8 @@ token::Token Lexer::lex_identifier_or_keyword() {
   token::Span span{file_name, start, end};
 
   // check if identifier is keyword
-  if (token::keywordTable.contains(ident)) {
-    return token::Token{token::keywordTable.at(ident), ident, span};
+  if (token::keyword_table.contains(ident)) {
+    return token::Token{token::keyword_table.at(ident), ident, span};
   }
   return token::Token{token::TokenKind::Identifier, ident, span};
 }
