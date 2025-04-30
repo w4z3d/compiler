@@ -1,29 +1,67 @@
 #include "parser.hpp"
 #include "spdlog/common.h"
 
+// Grammar reference:
+// https://c0.cs.cmu.edu/docs/c0-reference.pdf#subsection.14.2
+
 Expression *Parser::parse_expression() {
   const auto next_token = peek();
 
+  if (check_sequence(
+          {token::TokenKind::Identifier, token::TokenKind::LParen})) {
+    return parse_call_expression();
+  }
+
+  // Single token
   switch (next_token.kind) {
   case token::TokenKind::Number:
     return parse_integer_literal();
+  case token::TokenKind::String:
+    return parse_string_literal();
   default:
     throw ParseError(std::format("Unexpected Token {}", next_token.text));
   }
 }
-NumericExpression *Parser::parse_integer_literal() {
+
+CallExpr *Parser::parse_call_expression() {
+  const auto fn_name = expect(token::TokenKind::Identifier);
+  const auto call_expr = arena.create<CallExpr>(fn_name->text);
+  expect(token::TokenKind::LParen);
+  if (!is_next(token::TokenKind::RParen)) {
+    do {
+      const auto param = parse_expression();
+      call_expr->add_param(param);
+    } while (match(token::TokenKind::Comma));
+  }
+  expect(token::TokenKind::RParen);
+  return call_expr;
+}
+
+NumericExpr *Parser::parse_integer_literal() {
   const auto num = expect(token::TokenKind::Number);
-  const auto numExpr = arena.create<NumericExpression>(
+  const auto numExpr = arena.create<NumericExpr>(
       num->text,
       SourceLocation{lexer.get_file_name(), std::get<0>(num->span.start),
                      std::get<1>(num->span.start)});
   return numExpr;
 }
 
+StringLiteralExpr *Parser::parse_string_literal() {
+  const auto string = expect(token::TokenKind::String);
+  const auto expr = arena.create<StringLiteralExpr>(
+      string->text,
+      SourceLocation{lexer.get_file_name(), std::get<0>(string->span.start),
+                     std::get<1>(string->span.start)});
+
+  return expr;
+}
+
 Statement *Parser::parse_statement() {
 
-  if (check_sequence({token::TokenKind::Return})) {
+  if (is_next(token::TokenKind::Return)) {
     return parse_return_statement();
+  } else if (is_next(token::TokenKind::Assert)) {
+    return parse_assert_statement();
   } else {
     // GRRRR
     expect(token::TokenKind::Return);
@@ -51,10 +89,22 @@ ReturnStmt *Parser::parse_return_statement() {
                      std::get<1>(ret->span.start)});
   if (!is_next(token::TokenKind::Semi)) {
     // parse expression
-    retStmt->setExpression(parse_integer_literal());
+    retStmt->set_expression(parse_integer_literal());
   }
   expect(token::TokenKind::Semi);
   return retStmt;
+}
+
+AssertStmt *Parser::parse_assert_statement() {
+  expect(token::TokenKind::Assert);
+  expect(token::TokenKind::LParen);
+  const auto expression = parse_expression();
+  expect(token::TokenKind::RParen);
+
+  auto assert_stmt = arena.create<AssertStmt>();
+  assert_stmt->set_expression(expression);
+  expect(token::TokenKind::Semi);
+  return assert_stmt;
 }
 
 ParameterDeclaration *Parser::parse_parameter_declaration() {
@@ -77,15 +127,15 @@ FunctionDeclaration *Parser::parse_function_declaration() {
                      std::get<1>(ident->span.start)});
 
   if (check_sequence({token::TokenKind::Identifier})) {
-    declaration->addParameterDeclaration(parse_parameter_declaration());
+    declaration->add_parameter_declaration(parse_parameter_declaration());
     while (check_sequence({token::TokenKind::Comma})) {
       expect(token::TokenKind::Comma);
-      declaration->addParameterDeclaration(parse_parameter_declaration());
+      declaration->add_parameter_declaration(parse_parameter_declaration());
     }
   }
   expect(token::TokenKind::RParen);
   if (check_sequence({token::TokenKind::LBrace})) {
-    declaration->setBody(parse_compound_statement());
+    declaration->set_body(parse_compound_statement());
   } else {
     expect(token::TokenKind::Semi);
   }
@@ -102,7 +152,7 @@ TranslationUnit *Parser::parse_translation_unit() {
                           token::TokenKind::Identifier,
                           token::TokenKind::LParen})) {
 
-        unit->addDeclaration(parse_function_declaration());
+        unit->add_declaration(parse_function_declaration());
       } else {
         throw ParseError("Lmao wie dumm");
       }

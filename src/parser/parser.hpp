@@ -101,10 +101,13 @@ private:
 
   CompoundStmt *parse_compound_statement();
   ReturnStmt *parse_return_statement();
+  AssertStmt *parse_assert_statement();
   Statement *parse_statement();
 
   Expression *parse_expression();
-  NumericExpression *parse_integer_literal();
+  CallExpr *parse_call_expression();
+  NumericExpr *parse_integer_literal();
+  StringLiteralExpr *parse_string_literal();
 
 public:
   TranslationUnit *parse_translation_unit();

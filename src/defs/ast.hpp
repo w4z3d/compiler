@@ -23,7 +23,7 @@ public:
   explicit ASTNode(SourceLocation loc = {}) : location(loc) {}
   virtual ~ASTNode() = default;
 
-  [[nodiscard]] const SourceLocation &getLocation() const { return location; }
+  [[nodiscard]] const SourceLocation &get_location() const { return location; }
 
   virtual void accept(class ASTVisitor &visitor) = 0;
 };
@@ -32,7 +32,7 @@ public:
 // TODO: there are still a lot more expressions
 class Expression : public ASTNode {
 public:
-  enum class Kind { Numeric };
+  enum class Kind { Numeric, String, Call };
 
 private:
   Kind kind;
@@ -46,14 +46,46 @@ public:
   void accept(class ASTVisitor &visitor) override;
 };
 
-class NumericExpression : public Expression {
+class NumericExpr : public Expression {
 private:
   std::string_view value;
 
 public:
-  explicit NumericExpression(std::string_view value, SourceLocation loc = {})
+  explicit NumericExpr(std::string_view value, SourceLocation loc = {})
       : Expression(Expression::Kind::Numeric, "Numeric", loc), value(value) {}
   [[nodiscard]] std::string_view get_value() const { return value; }
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class StringLiteralExpr : public Expression {
+private:
+  std::string_view value;
+
+public:
+  explicit StringLiteralExpr(std::string_view value, SourceLocation loc = {})
+      : Expression(Expression::Kind::String, "StringLiteral", loc),
+        value(value) {}
+  [[nodiscard]] std::string_view get_value() const { return value; }
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class CallExpr : public Expression {
+private:
+  std::string_view function_name;
+  std::vector<Expression *> params{};
+
+public:
+  explicit CallExpr(std::string_view name, SourceLocation loc = {})
+      : Expression(Kind::Call, "Call", loc), function_name(name) {}
+
+  [[nodiscard]] const std::vector<Expression *> &get_params() const {
+    return params;
+  }
+
+  [[nodiscard]] std::string_view get_function_name() const {
+    return function_name;
+  }
+  void add_param(Expression *param) { params.push_back(param); }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -61,7 +93,11 @@ public:
 // TODO: add all possible statements
 class Statement : public ASTNode {
 public:
-  enum class Kind { Compound, Return, /*If, While, Expression, Declaration*/ };
+  enum class Kind {
+    Compound,
+    Return,
+    Assert /*If, While, Expression, Declaration*/
+  };
 
 private:
   Kind kind;
@@ -70,8 +106,21 @@ private:
 public:
   Statement(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(loc), kind(k), name(n) {}
-  Kind get_kind() const { return kind; }
+  [[nodiscard]] Kind get_kind() const { return kind; }
   [[nodiscard]] std::string_view get_name() const { return name; }
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class AssertStmt : public Statement {
+private:
+  Expression *expression{};
+
+public:
+  explicit AssertStmt(SourceLocation loc = {})
+      : Statement(Kind::Assert, "Assert", loc) {}
+
+  void set_expression(Expression *expression) { this->expression = expression; }
+  [[nodiscard]] Expression *get_expression() const { return this->expression; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -86,6 +135,11 @@ public:
   [[nodiscard]] const std::vector<Statement *> &getStatements() const {
     return statements;
   }
+
+  void add_statement(Statement *statement) {
+    this->statements.push_back(statement);
+  }
+
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -96,8 +150,8 @@ private:
 public:
   explicit ReturnStmt(SourceLocation loc = {})
       : Statement(Statement::Kind::Return, "Return", loc) {}
-  inline void setExpression(Expression *expression) { this->expr = expression; }
-  inline Expression *getExpression() { return expr; }
+  void set_expression(Expression *expression) { this->expr = expression; }
+  [[nodiscard]] Expression *get_expression() const { return expr; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -115,7 +169,7 @@ public:
   Declaration(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(loc), kind(k), name(n) {}
 
-  Kind get_kind() const { return kind; }
+  [[nodiscard]] Kind get_kind() const { return kind; }
   [[nodiscard]] std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -138,7 +192,7 @@ private:
   std::string_view name;
   std::string_view ret_type;
   std::vector<ParameterDeclaration *> parameters;
-  CompoundStmt *body = nullptr;
+  CompoundStmt *body{};
 
 public:
   FunctionDeclaration(std::string_view name, std::string_view ret_type,
@@ -147,15 +201,16 @@ public:
   }
   void accept(ASTVisitor &visitor) override;
 
-  inline void addParameterDeclaration(ParameterDeclaration *paramDecl) {
+  void add_parameter_declaration(ParameterDeclaration *paramDecl) {
     parameters.push_back(paramDecl);
   }
-  inline void setBody(CompoundStmt *stmt) { body = stmt; }
+  void set_body(CompoundStmt *stmt) { body = stmt; }
+
   [[nodiscard]] const std::vector<ParameterDeclaration *> &
   getParamDecls() const {
     return parameters;
   }
-  [[nodiscard]] CompoundStmt *getBody() const { return body; };
+  [[nodiscard]] CompoundStmt *get_body() const { return body; };
   [[nodiscard]] std::string_view get_return_type() const { return ret_type; }
 };
 
@@ -166,11 +221,11 @@ private:
 public:
   explicit TranslationUnit(SourceLocation loc = {}) : ASTNode(loc) {}
 
-  inline void addDeclaration(Declaration *declaration) {
+  inline void add_declaration(Declaration *declaration) {
     declarations.push_back(declaration);
   }
 
-  [[nodiscard]] const std::vector<Declaration *> &getDeclarations() const {
+  [[nodiscard]] const std::vector<Declaration *> &get_declarations() const {
     return declarations;
   }
 
@@ -186,9 +241,12 @@ public:
   virtual void visit(Statement &stmt) {}
   virtual void visit(CompoundStmt &stmt) {}
   virtual void visit(ReturnStmt &stmt) {}
+  virtual void visit(AssertStmt &stmt) {}
 
   virtual void visit(Expression &expr) {}
-  virtual void visit(NumericExpression &expr) {}
+  virtual void visit(NumericExpr &expr) {}
+  virtual void visit(CallExpr &expr) {}
+  virtual void visit(StringLiteralExpr &epxr) {}
 
   virtual void visit(TranslationUnit &unit) {}
 };
@@ -251,10 +309,10 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(unit))),
               YELLOW) +
-        " " + formatLocation(unit.getLocation()) + "\n";
+        " " + formatLocation(unit.get_location()) + "\n";
 
     depth++;
-    for (const auto &decl : unit.getDeclarations()) {
+    for (const auto &decl : unit.get_declarations()) {
       content += indent();
       decl->accept(*this);
     }
@@ -267,8 +325,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(decl))),
               YELLOW) +
-        " " + formatRange(decl.getLocation()) + " " +
-        color(std::format("line:{}", decl.getLocation().line), CYAN) + " " +
+        " " + formatRange(decl.get_location()) + " " +
+        color(std::format("line:{}", decl.get_location().line), CYAN) + " " +
         color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
         std::string(decl.get_return_type()) + " (";
 
@@ -290,9 +348,9 @@ public:
     }
 
     // Function body
-    if (decl.getBody() != nullptr) {
+    if (decl.get_body() != nullptr) {
       content += indent();
-      decl.getBody()->accept(*this);
+      decl.get_body()->accept(*this);
     }
     depth--;
   }
@@ -303,8 +361,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(decl))),
               YELLOW) +
-        " " + formatRange(decl.getLocation()) + " " +
-        color(std::format("col:{}", decl.getLocation().column), CYAN) + " " +
+        " " + formatRange(decl.get_location()) + " " +
+        color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
         color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
         std::string(decl.get_type()) + "'\n";
   }
@@ -315,7 +373,7 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(stmt))),
               YELLOW) +
-        " " + formatRange(stmt.getLocation()) + "\n";
+        " " + formatRange(stmt.get_location()) + "\n";
 
     depth++;
     for (const auto &statement : stmt.getStatements()) {
@@ -331,23 +389,67 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(stmt))),
               YELLOW) +
-        " " + formatRange(stmt.getLocation()) + "\n";
+        " " + formatRange(stmt.get_location()) + "\n";
 
-    if (stmt.getExpression() != nullptr) {
+    if (stmt.get_expression() != nullptr) {
       depth++;
       content += indent();
-      stmt.getExpression()->accept(*this);
+      stmt.get_expression()->accept(*this);
       depth--;
     }
   }
 
-  void visit(NumericExpression &expr) override {
+  void visit(AssertStmt &stmt) override {
     content +=
-        color("IntegerLiteral", GREEN) + " " +
+        color("AssertStmt", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
+              YELLOW) +
+        " " + formatRange(stmt.get_location()) + "\n";
+
+    if (stmt.get_expression() != nullptr) {
+      depth++;
+      content += indent();
+      stmt.get_expression()->accept(*this);
+      depth--;
+    }
+  }
+
+  void visit(CallExpr &expr) override {
+    content +=
+        color("CallExpr", GREEN) + " " +
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(expr))),
               YELLOW) +
-        " " + formatRange(expr.getLocation()) + " " + "'int' " +
+        " " + formatRange(expr.get_location()) + " " + "'int' " +
+        std::string(expr.get_function_name()) + "\n";
+
+    // Visit param expressions
+    depth++;
+    for (const auto &param : expr.get_params()) {
+      content += indent();
+      param->accept(*this);
+    }
+    depth--;
+  }
+
+  void visit(NumericExpr &expr) override {
+    content +=
+        color("IntegerLiteralExpr", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + " " + "'int' " +
+        std::string(expr.get_value()) + "\n";
+  }
+
+  void visit(StringLiteralExpr &expr) override {
+    content +=
+        color("StringLiteralExpr", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + " " + "'string' " +
         std::string(expr.get_value()) + "\n";
   }
 };

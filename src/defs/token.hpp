@@ -51,7 +51,10 @@ enum class TokenKind {
   Struct,
   Typedef,
   Alloc,
-  Alloc_array, // TODO: what about: true, false, NULL
+  AllocArray, // TODO: what about: true, false, NULL
+  True,
+  False,
+  Null,
 
   Unsupported = -1
 };
@@ -67,7 +70,7 @@ const std::unordered_map<std::string_view, TokenKind> keyword_table = {
     {"struct", TokenKind::Struct},
     {"typedef", TokenKind::Typedef},
     {"alloc", TokenKind::Alloc},
-    {"alloc_array", TokenKind::Alloc_array}};
+    {"alloc_array", TokenKind::AllocArray}};
 
 struct Span {
   std::string_view source_file;
@@ -185,8 +188,14 @@ inline std::string token_kind_to_string(TokenKind kind) {
     return "Typedef";
   case TokenKind::Alloc:
     return "Alloc";
-  case TokenKind::Alloc_array:
-    return "Alloc_array";
+  case TokenKind::AllocArray:
+    return "AllocArray";
+  case TokenKind::True:
+    return "True";
+  case TokenKind::False:
+    return "False";
+  case TokenKind::Null:
+    return "Null";
 
   case TokenKind::Unsupported:
     return "Unsupported";
