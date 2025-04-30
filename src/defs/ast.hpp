@@ -29,7 +29,6 @@ public:
   virtual void accept(class ASTVisitor &visitor) = 0;
 };
 
-
 // ==== Expressions ====
 // TODO: there are still a lot more expressions
 class Expression : public ASTNode {
@@ -51,13 +50,13 @@ public:
 class NumericExpression : public Expression {
 private:
   std::string_view value;
+
 public:
   NumericExpression(std::string_view value, SourceLocation loc = {})
       : Expression(Expression::Kind::Numeric, "Numeric", loc), value(value) {}
   const std::string_view get_value() const { return value; }
   void accept(class ASTVisitor &visitor) override;
 };
-
 
 // ==== Statements ====
 // TODO: add all possible statements
@@ -79,23 +78,24 @@ public:
 
 class CompoundStmt : public Statement {
 private:
-  std::vector<Statement*> statements;
+  std::vector<Statement *> statements;
+
 public:
-  CompoundStmt(std::vector<Statement*> stmts, SourceLocation loc = {})
-      : Statement(Statement::Kind::Compound, "Compound", loc), statements(std::move(stmts)) {}
-  const std::vector<Statement*> &getStatements() const { return statements; }
+  CompoundStmt(std::vector<Statement *> stmts, SourceLocation loc = {})
+      : Statement(Statement::Kind::Compound, "Compound", loc),
+        statements(std::move(stmts)) {}
+  const std::vector<Statement *> &getStatements() const { return statements; }
   void accept(class ASTVisitor &visitor) override;
 };
 
 class ReturnStmt : public Statement {
 private:
-  Expression* expr;
+  Expression *expr;
+
 public:
   ReturnStmt(SourceLocation loc = {})
       : Statement(Statement::Kind::Return, "Return", loc) {}
-  inline void setExpression(Expression *expression) {
-    this->expr = expression;
-  }
+  inline void setExpression(Expression *expression) { this->expr = expression; }
   inline Expression *getExpression() { return expr; }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -137,8 +137,8 @@ class FunctionDeclaration : public Declaration {
 private:
   std::string_view name;
   std::string_view ret_type;
-  std::vector<ParameterDeclaration*> parameters;
-  CompoundStmt* body = nullptr;
+  std::vector<ParameterDeclaration *> parameters;
+  CompoundStmt *body = nullptr;
 
 public:
   FunctionDeclaration(std::string_view name, std::string_view ret_type,
@@ -148,13 +148,13 @@ public:
   void accept(ASTVisitor &visitor) override;
 
   inline void addParameterDeclaration(ParameterDeclaration *paramDecl) {
-      parameters.push_back(paramDecl);
+    parameters.push_back(paramDecl);
   }
-  inline void setBody(CompoundStmt *stmt) {
-    body = stmt;
+  inline void setBody(CompoundStmt *stmt) { body = stmt; }
+  const std::vector<ParameterDeclaration *> &getParamDecls() const {
+    return parameters;
   }
-  const std::vector<ParameterDeclaration*> &getParamDecls() const { return parameters; }
-  CompoundStmt* getBody() const {return body;};
+  CompoundStmt *getBody() const { return body; };
   const std::string_view get_return_type() const { return ret_type; }
 };
 
@@ -190,100 +190,165 @@ public:
   virtual void visit(NumericExpression &expr) {}
 
   virtual void visit(TranslationUnit &unit) {}
-
 };
 
-class PrintVisitor : public ASTVisitor {
+class ClangStylePrintVisitor : public ASTVisitor {
 private:
   std::string content;
-  int offset = 0;
+  int depth = 0;
+  bool use_colors = true;
+
+  // ANSI color codes for terminal output
+  const std::string RESET = "\033[0m";
+  const std::string GREEN = "\033[32m";
+  const std::string YELLOW = "\033[33m";
+  const std::string BLUE = "\033[34m";
+  const std::string MAGENTA = "\033[35m";
+  const std::string CYAN = "\033[36m";
+
+  std::string color(const std::string &text, const std::string &color_code) {
+    if (use_colors) {
+      return color_code + text + RESET;
+    }
+    return text;
+  }
+
+  std::string indent() {
+    if (depth == 0) {
+      return "";
+    }
+    std::string result = "";
+    for (int i = 0; i < depth - 1; i++) {
+      result += "| ";
+    }
+    result += "|-";
+    return result;
+  }
+
+  std::string formatLocation(const SourceLocation &loc) {
+    if (loc.file_name.empty()) {
+      return "<invalid sloc>";
+    }
+    return std::format("<{}>", loc.file_name);
+  }
+
+  std::string formatRange(const SourceLocation &loc) {
+    if (loc.file_name.empty()) {
+      return "<invalid sloc>";
+    }
+    return std::format("<line:{}, col:{}>", loc.line, loc.column);
+  }
 
 public:
-  PrintVisitor() : content("") {}
+  ClangStylePrintVisitor(bool colored = true)
+      : content(""), use_colors(colored) {}
 
   const std::string_view get_content() const { return content; }
 
-  void addOffset() {
-    for (int i = 0; i < offset; i++) {
-      content += " ";
-    }
-  }
+  void visit(TranslationUnit &unit) override {
+    content +=
+        color("TranslationUnitDecl", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(unit))),
+              YELLOW) +
+        " " + formatLocation(unit.getLocation()) + "\n";
 
-  void visit(NumericExpression &expr) {
-    content += std::format("─NumericExpression {:#12x} File: {} "
-                           "Value: {} Loc: {}:{}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(expr)),
-                           expr.getLocation().file_name, expr.get_value(), expr.getLocation().line,
-                           expr.getLocation().column);
-  }
-
-  void visit(CompoundStmt &stmt) {
-    content += std::format("─CompoundStatement {:#12x} File: {} Name: {} "
-                           "Loc: {}:{}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(stmt)),
-                           stmt.getLocation().file_name, stmt.get_name(),
-                           stmt.getLocation().line, stmt.getLocation().column);
-    offset++;
-    for (const auto &statement : stmt.getStatements()) {
-      addOffset();
-      content += "├";
-      statement->accept(*this);
-    }
-    offset--;
-  }
-  void visit(ReturnStmt &stmt) {
-    content += std::format("┬ReturnStatement {:#12x} File: {} Name: {} "
-                           "Loc: {}:{}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(stmt)),
-                           stmt.getLocation().file_name, stmt.get_name(),
-                           stmt.getLocation().line, stmt.getLocation().column);
-    offset++;
-    addOffset();
-    content += "├";
-    (stmt.getExpression())->accept(*this);
-    offset--;
-  }
-
-  void visit(FunctionDeclaration &decl) {
-    content += std::format("─FunctionDeclaration {:#12x} File: {} Name: {} "
-                           "Return type: {} Loc: {}:{}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(decl)),
-                           decl.getLocation().file_name, decl.get_name(),
-                           decl.get_return_type(), decl.getLocation().line,
-                           decl.getLocation().column);
-    offset++;
-    for (const auto &param : decl.getParamDecls()) {
-      addOffset();
-      content += "├";
-      param->accept(*this);
-    }
-    if (decl.getBody() != nullptr) {
-      offset++;
-      addOffset();
-      content += "├";
-      decl.getBody()->accept(*this);
-      offset--;
-    }
-    offset--;
-  }
-  void visit(ParameterDeclaration &decl) {
-    content += std::format("─ParamDeclaration {:#12x} File: {} Name: {} "
-                           "Type: {} Loc: {}:{}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(decl)),
-                           decl.getLocation().file_name, decl.get_name(),
-                           decl.get_type(), decl.getLocation().line,
-                           decl.getLocation().column);
-  }
-
-  void visit(TranslationUnit &unit) {
-    content += std::format("┌TranslationUnit {:#12x} File: {}\n",
-                           reinterpret_cast<std::size_t>(std::addressof(unit)),
-                           unit.getLocation().file_name);
+    depth++;
     for (const auto &decl : unit.getDeclarations()) {
-      content += "├";
+      content += indent();
       decl->accept(*this);
     }
+    depth--;
+  }
+
+  void visit(FunctionDeclaration &decl) override {
+    content +=
+        color("FunctionDecl", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(decl))),
+              YELLOW) +
+        " " + formatRange(decl.getLocation()) + " " +
+        color(std::format("line:{}", decl.getLocation().line), CYAN) + " " +
+        color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
+        std::string(decl.get_return_type()) + " (";
+
+    // Parameter types list
+    bool first = true;
+    for (const auto &param : decl.getParamDecls()) {
+      if (!first)
+        content += ", ";
+      content += std::string(param->get_type());
+      first = false;
+    }
+    content += ")'\n";
+
+    depth++;
+    // Function parameters
+    for (const auto &param : decl.getParamDecls()) {
+      content += indent();
+      param->accept(*this);
+    }
+
+    // Function body
+    if (decl.getBody() != nullptr) {
+      content += indent();
+      decl.getBody()->accept(*this);
+    }
+    depth--;
+  }
+
+  void visit(ParameterDeclaration &decl) override {
+    content +=
+        color("ParmVarDecl", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(decl))),
+              YELLOW) +
+        " " + formatRange(decl.getLocation()) + " " +
+        color(std::format("col:{}", decl.getLocation().column), CYAN) + " " +
+        color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
+        std::string(decl.get_type()) + "'\n";
+  }
+
+  void visit(CompoundStmt &stmt) override {
+    content +=
+        color("CompoundStmt", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
+              YELLOW) +
+        " " + formatRange(stmt.getLocation()) + "\n";
+
+    depth++;
+    for (const auto &statement : stmt.getStatements()) {
+      content += indent();
+      statement->accept(*this);
+    }
+    depth--;
+  }
+
+  void visit(ReturnStmt &stmt) override {
+    content +=
+        color("ReturnStmt", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
+              YELLOW) +
+        " " + formatRange(stmt.getLocation()) + "\n";
+
+    if (stmt.getExpression() != nullptr) {
+      depth++;
+      content += indent();
+      stmt.getExpression()->accept(*this);
+      depth--;
+    }
+  }
+
+  void visit(NumericExpression &expr) override {
+    content +=
+        color("IntegerLiteral", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.getLocation()) + " " + "'int' " +
+        std::string(expr.get_value()) + "\n";
   }
 };
-
 #endif // !DEFS_AST_H

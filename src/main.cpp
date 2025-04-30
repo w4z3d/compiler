@@ -3,8 +3,6 @@
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
 #include "spdlog/cfg/env.h"
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
 #include <iostream>
 
 int main(int argc, char *argv[]) {
@@ -16,7 +14,7 @@ int main(int argc, char *argv[]) {
   Lexer lexer{file.name, file.content};
   Parser parser{lexer};
 
-  PrintVisitor visitor{};
+  ClangStylePrintVisitor visitor{};
   const auto unit{parser.parse_translation_unit()};
   unit->accept(visitor);
 
