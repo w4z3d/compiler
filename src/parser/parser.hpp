@@ -28,7 +28,7 @@ private:
 
   std::vector<token::Token> token_buffer;
 
-  token::Token peek(std::size_t n = 0) {
+  [[nodiscard]] token::Token peek(std::size_t n = 0) {
     while (token_buffer.size() <= n) {
       const auto next_token{lexer.next_token()};
       spdlog::log(spdlog::level::debug, "Peeking {}", std::string{next_token});

@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
+
 struct SourceLocation {
   std::string_view file_name;
   int line;
@@ -19,10 +20,10 @@ protected:
   SourceLocation location;
 
 public:
-  explicit ASTNode(SourceLocation loc = {}) : location(std::move(loc)) {}
+  explicit ASTNode(SourceLocation loc = {}) : location(loc) {}
   virtual ~ASTNode() = default;
 
-  const SourceLocation &getLocation() const { return location; }
+  [[nodiscard]] const SourceLocation &getLocation() const { return location; }
 
   virtual void accept(class ASTVisitor &visitor) = 0;
 };
@@ -40,8 +41,8 @@ private:
 public:
   Expression(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(loc), kind(k), name(n) {}
-  Kind get_kind() const { return kind; }
-  const std::string_view get_name() const { return name; }
+  [[nodiscard]] Kind get_kind() const { return kind; }
+  [[nodiscard]] std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -50,9 +51,9 @@ private:
   std::string_view value;
 
 public:
-  NumericExpression(std::string_view value, SourceLocation loc = {})
+  explicit NumericExpression(std::string_view value, SourceLocation loc = {})
       : Expression(Expression::Kind::Numeric, "Numeric", loc), value(value) {}
-  const std::string_view get_value() const { return value; }
+  [[nodiscard]] std::string_view get_value() const { return value; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -68,9 +69,9 @@ private:
 
 public:
   Statement(Kind k, std::string_view n, SourceLocation loc = {})
-      : ASTNode(std::move(loc)), kind(k), name(std::move(n)) {}
+      : ASTNode(loc), kind(k), name(n) {}
   Kind get_kind() const { return kind; }
-  const std::string_view get_name() const { return name; }
+  [[nodiscard]] std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -79,19 +80,21 @@ private:
   std::vector<Statement *> statements;
 
 public:
-  CompoundStmt(std::vector<Statement *> stmts, SourceLocation loc = {})
+  explicit CompoundStmt(std::vector<Statement *> stmts, SourceLocation loc = {})
       : Statement(Statement::Kind::Compound, "Compound", loc),
         statements(std::move(stmts)) {}
-  const std::vector<Statement *> &getStatements() const { return statements; }
+  [[nodiscard]] const std::vector<Statement *> &getStatements() const {
+    return statements;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
 class ReturnStmt : public Statement {
 private:
-  Expression *expr;
+  Expression *expr{};
 
 public:
-  ReturnStmt(SourceLocation loc = {})
+  explicit ReturnStmt(SourceLocation loc = {})
       : Statement(Statement::Kind::Return, "Return", loc) {}
   inline void setExpression(Expression *expression) { this->expr = expression; }
   inline Expression *getExpression() { return expr; }
@@ -110,10 +113,10 @@ private:
 
 public:
   Declaration(Kind k, std::string_view n, SourceLocation loc = {})
-      : ASTNode(std::move(loc)), kind(k), name(std::move(n)) {}
+      : ASTNode(loc), kind(k), name(n) {}
 
   Kind get_kind() const { return kind; }
-  const std::string_view get_name() const { return name; }
+  [[nodiscard]] std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -125,9 +128,8 @@ private:
 public:
   ParameterDeclaration(std::string_view name, std::string_view type,
                        SourceLocation loc = {})
-      : Declaration(Kind::Parameter, std::move(name), std::move(loc)),
-        name(name), type(type) {}
-  const std::string_view get_type() const { return type; }
+      : Declaration(Kind::Parameter, name, loc), name(name), type(type) {}
+  [[nodiscard]] std::string_view get_type() const { return type; }
   void accept(ASTVisitor &visitor) override;
 };
 
@@ -141,19 +143,20 @@ private:
 public:
   FunctionDeclaration(std::string_view name, std::string_view ret_type,
                       SourceLocation loc = {})
-      : Declaration(Kind::Function, std::move(name), std::move(loc)),
-        name(name), ret_type(ret_type) {}
+      : Declaration(Kind::Function, name, loc), name(name), ret_type(ret_type) {
+  }
   void accept(ASTVisitor &visitor) override;
 
   inline void addParameterDeclaration(ParameterDeclaration *paramDecl) {
     parameters.push_back(paramDecl);
   }
   inline void setBody(CompoundStmt *stmt) { body = stmt; }
-  const std::vector<ParameterDeclaration *> &getParamDecls() const {
+  [[nodiscard]] const std::vector<ParameterDeclaration *> &
+  getParamDecls() const {
     return parameters;
   }
-  CompoundStmt *getBody() const { return body; };
-  const std::string_view get_return_type() const { return ret_type; }
+  [[nodiscard]] CompoundStmt *getBody() const { return body; };
+  [[nodiscard]] std::string_view get_return_type() const { return ret_type; }
 };
 
 class TranslationUnit : public ASTNode {
@@ -161,13 +164,13 @@ private:
   std::vector<Declaration *> declarations;
 
 public:
-  TranslationUnit(SourceLocation loc = {}) : ASTNode(std::move(loc)) {}
+  explicit TranslationUnit(SourceLocation loc = {}) : ASTNode(loc) {}
 
   inline void addDeclaration(Declaration *declaration) {
     declarations.push_back(declaration);
   }
 
-  const std::vector<Declaration *> &getDeclarations() const {
+  [[nodiscard]] const std::vector<Declaration *> &getDeclarations() const {
     return declarations;
   }
 
@@ -211,11 +214,11 @@ private:
     return text;
   }
 
-  std::string indent() {
+  [[nodiscard]] std::string indent() const {
     if (depth == 0) {
       return "";
     }
-    std::string result = "";
+    std::string result;
     for (int i = 0; i < depth - 1; i++) {
       result += "| ";
     }
@@ -223,14 +226,14 @@ private:
     return result;
   }
 
-  std::string formatLocation(const SourceLocation &loc) {
+  static std::string formatLocation(const SourceLocation &loc) {
     if (loc.file_name.empty()) {
       return "<invalid sloc>";
     }
     return std::format("<{}>", loc.file_name);
   }
 
-  std::string formatRange(const SourceLocation &loc) {
+  static std::string formatRange(const SourceLocation &loc) {
     if (loc.file_name.empty()) {
       return "<invalid sloc>";
     }
@@ -238,10 +241,9 @@ private:
   }
 
 public:
-  ClangStylePrintVisitor(bool colored = true)
-      : content(""), use_colors(colored) {}
+  explicit ClangStylePrintVisitor(bool colored = true) : use_colors(colored) {}
 
-  const std::string_view get_content() const { return content; }
+  [[nodiscard]] std::string_view get_content() const { return content; }
 
   void visit(TranslationUnit &unit) override {
     content +=
