@@ -1,8 +1,6 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
-#include "spdlog/fmt/bundled/base.h"
-#include <algorithm>
 #include <format>
 #include <string>
 #include <string_view>

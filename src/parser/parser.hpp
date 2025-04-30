@@ -46,6 +46,8 @@ private:
     return true;
   }
 
+  bool is_next(const token::TokenKind token) { return peek().kind == token; }
+
   const token::Token next_token() {
     if (token_buffer.empty()) {
       const auto token{lexer.next_token()};
@@ -66,9 +68,9 @@ private:
     }
     throw ParseError{std::format(
         "Unexpected {} token on line {}:{} \'{}\' expected {}",
-        token_kind_to_string(token.kind),
-        std::get<0>(token.span.start), std::get<1>(token.span.start),
-        token.text, token::token_kind_to_string(expected))};
+        token_kind_to_string(token.kind), std::get<0>(token.span.start),
+        std::get<1>(token.span.start), token.text,
+        token::token_kind_to_string(expected))};
     return std::nullopt;
   }
 
@@ -101,7 +103,7 @@ private:
   Statement *parse_statement();
 
   Expression *parse_expression();
-  NumericExpression *parse_numeric_expression();
+  NumericExpression *parse_integer_literal();
 
 public:
   TranslationUnit *parse_translation_unit();

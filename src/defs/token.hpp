@@ -53,23 +53,21 @@ enum class TokenKind {
   Alloc,
   Alloc_array, // TODO: what about: true, false, NULL
 
-
   Unsupported = -1
 };
 
-const std::unordered_map<std::string_view, TokenKind> keywordTable = {
+const std::unordered_map<std::string_view, TokenKind> keyword_table = {
     {"return", TokenKind::Return},
-    {"if",     TokenKind::If},
-    {"else",    TokenKind::Else},
-    {"while",  TokenKind::While},
-    {"for",    TokenKind::For},
-    {"assert",    TokenKind::Assert},
-    {"error",    TokenKind::Error},
-    {"struct",    TokenKind::Struct},
-    {"typedef",    TokenKind::Typedef},
-    {"alloc",    TokenKind::Alloc},
-    {"alloc_array",    TokenKind::Alloc_array}
-};
+    {"if", TokenKind::If},
+    {"else", TokenKind::Else},
+    {"while", TokenKind::While},
+    {"for", TokenKind::For},
+    {"assert", TokenKind::Assert},
+    {"error", TokenKind::Error},
+    {"struct", TokenKind::Struct},
+    {"typedef", TokenKind::Typedef},
+    {"alloc", TokenKind::Alloc},
+    {"alloc_array", TokenKind::Alloc_array}};
 
 struct Span {
   std::string_view source_file;
