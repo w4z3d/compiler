@@ -9,7 +9,7 @@ struct SourceFile {
   std::string content;
 };
 
-SourceFile read_file(std::string &path);
+SourceFile read_file(const std::string &path);
 
 } // namespace io
 
