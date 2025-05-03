@@ -1,7 +1,16 @@
-int main () {
+int main (Test test, Hallo** doppelPanzer) {
   assert(string_equal(int2hex(0), "00000000"));
   assert(string_equal(int2hex(int_min()), "80000000"));
   assert(string_equal(int2hex(int_max()), "7FFFFFFF"));
   assert(string_equal(int2hex("LAMOOADMAWOMDAOWDMAWO"), "0ABCDEF3"));
-  return 0;
+  assert(peter);
+  return 1;
+}
+
+int test();
+
+string kaka(Anadrol abc) {
+    int x = 5;
+    a = (7 + 3) * x;
+    return abc;
 }

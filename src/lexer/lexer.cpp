@@ -90,7 +90,7 @@ token::Token Lexer::lex_number() {
 
   const auto end{std::make_tuple(line, column)};
   token::Span span{file_name, start, end};
-  return token::Token{token::TokenKind::Number, text, span};
+  return token::Token{token::TokenKind::NumberLiteral, text, span};
 }
 
 token::Token Lexer::lex_string_literal() {
@@ -109,7 +109,7 @@ token::Token Lexer::lex_string_literal() {
 
   const auto end{std::make_tuple(line, column)};
   token::Span span{file_name, start, end};
-  return token::Token{token::TokenKind::String, text, span};
+  return token::Token{token::TokenKind::StringLiteral, text, span};
 }
 
 token::Token Lexer::lex_char_literal() {
@@ -136,67 +136,212 @@ token::Token Lexer::lex_char_literal() {
 
   const auto end{std::make_tuple(line, column)};
   token::Span span{file_name, start, end};
-  return token::Token{token::TokenKind::Char, text, span, is_invalid};
+  return token::Token{token::TokenKind::CharLiteral, text, span, is_invalid};
 }
 
-// TODO: Support doubled punctuation (>>, <<, <=, >=, ...)
 token::Token Lexer::lex_operator_or_punctuation() {
-  std::string_view text = source.substr(index, 1);
+  auto i = index;
   const auto start{std::make_tuple(line, column)};
-  const auto end{std::make_tuple(line, column + 1)};
-  const token::Span span{file_name, start, end};
+  token::TokenKind tokenKind;
 
   char c = get();
   switch (c) {
   case '+':
-    return token::Token{token::TokenKind::Plus, text, span};
+    if (peek() == '+') {
+      get();
+      tokenKind = token::TokenKind::PlusPlus;
+    }
+    else if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::PlusEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::Plus;
+    }
+    break;
   case '-':
-    return token::Token{token::TokenKind::Minus, text, span};
+    if (peek() == '-') {
+      get();
+      tokenKind = token::TokenKind::MinusMinus;
+    }
+    else if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::MinusEquals;
+    }
+    else if (peek() == '>') {
+      get();
+      tokenKind = token::TokenKind::Arrow;
+    }
+    else {
+      tokenKind = token::TokenKind::Minus;
+    }
+    break;
+  case '^':
+    if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::CaretEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::Caret;
+    }
+    break;
+  case '~':
+    tokenKind = token::TokenKind::Tilde;
+    break;
+  case '%':
+    if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::PercentEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::Percent;
+    }
+    break;
   case '(':
-    return token::Token{token::TokenKind::LParen, text, span};
+    tokenKind = token::TokenKind::LParen;
+    break;
   case ')':
-    return token::Token{token::TokenKind::RParen, text, span};
+    tokenKind = token::TokenKind::RParen;
+    break;
   case '{':
-    return token::Token{token::TokenKind::LBrace, text, span};
+    tokenKind = token::TokenKind::LBrace;
+    break;
   case '}':
-    return token::Token{token::TokenKind::RBrace, text, span};
+    tokenKind = token::TokenKind::RBrace;
+    break;
   case '[':
-    return token::Token{token::TokenKind::LBracket, text, span};
+    tokenKind = token::TokenKind::LBracket;
+    break;
   case ']':
-    return token::Token{token::TokenKind::RBracket, text, span};
+    tokenKind = token::TokenKind::RBracket;
+    break;
   case '/':
-    return token::Token{token::TokenKind::Slash, text, span};
+    if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::SlashEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::Slash;
+    }
+    break;
   case '*':
-    return token::Token{token::TokenKind::Asterisk, text, span};
-  case '#':
-    return token::Token{token::TokenKind::Hash, text, span};
+    if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::AsteriskEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::Asterisk;
+    }
+    break;
   case '<':
-    return token::Token{token::TokenKind::LAngleBracket, text, span};
+    if (peek() == '<') {
+      get();
+      if (peek() == '=') {
+        get();
+        tokenKind = token::TokenKind::LAngleAngleEquals;
+      }
+      else {
+        tokenKind = token::TokenKind::LAngleAngle;
+      }
+    }
+    else if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::LessEqual;
+    }
+    else {
+      tokenKind = token::TokenKind::LAngleBracket;
+    }
+    break;
   case '>':
-    return token::Token{token::TokenKind::RAngleBracket, text, span};
+    if (peek() == '>') {
+      get();
+      if (peek() == '=') {
+        get();
+        tokenKind = token::TokenKind::RAngleAngleEquals;
+      }
+      else {
+        tokenKind = token::TokenKind::RAngleAngle;
+      }
+    }
+    else if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::GreaterEqual;
+    }
+    else {
+      tokenKind = token::TokenKind::RAngleBracket;
+    }
+    break;
   case ',':
-    return token::Token{token::TokenKind::Comma, text, span};
+    tokenKind = token::TokenKind::Comma;
+    break;
   case ';':
-    return token::Token{token::TokenKind::Semi, text, span};
+    tokenKind = token::TokenKind::Semi;
+    break;
   case '@':
-    return token::Token{token::TokenKind::At, text, span};
+    tokenKind = token::TokenKind::At;
+    break;
   case '\\':
-    return token::Token{token::TokenKind::BackSlash, text, span};
+    tokenKind = token::TokenKind::BackSlash;
+    break;
   case '=':
-    return token::Token{token::TokenKind::Equals, text, span};
+    if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::EqualEqual;
+    }
+    else {
+      tokenKind = token::TokenKind::Equals;
+    }
+    break;
   case '!':
-    return token::Token{token::TokenKind::Exclamation, text, span};
+    if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::BangEqual;
+    }
+    else {
+      tokenKind = token::TokenKind::Bang;
+    }
+    break;
   case ':':
-    return token::Token{token::TokenKind::Colon, text, span};
+    tokenKind = token::TokenKind::Colon;
+    break;
   case '.':
-    return token::Token{token::TokenKind::Dot, text, span};
+    tokenKind = token::TokenKind::Dot;
+    break;
   case '|':
-    return token::Token{token::TokenKind::Pipe, text, span};
+    if (peek() == '|') {
+      get();
+      tokenKind = token::TokenKind::PipePipe;
+    }
+    else if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::PipeEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::Pipe;
+    }
+    break;
   case '&':
-    return token::Token{token::TokenKind::And, text, span};
+    if (peek() == '&') {
+      get();
+      tokenKind = token::TokenKind::AndAnd;
+    }
+    else if (peek() == '=') {
+      get();
+      tokenKind = token::TokenKind::AndEquals;
+    }
+    else {
+      tokenKind = token::TokenKind::And;
+    }
+    break;
   case '?':
-    return token::Token{token::TokenKind::Question, text, span};
+    tokenKind = token::TokenKind::Question;
+    break;
   default:
-    return token::Token{token::TokenKind::Unsupported, text, span};
+    tokenKind = token::TokenKind::Unsupported;
+    break;
   };
+  std::string_view text = source.substr(i, index - i);
+  const auto end{std::make_tuple(line, column + 1)};
+  const token::Span span{file_name, start, end};
+  return token::Token{tokenKind, text, span};
 }

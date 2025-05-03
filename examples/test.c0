@@ -1,6 +1,7 @@
 Test test();
 Test test();
-Test test(Hans Dampf, Petr Maschin);
+Test test(Hans Dampf,,,,, Petr Maschin);
 Test test() { return 10; }
 Test test();
 Test test();
+test();

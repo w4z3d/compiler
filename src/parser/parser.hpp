@@ -103,11 +103,37 @@ private:
   ReturnStmt *parse_return_statement();
   AssertStmt *parse_assert_statement();
   Statement *parse_statement();
+  IfStatement *parse_if_stmt();
+  ForStatement *parse_for_stmt();
+  WhileStatement *parse_while_stmt();
+  ErrorStatement *parse_error_stmt();
+  Statement *parse_simple_stmt();
+  VariableDeclarationStatement *parse_var_decl_stmt();
 
   Expression *parse_expression();
+  Expression *parse_expr_tail(Expression *expr);
   CallExpr *parse_call_expression();
   NumericExpr *parse_integer_literal();
+  CharLiteralExpr *parse_char_literal();
   StringLiteralExpr *parse_string_literal();
+  BoolConstExpr *parse_bool_const();
+  NullExpr *parse_null_expr();
+  ParenthesisExpression *parse_paren_expr();
+  VarExpr *parse_var_expr();
+  UnaryOperatorExpression *parse_unary_op_expr();
+
+  Type *parse_type();
+  Type *parse_type_tail(Type *type);
+  NamedType *parse_named_type();
+  StructType *parse_struct_type();
+  BuiltinType *parse_builtin_type(token::TokenKind type);
+
+  LValue *parse_lvalue();
+  LValue *parse_lvalue_tail(LValue *lvalue);
+
+
+  bool is_var_decl_stmt();
+  bool is_lv();
 
 public:
   TranslationUnit *parse_translation_unit();
