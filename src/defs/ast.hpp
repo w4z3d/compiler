@@ -3,8 +3,10 @@
 
 #include "token.hpp"
 #include <format>
+#include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 enum class BinaryOperator {
@@ -201,7 +203,7 @@ private:
   Type *type;
 
 public:
-  AllocExpression(Type *type, SourceLocation loc = {})
+  explicit AllocExpression(Type *type, SourceLocation loc = {})
       : Expression(Expression::Kind::Alloc, "AllocExpr", loc), type(type) {}
   [[nodiscard]] Type *get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
@@ -278,8 +280,8 @@ private:
 public:
   explicit NumericExpr(std::string_view value, Base base,
                        SourceLocation loc = {})
-      : Expression(Expression::Kind::Numeric, "NumericLiteral", loc), value(value),
-        base(base) {}
+      : Expression(Expression::Kind::Numeric, "NumericLiteral", loc),
+        value(value), base(base) {}
   [[nodiscard]] std::string_view get_value() const { return value; }
   [[nodiscard]] Base get_base() const { return base; }
   void accept(class ASTVisitor &visitor) override;
@@ -517,7 +519,6 @@ public:
 };
 
 // ==== Statements ====
-// TODO: add all possible statements
 class Statement : public ASTNode {
 public:
   explicit Statement(SourceLocation loc = {}) : ASTNode(loc) {}
@@ -704,7 +705,7 @@ public:
 // TODO: add all decls
 class Declaration : public ASTNode {
 public:
-  enum class Kind { Function, Parameter, Struct, Const };
+  enum class Kind { Function, Parameter, Struct, Typedef };
 
 private:
   Kind kind;
@@ -717,6 +718,39 @@ public:
   [[nodiscard]] Kind get_kind() const { return kind; }
   [[nodiscard]] std::string_view get_name() const { return name; }
   void accept(class ASTVisitor &visitor) override;
+};
+
+class Typedef : public Declaration {
+private:
+  Type *type;
+  std::string_view name;
+
+public:
+  Typedef(Type *type, std::string_view name, SourceLocation loc = {})
+      : Declaration(Declaration::Kind::Typedef, name, loc), type(type), name(name) {}
+  [[nodiscard]] Type *get_type() const { return type; }
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class StructDeclaration : public Declaration {
+private:
+  std::string_view name;
+  std::optional<std::vector<VariableDeclarationStatement *>> fields;
+
+public:
+  explicit StructDeclaration(std::string_view name, SourceLocation loc = {})
+      : Declaration(Kind::Struct, name, loc), name(name) {}
+  StructDeclaration(std::string_view name,
+                    std::vector<VariableDeclarationStatement *> fields,
+                    SourceLocation loc = {})
+      : Declaration(Kind::Struct, name, loc), name(name),
+        fields(std::move(fields)) {}
+
+  [[nodiscard]] std::optional<std::vector<VariableDeclarationStatement *>>
+  get_fields() const {
+    return fields;
+  }
+  void accept(ASTVisitor &visitor) override;
 };
 
 class ParameterDeclaration : public Declaration {
@@ -779,9 +813,12 @@ public:
 
 class ASTVisitor {
 public:
+  virtual void visit(Typedef &typedef_) {}
+
   virtual void visit(Declaration &decl) {}
   virtual void visit(FunctionDeclaration &decl) {}
   virtual void visit(ParameterDeclaration &decl) {}
+  virtual void visit(StructDeclaration &decl) {}
 
   virtual void visit(Statement &stmt) {}
   virtual void visit(CompoundStmt &stmt) {}
@@ -883,6 +920,16 @@ public:
 
   [[nodiscard]] std::string_view get_content() const { return content; }
 
+  void visit(Typedef &typedef_) override {
+    content += color("Typedef", GREEN) + " " +
+               color(std::format("{:#x}", reinterpret_cast<std::size_t>(
+                                              std::addressof(typedef_))),
+                     YELLOW) +
+               " " + formatLocation(typedef_.get_location()) + " " +
+               color(std::string(typedef_.get_name()), MAGENTA) + " " +
+               typedef_.get_type()->toString() + "\n";
+  }
+
   void visit(TranslationUnit &unit) override {
     content +=
         color("TranslationUnitDecl", GREEN) + " " +
@@ -945,6 +992,25 @@ public:
         color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
         color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
         decl.get_type()->toString() + "'\n";
+  }
+
+  void visit(StructDeclaration &decl) override {
+    content +=
+        color("StructDecl", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(decl))),
+              YELLOW) +
+        " " + formatRange(decl.get_location()) + " " +
+        color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
+        color(std::string(decl.get_name()), MAGENTA) + "\n";
+    depth++;
+    if (const auto &fields = decl.get_fields()) {
+      for (const auto &statement : *fields) {
+        content += indent();
+        statement->accept(*this);
+      }
+    }
+    depth--;
   }
 
   void visit(CompoundStmt &stmt) override {

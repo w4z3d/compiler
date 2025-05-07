@@ -1,7 +1,7 @@
-Test test();
-Test test();
-Test test(Hans Dampf,,,,, Petr Maschin);
-Test test() { return 10; }
-Test test();
-Test test();
-test();
+struct test;
+struct hallo {};
+struct abc {
+    int a;
+    welt welt;
+};
+typedef abc Trattis;

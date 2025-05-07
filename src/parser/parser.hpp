@@ -98,6 +98,8 @@ private:
 
   FunctionDeclaration *parse_function_declaration();
   ParameterDeclaration *parse_parameter_declaration();
+  Typedef *parse_typedef();
+  StructDeclaration *parse_struct_decl();
 
   CompoundStmt *parse_compound_statement();
   ReturnStmt *parse_return_statement();

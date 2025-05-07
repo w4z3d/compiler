@@ -333,12 +333,10 @@ NumericExpr *Parser::parse_integer_literal() {
   if (is_next(token::TokenKind::NumberLiteralDec)) {
     base = NumericExpr::Base::Decimal;
     num = expect(token::TokenKind::NumberLiteralDec);
-  }
-  else if (is_next(token::TokenKind::NumberLiteralHex)) {
+  } else if (is_next(token::TokenKind::NumberLiteralHex)) {
     base = NumericExpr::Base::Hexadecimal;
     num = expect(token::TokenKind::NumberLiteralHex);
-  }
-  else {
+  } else {
     throw std::runtime_error("du kannst nach hause gehen");
   }
   const auto numExpr = arena.create<NumericExpr>(
@@ -429,19 +427,15 @@ Statement *Parser::parse_simple_stmt() {
       if (is_next(token::TokenKind::PlusPlus)) {
         op = UnaryMutationStatement::Op::PostIncrement;
         expect(token::TokenKind::PlusPlus);
-      }
-      else if (is_next(token::TokenKind::MinusMinus)){
+      } else if (is_next(token::TokenKind::MinusMinus)) {
         op = UnaryMutationStatement::Op::PostDecrement;
         expect(token::TokenKind::MinusMinus);
-      }
-      else {
+      } else {
         throw std::runtime_error("bro was tust du ???");
       }
 
-      const auto stmt = arena.create<UnaryMutationStatement>(
-          lv,
-          op,
-          lv->get_location());
+      const auto stmt =
+          arena.create<UnaryMutationStatement>(lv, op, lv->get_location());
       return stmt;
     } else {
       const auto next_token = peek();
@@ -470,7 +464,6 @@ Statement *Parser::parse_simple_stmt() {
 }
 
 VariableDeclarationStatement *Parser::parse_var_decl_stmt() {
-  printf("var-decl-stmt");
   Expression *expr = nullptr;
   const auto tp = parse_type();
   const auto ident = expect(token::TokenKind::Identifier);
@@ -553,10 +546,11 @@ IfStatement *Parser::parse_if_stmt() {
 CompoundStmt *Parser::parse_compound_statement() {
   const auto l_brace = expect(token::TokenKind::LBrace);
   std::vector<Statement *> statements{};
-  // TODO: no empty compounds allowed
-  while (!check_sequence({token::TokenKind::RBrace})) {
+  do {
     statements.push_back(parse_statement());
   }
+  while (!check_sequence({token::TokenKind::RBrace}));
+
   const auto r_brace = expect(token::TokenKind::RBrace);
   const auto compStmt = arena.create<CompoundStmt>(
       statements,
@@ -623,12 +617,60 @@ FunctionDeclaration *Parser::parse_function_declaration() {
   return declaration;
 }
 
+Typedef *Parser::parse_typedef() {
+  const auto td = expect(token::TokenKind::Typedef);
+  const auto tp = parse_type();
+  const auto name = expect(token::TokenKind::Identifier);
+  expect(token::TokenKind::Semi);
+  const auto typedef_ = arena.create<Typedef>(
+      tp, name->text,
+      SourceLocation{lexer.get_file_name(), std::get<0>(td->span.start),
+                     std::get<1>(td->span.start)});
+  return typedef_;
+}
+
+StructDeclaration *Parser::parse_struct_decl() {
+  const auto str = expect(token::TokenKind::Struct);
+  const auto name = expect(token::TokenKind::Identifier);
+  if (is_next(token::TokenKind::Semi)) {
+    expect(token::TokenKind::Semi);
+    const auto struct_ = arena.create<StructDeclaration>(
+        name->text,
+        SourceLocation{lexer.get_file_name(), std::get<0>(str->span.start),
+                       std::get<1>(str->span.start)});
+    return struct_;
+  } else {
+    expect(token::TokenKind::LBrace);
+    std::vector<VariableDeclarationStatement *> fields = {};
+    while (!is_next(token::TokenKind::RBrace)) {
+      const auto tp = parse_type();
+      const auto ident = expect(token::TokenKind::Identifier);
+      expect(token::TokenKind::Semi);
+      const auto decl = arena.create<VariableDeclarationStatement>(
+          tp, ident->text, nullptr, tp->get_location());
+      fields.push_back(decl);
+    }
+    expect(token::TokenKind::RBrace);
+    expect(token::TokenKind::Semi);
+    const auto struct_ = arena.create<StructDeclaration>(
+        name->text, fields,
+        SourceLocation{lexer.get_file_name(), std::get<0>(str->span.start),
+                       std::get<1>(str->span.start)});
+    return struct_;
+  }
+}
+
 TranslationUnit *Parser::parse_translation_unit() {
   auto *unit = arena.create<TranslationUnit>(
       SourceLocation{lexer.get_file_name(), 0, 0});
   while (!is_eof()) {
     try {
-      unit->add_declaration(parse_function_declaration());
+      if (is_next(token::TokenKind::Struct))
+        unit->add_declaration(parse_struct_decl());
+      else if (is_next(token::TokenKind::Typedef))
+        unit->add_declaration(parse_typedef());
+      else
+        unit->add_declaration(parse_function_declaration());
     } catch (ParseError &error) {
       spdlog::log(spdlog::level::err, error.what());
       synchronize();
