@@ -8,13 +8,30 @@
 #include <vector>
 
 enum class BinaryOperator {
-  Add, Sub, Mult, Div, Modulo, Equal, NotEqual, LessThan, LessThanOrEqual, GreaterThan, GreaterThanOrEqual, LogicalAnd,
-  LogicalOr, BitwiseAnd, BitwiseOr, BitwiseXor, ShiftLeft, ShiftRight, FieldAccess, PointerAccess, Unknown
+  Add,
+  Sub,
+  Mult,
+  Div,
+  Modulo,
+  Equal,
+  NotEqual,
+  LessThan,
+  LessThanOrEqual,
+  GreaterThan,
+  GreaterThanOrEqual,
+  LogicalAnd,
+  LogicalOr,
+  BitwiseAnd,
+  BitwiseOr,
+  BitwiseXor,
+  ShiftLeft,
+  ShiftRight,
+  FieldAccess,
+  PointerAccess,
+  Unknown
 };
 
-enum class UnaryOperator {
-  LogicalNot, BitwiseNot, Neg, Deref, Unknown
-};
+enum class UnaryOperator { LogicalNot, BitwiseNot, Neg, Deref, Unknown };
 
 enum class AssignmentOperator {
   Plus,
@@ -31,9 +48,7 @@ enum class AssignmentOperator {
   Unknown
 };
 
-enum class Builtin {
-  Int, Bool, String, Char, Void, Unknown
-};
+enum class Builtin { Int, Bool, String, Char, Void, Unknown };
 
 std::string binOp2String(BinaryOperator binOp);
 std::string unOp2String(UnaryOperator unOp);
@@ -78,11 +93,15 @@ public:
 class BuiltinType : public Type {
 private:
   Builtin type;
+
 public:
-  explicit BuiltinType(Builtin type, SourceLocation loc = {}) : Type(loc), type(type) {}
+  explicit BuiltinType(Builtin type, SourceLocation loc = {})
+      : Type(loc), type(type) {}
   [[nodiscard]] Builtin get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
-  [[nodiscard]] std::string toString() const override { return builtin2String(type); }
+  [[nodiscard]] std::string toString() const override {
+    return builtin2String(type);
+  }
 };
 
 class NamedType : public Type {
@@ -92,40 +111,51 @@ public:
   explicit NamedType(std::string_view name, SourceLocation loc = {})
       : Type(loc), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
-  [[nodiscard]] std::string toString() const override { return std::string(name); }
+  [[nodiscard]] std::string toString() const override {
+    return std::string(name);
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
 class StructType : public Type {
 private:
   std::string_view name;
+
 public:
   explicit StructType(std::string_view name, SourceLocation loc = {})
       : Type(loc), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
-  [[nodiscard]] std::string toString() const override { return std::format("struct {}", name); }
+  [[nodiscard]] std::string toString() const override {
+    return std::format("struct {}", name);
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
 class PointerType : public Type {
 private:
   Type *type;
+
 public:
   explicit PointerType(Type *type, SourceLocation loc = {})
       : Type(loc), type(type) {}
   [[nodiscard]] Type *get_type() const { return type; }
-  [[nodiscard]] std::string toString() const override { return std::format("Pointer to <{}>", type->toString()); }
+  [[nodiscard]] std::string toString() const override {
+    return std::format("Pointer to <{}>", type->toString());
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
 class ArrayType : public Type {
 private:
   Type *type;
+
 public:
   explicit ArrayType(Type *type, SourceLocation loc = {})
       : Type(loc), type(type) {}
   [[nodiscard]] Type *get_type() const { return type; }
-  [[nodiscard]] std::string toString() const override { return std::format("Array of <{}>", type->toString()); }
+  [[nodiscard]] std::string toString() const override {
+    return std::format("Array of <{}>", type->toString());
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -133,7 +163,19 @@ public:
 // TODO: there are still a lot more expressions
 class Expression : public ASTNode {
 public:
-  enum class Kind { Numeric, String, Call, Char, BoolConst, Null, Var, BinOp, UnOp, Paren, ArrayAccess};
+  enum class Kind {
+    Numeric,
+    String,
+    Call,
+    Char,
+    BoolConst,
+    Null,
+    Var,
+    BinOp,
+    UnOp,
+    Paren,
+    ArrayAccess
+  };
 
 private:
   Kind kind;
@@ -151,9 +193,11 @@ class ArrayAccessExpr : public Expression {
 private:
   Expression *array;
   Expression *index;
+
 public:
   ArrayAccessExpr(Expression *array, Expression *index, SourceLocation loc = {})
-      : Expression(Expression::Kind::ArrayAccess, "ArrayAccessExpr", loc), array(array), index(index) {}
+      : Expression(Expression::Kind::ArrayAccess, "ArrayAccessExpr", loc),
+        array(array), index(index) {}
   [[nodiscard]] Expression *get_array() const { return array; };
   [[nodiscard]] Expression *get_index() const { return index; };
   void accept(class ASTVisitor &visitor) override;
@@ -176,7 +220,8 @@ private:
 
 public:
   explicit ParenthesisExpression(Expression *expr, SourceLocation loc = {})
-      : Expression(Expression::Kind::Paren, "ParenExpr", loc), expression(expr) {}
+      : Expression(Expression::Kind::Paren, "ParenExpr", loc),
+        expression(expr) {}
   [[nodiscard]] Expression *get_expression() const { return expression; }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -188,12 +233,21 @@ private:
   BinaryOperator binaryOperator;
 
 public:
-  explicit BinaryOperatorExpression(Expression *leftExpr, Expression *rightExpr, BinaryOperator binOp, SourceLocation loc = {})
-      : Expression(Expression::Kind::BinOp, "BinaryOperator", loc), leftExpression(leftExpr),
-        rightExpression(rightExpr), binaryOperator(binOp) {}
-  [[nodiscard]] BinaryOperator get_operator_kind() const { return binaryOperator; }
-  [[nodiscard]] Expression *get_left_expression() const { return leftExpression; }
-  [[nodiscard]] Expression *get_right_expression() const { return rightExpression; }
+  explicit BinaryOperatorExpression(Expression *leftExpr, Expression *rightExpr,
+                                    BinaryOperator binOp,
+                                    SourceLocation loc = {})
+      : Expression(Expression::Kind::BinOp, "BinaryOperator", loc),
+        leftExpression(leftExpr), rightExpression(rightExpr),
+        binaryOperator(binOp) {}
+  [[nodiscard]] BinaryOperator get_operator_kind() const {
+    return binaryOperator;
+  }
+  [[nodiscard]] Expression *get_left_expression() const {
+    return leftExpression;
+  }
+  [[nodiscard]] Expression *get_right_expression() const {
+    return rightExpression;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -203,10 +257,13 @@ private:
   UnaryOperator unaryOperator;
 
 public:
-  explicit UnaryOperatorExpression(Expression *expr, UnaryOperator unOperator, SourceLocation loc = {})
-      : Expression(Expression::Kind::UnOp, "UnaryOperator", loc), expression(expr),
-        unaryOperator(unOperator) {}
-  [[nodiscard]] UnaryOperator get_operator_kind() const { return unaryOperator; }
+  explicit UnaryOperatorExpression(Expression *expr, UnaryOperator unOperator,
+                                   SourceLocation loc = {})
+      : Expression(Expression::Kind::UnOp, "UnaryOperator", loc),
+        expression(expr), unaryOperator(unOperator) {}
+  [[nodiscard]] UnaryOperator get_operator_kind() const {
+    return unaryOperator;
+  }
   [[nodiscard]] Expression *get_expression() const { return expression; }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -217,8 +274,11 @@ private:
 
 public:
   explicit VarExpr(std::string_view name, SourceLocation loc = {})
-      : Expression(Expression::Kind::Var, "VarExpr", loc), variable_name(name) {}
-  [[nodiscard]] std::string_view get_variable_name() const { return variable_name; }
+      : Expression(Expression::Kind::Var, "VarExpr", loc), variable_name(name) {
+  }
+  [[nodiscard]] std::string_view get_variable_name() const {
+    return variable_name;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -250,19 +310,15 @@ public:
       : Expression(Expression::Kind::BoolConst, "BoolConst", loc) {
     if (value.compare("true")) {
       this->value = true;
-    }
-    else if (value.compare("false")) {
+    } else if (value.compare("false")) {
       this->value = false;
-    }
-    else {
+    } else {
       throw std::runtime_error("Bool Const with unknown value.");
     }
   }
   [[nodiscard]] bool get_value() const { return value; }
   void accept(class ASTVisitor &visitor) override;
 };
-
-
 
 class StringLiteralExpr : public Expression {
 private:
@@ -307,6 +363,7 @@ public:
 class VariableLValue : public LValue {
 private:
   std::string_view name;
+
 public:
   explicit VariableLValue(std::string_view name, SourceLocation loc = {})
       : LValue(loc), name(name) {}
@@ -318,6 +375,7 @@ public:
 class DereferenceLValue : public LValue {
 private:
   LValue *operand;
+
 public:
   explicit DereferenceLValue(LValue *operand, SourceLocation loc = {})
       : LValue(loc), operand(operand) {}
@@ -330,8 +388,10 @@ class FieldAccessLValue : public LValue {
 private:
   LValue *base;
   std::string_view field;
+
 public:
-  FieldAccessLValue(LValue *base, std::string_view field, SourceLocation loc = {})
+  FieldAccessLValue(LValue *base, std::string_view field,
+                    SourceLocation loc = {})
       : LValue(loc), base(base), field(field) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
@@ -343,8 +403,10 @@ class PointerAccessLValue : public LValue {
 private:
   LValue *base;
   std::string_view field;
+
 public:
-  PointerAccessLValue(LValue *base, std::string_view field, SourceLocation loc = {})
+  PointerAccessLValue(LValue *base, std::string_view field,
+                      SourceLocation loc = {})
       : LValue(loc), base(base), field(field) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
@@ -356,10 +418,9 @@ class ArrayAccessLValue : public LValue {
 private:
   LValue *base;
   Expression *index;
+
 public:
-  ArrayAccessLValue(LValue *base,
-                    Expression *index,
-                    SourceLocation loc = {})
+  ArrayAccessLValue(LValue *base, Expression *index, SourceLocation loc = {})
       : LValue(loc), base(base), index(index) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
@@ -372,8 +433,7 @@ public:
 class Statement : public ASTNode {
 public:
   explicit Statement(SourceLocation loc = {}) : ASTNode(loc) {}
-  virtual ~Statement() = default;
-  virtual void accept(class ASTVisitor &visitor) override = 0;
+  void accept(class ASTVisitor &visitor) override;
 };
 
 class ErrorStatement : public Statement {
@@ -390,55 +450,58 @@ public:
 
 class WhileStatement : public Statement {
 private:
-  Expression* condition;
-  Statement* body;
+  Expression *condition;
+  Statement *body;
 
 public:
-  WhileStatement(Expression* cond, Statement* body, SourceLocation loc = {})
+  WhileStatement(Expression *cond, Statement *body, SourceLocation loc = {})
       : Statement(loc), condition(cond), body(body) {}
 
-  [[nodiscard]] Expression* get_condition() const { return condition; }
-  [[nodiscard]] Statement* get_body() const { return body; }
+  [[nodiscard]] Expression *get_condition() const { return condition; }
+  [[nodiscard]] Statement *get_body() const { return body; }
 
   void accept(ASTVisitor &visitor) override;
 };
 
 class IfStatement : public Statement {
 private:
-  Expression* condition;
-  Statement* then_branch;
-  Statement* else_branch; // nullptr if no else
+  Expression *condition;
+  Statement *then_branch;
+  Statement *else_branch; // nullptr if no else
 
 public:
-  IfStatement(Expression* cond, Statement* then_stmt, Statement* else_stmt = nullptr, SourceLocation loc = {})
-      : Statement(loc), condition(cond), then_branch(then_stmt), else_branch(else_stmt) {}
+  IfStatement(Expression *cond, Statement *then_stmt,
+              Statement *else_stmt = nullptr, SourceLocation loc = {})
+      : Statement(loc), condition(cond), then_branch(then_stmt),
+        else_branch(else_stmt) {}
 
-  [[nodiscard]] Expression* get_condition() const { return condition; }
-  [[nodiscard]] Statement* get_then_branch() const { return then_branch; }
-  [[nodiscard]] Statement* get_else_branch() const { return else_branch; }
+  [[nodiscard]] Expression *get_condition() const { return condition; }
+  [[nodiscard]] Statement *get_then_branch() const { return then_branch; }
+  [[nodiscard]] Statement *get_else_branch() const { return else_branch; }
 
   void accept(ASTVisitor &visitor) override;
 };
 
 class ForStatement : public Statement {
 private:
-  Statement* init;          // nullptr if empty
-  Expression* condition;
-  Statement* increment;     // nullptr if empty
-  Statement* body;
+  Statement *init; // nullptr if empty
+  Expression *condition;
+  Statement *increment; // nullptr if empty
+  Statement *body;
 
 public:
-  ForStatement(Statement* init, Expression* cond, Statement* incr, Statement* body, SourceLocation loc = {})
-      : Statement(loc), init(init), condition(cond), increment(incr), body(body) {}
+  ForStatement(Statement *init, Expression *cond, Statement *incr,
+               Statement *body, SourceLocation loc = {})
+      : Statement(loc), init(init), condition(cond), increment(incr),
+        body(body) {}
 
-  [[nodiscard]] Statement* get_init() const { return init; }
-  [[nodiscard]] Expression* get_condition() const { return condition; }
-  [[nodiscard]] Statement* get_increment() const { return increment; }
-  [[nodiscard]] Statement* get_body() const { return body; }
+  [[nodiscard]] Statement *get_init() const { return init; }
+  [[nodiscard]] Expression *get_condition() const { return condition; }
+  [[nodiscard]] Statement *get_increment() const { return increment; }
+  [[nodiscard]] Statement *get_body() const { return body; }
 
   void accept(ASTVisitor &visitor) override;
 };
-
 
 class AssignmentStatement : public Statement {
 private:
@@ -447,12 +510,13 @@ private:
   Expression *expr;
 
 public:
-  AssignmentStatement(LValue *lValue, AssignmentOperator op, Expression *expr, SourceLocation loc = {})
+  AssignmentStatement(LValue *lValue, AssignmentOperator op, Expression *expr,
+                      SourceLocation loc = {})
       : Statement(loc), lValue(lValue), op(op), expr(expr) {}
 
-  [[nodiscard]] LValue* get_lvalue() const { return lValue; }
+  [[nodiscard]] LValue *get_lvalue() const { return lValue; }
   [[nodiscard]] AssignmentOperator get_op() const { return op; }
-  [[nodiscard]] Expression* get_expr() const { return expr; }
+  [[nodiscard]] Expression *get_expr() const { return expr; }
 
   void accept(ASTVisitor &visitor) override;
 };
@@ -469,7 +533,7 @@ public:
   UnaryMutationStatement(LValue *target, Op op, SourceLocation loc = {})
       : Statement(loc), target(target), operation(op) {}
 
-  [[nodiscard]] LValue* get_target() const { return target; }
+  [[nodiscard]] LValue *get_target() const { return target; }
   [[nodiscard]] Op get_operation() const { return operation; }
 
   void accept(ASTVisitor &visitor) override;
@@ -483,7 +547,7 @@ public:
   explicit ExpressionStatement(Expression *expr, SourceLocation loc = {})
       : Statement(loc), expr(expr) {}
 
-  [[nodiscard]] Expression* get_expression() const { return expr; }
+  [[nodiscard]] Expression *get_expression() const { return expr; }
 
   void accept(ASTVisitor &visitor) override;
 };
@@ -495,24 +559,24 @@ private:
   Expression *initializer;
 
 public:
-  VariableDeclarationStatement(Type *type, std::string_view identifier, Expression *init = nullptr, SourceLocation loc = {})
+  VariableDeclarationStatement(Type *type, std::string_view identifier,
+                               Expression *init = nullptr,
+                               SourceLocation loc = {})
       : Statement(loc), type(type), identifier(identifier), initializer(init) {}
 
-  [[nodiscard]] Type* get_type() const { return type; }
+  [[nodiscard]] Type *get_type() const { return type; }
   [[nodiscard]] std::string_view get_identifier() const { return identifier; }
-  [[nodiscard]] Expression* get_initializer() const { return initializer; }
+  [[nodiscard]] Expression *get_initializer() const { return initializer; }
 
   void accept(ASTVisitor &visitor) override;
 };
-
 
 class AssertStmt : public Statement {
 private:
   Expression *expression{};
 
 public:
-  explicit AssertStmt(SourceLocation loc = {})
-      : Statement(loc) {}
+  explicit AssertStmt(SourceLocation loc = {}) : Statement(loc) {}
 
   void set_expression(Expression *expr) { this->expression = expr; }
   [[nodiscard]] Expression *get_expression() const { return this->expression; }
@@ -525,8 +589,7 @@ private:
 
 public:
   explicit CompoundStmt(std::vector<Statement *> stmts, SourceLocation loc = {})
-      : Statement(loc),
-        statements(std::move(stmts)) {}
+      : Statement(loc), statements(std::move(stmts)) {}
   [[nodiscard]] const std::vector<Statement *> &getStatements() const {
     return statements;
   }
@@ -543,8 +606,7 @@ private:
   Expression *expr{};
 
 public:
-  explicit ReturnStmt(SourceLocation loc = {})
-      : Statement(loc) {}
+  explicit ReturnStmt(SourceLocation loc = {}) : Statement(loc) {}
   void set_expression(Expression *expression) { this->expr = expression; }
   [[nodiscard]] Expression *get_expression() const { return expr; }
   void accept(class ASTVisitor &visitor) override;
@@ -921,8 +983,8 @@ public:
                           reinterpret_cast<std::size_t>(std::addressof(stmt))),
               YELLOW) +
         " " + formatRange(stmt.get_location()) + " " +
-        color(std::string(stmt.get_identifier()), MAGENTA)
-        + " " + stmt.get_type()->toString() + "\n";
+        color(std::string(stmt.get_identifier()), MAGENTA) + " " +
+        stmt.get_type()->toString() + "\n";
 
     if (stmt.get_initializer() != nullptr) {
       depth++;
@@ -938,7 +1000,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(stmt))),
               YELLOW) +
-        " " + formatRange(stmt.get_location()) + " " + assmtOp2String(stmt.get_op()) + "\n";
+        " " + formatRange(stmt.get_location()) + " " +
+        assmtOp2String(stmt.get_op()) + "\n";
 
     depth++;
     content += indent();
@@ -954,9 +1017,11 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(stmt))),
               YELLOW) +
-        " " + formatRange(stmt.get_location()) + " "
-        + (stmt.get_operation() == UnaryMutationStatement::Op::PostIncrement ? "PostIncrement" : "PostDecrement")
-        + "\n";
+        " " + formatRange(stmt.get_location()) + " " +
+        (stmt.get_operation() == UnaryMutationStatement::Op::PostIncrement
+             ? "PostIncrement"
+             : "PostDecrement") +
+        "\n";
 
     depth++;
     content += indent();
@@ -1065,7 +1130,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(expr))),
               YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + std::string(expr.get_variable_name()) + "\n";
+        " " + formatRange(expr.get_location()) + " " +
+        std::string(expr.get_variable_name()) + "\n";
   }
 
   void visit(UnaryOperatorExpression &expr) override {
@@ -1074,7 +1140,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(expr))),
               YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + unOp2String(expr.get_operator_kind()) + "\n";
+        " " + formatRange(expr.get_location()) + " " +
+        unOp2String(expr.get_operator_kind()) + "\n";
 
     depth++;
     content += indent();
@@ -1088,7 +1155,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(expr))),
               YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + binOp2String(expr.get_operator_kind()) + "\n";
+        " " + formatRange(expr.get_location()) + " " +
+        binOp2String(expr.get_operator_kind()) + "\n";
 
     depth++;
     content += indent();
@@ -1120,7 +1188,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
-        " " + formatRange(type.get_location()) + " " + builtin2String(type.get_type()) + "\n";
+        " " + formatRange(type.get_location()) + " " +
+        builtin2String(type.get_type()) + "\n";
   }
 
   void visit(NamedType &type) override {
@@ -1129,7 +1198,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
-        " " + formatRange(type.get_location()) + " " + std::string(type.get_name()) + "\n";
+        " " + formatRange(type.get_location()) + " " +
+        std::string(type.get_name()) + "\n";
   }
 
   void visit(StructType &type) override {
@@ -1138,7 +1208,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
-        " " + formatRange(type.get_location()) + " Struct " + std::string(type.get_name()) + "\n";
+        " " + formatRange(type.get_location()) + " Struct " +
+        std::string(type.get_name()) + "\n";
   }
 
   void visit(PointerType &type) override {
@@ -1175,7 +1246,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(val))),
               YELLOW) +
-        " " + formatRange(val.get_location()) + " " + std::string(val.get_name()) + "\n";
+        " " + formatRange(val.get_location()) + " " +
+        std::string(val.get_name()) + "\n";
   }
 
   void visit(DereferenceLValue &val) override {
@@ -1197,7 +1269,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(val))),
               YELLOW) +
-        " " + formatRange(val.get_location()) + " " + std::string(val.get_field()) + "\n";
+        " " + formatRange(val.get_location()) + " " +
+        std::string(val.get_field()) + "\n";
     depth++;
     content += indent();
     val.get_base()->accept(*this);
@@ -1210,7 +1283,8 @@ public:
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(val))),
               YELLOW) +
-        " " + formatRange(val.get_location()) + " " + std::string(val.get_field()) + "\n";
+        " " + formatRange(val.get_location()) + " " +
+        std::string(val.get_field()) + "\n";
     depth++;
     content += indent();
     val.get_base()->accept(*this);
@@ -1231,6 +1305,5 @@ public:
     val.get_index()->accept(*this);
     depth--;
   }
-
 };
 #endif // !DEFS_AST_H
