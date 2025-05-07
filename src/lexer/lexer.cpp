@@ -140,6 +140,7 @@ token::Token Lexer::lex_number() {
   return token::Token{token::TokenKind::NumberLiteralDec, text, span};
 }
 
+// TODO: add escape literals
 token::Token Lexer::lex_string_literal() {
   size_t start_index = index;
   const auto start{std::make_tuple(line, column)};
