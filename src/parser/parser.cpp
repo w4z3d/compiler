@@ -45,10 +45,10 @@ LValue *Parser::parse_lvalue_tail(LValue *lvalue) {
         SourceLocation{lexer.get_file_name(), std::get<0>(dot->span.start),
                        std::get<1>(dot->span.start)});
     return parse_lvalue_tail(lv);
-  } else if (is_next(token::TokenKind::LBrace)) {
-    const auto lb = expect(token::TokenKind::LBrace);
+  } else if (is_next(token::TokenKind::LBracket)) {
+    const auto lb = expect(token::TokenKind::LBracket);
     const auto expr = parse_expression();
-    const auto rb = expect(token::TokenKind::RBrace);
+    const auto rb = expect(token::TokenKind::RBracket);
     const auto lv = arena.create<ArrayAccessLValue>(
         lvalue, expr,
         SourceLocation{lexer.get_file_name(), std::get<0>(lb->span.start),
@@ -124,65 +124,150 @@ Type *Parser::parse_type_tail(Type *type) {
   }
 }
 
-Expression *Parser::parse_expression() {
+Expression *Parser::parse_expression() { return parse_expr_with_precedence(0); }
+
+Expression *Parser::parse_exp_head() {
   const auto next_token = peek();
 
   // Single token
   switch (next_token.kind) {
-  case token::TokenKind::NumberLiteral:
-    printf("test");
-    return parse_expr_tail(parse_integer_literal());
+  case token::TokenKind::NumberLiteralDec:
+  case token::TokenKind::NumberLiteralHex:
+    return parse_integer_literal();
   case token::TokenKind::StringLiteral:
-    return parse_expr_tail(parse_string_literal());
+    return parse_string_literal();
   case token::TokenKind::CharLiteral:
-    return parse_expr_tail(parse_char_literal());
+    return parse_char_literal();
   case token::TokenKind::True:
   case token::TokenKind::False:
-    return parse_expr_tail(parse_bool_const());
+    return parse_bool_const();
   case token::TokenKind::Null:
-    return parse_expr_tail(parse_null_expr());
+    return parse_null_expr();
   case token::TokenKind::LParen:
-    return parse_expr_tail(parse_paren_expr());
+    return parse_paren_expr();
   case token::TokenKind::Alloc:
-    // TODO:
-    break;
+    return parse_alloc_expr();
   case token::TokenKind::AllocArray:
-    // TODO:
-    break;
+    return parse_alloc_array_expr();
   default:
     break;
   }
 
   if (token::unary_ops.contains(peek().kind)) {
-    return parse_expr_tail(parse_unary_op_expr());
+    return nullptr;
   }
 
   if (check_sequence(
           {token::TokenKind::Identifier, token::TokenKind::LParen})) {
-    return parse_expr_tail(parse_call_expression());
+    return parse_call_expression();
   } else if (is_next(token::TokenKind::Identifier)) {
-    return parse_expr_tail(parse_var_expr());
+    return parse_var_expr();
   } else {
     throw ParseError(
         std::format("Expected Expression, but next token was {}", peek().text));
   }
 }
 
-UnaryOperatorExpression *Parser::parse_unary_op_expr() {
-  const auto opToken = next_token();
-  const auto unOp = unOpFromToken(opToken.kind);
-  if (unOp == UnaryOperator::Unknown) {
-    throw std::runtime_error(
-        "lol du bist cooked (token::unary_ops enthält ein token, "
-        "das in func unOpFromToken(...) nicht als UnaryOperator aufgeführt "
-        "ist)");
+Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
+  Expression *left = parse_exp_head();
+
+  while (true) {
+    auto next_token = peek();
+    if (left == nullptr && token::unary_ops.contains(next_token.kind)) {
+      const auto op = unOpFromToken(next_token.kind);
+      const auto precedence = precedenceFromUnOp(op);
+      if (precedence < minPrecedence)
+        break;
+      expect(next_token.kind);
+      Expression *right = parse_expr_with_precedence(precedence + 1);
+      left = arena.create<UnaryOperatorExpression>(
+          right, op,
+          SourceLocation{lexer.get_file_name(),
+                         std::get<0>(next_token.span.start),
+                         std::get<1>(next_token.span.start)});
+    } else if (token::binary_ops.contains(next_token.kind)) {
+      const auto op = binOpFromToken(next_token.kind);
+      const auto precedence = precedenceFromBinOp(op);
+      if (precedence < minPrecedence)
+        break;
+      expect(next_token.kind);
+      Expression *right = parse_expr_with_precedence(precedence + 1);
+      left = arena.create<BinaryOperatorExpression>(
+          left, right, op,
+          SourceLocation{lexer.get_file_name(),
+                         std::get<0>(next_token.span.start),
+                         std::get<1>(next_token.span.start)});
+    } else if (is_next(token::TokenKind::Dot)) {
+      if (13 < minPrecedence) // oh
+        break;
+      expect(token::TokenKind::Dot);
+      const auto field_ident = expect(token::TokenKind::Identifier);
+      left = arena.create<FieldAccessExpr>(
+          left, field_ident->text,
+          SourceLocation{lexer.get_file_name(),
+                         std::get<0>(field_ident->span.start),
+                         std::get<1>(field_ident->span.start)});
+    } else if (is_next(token::TokenKind::LBracket)) {
+      if (13 < minPrecedence)
+        break;
+      const auto lb = expect(token::TokenKind::LBracket);
+      const auto index_expr = parse_expr_with_precedence(0);
+      expect(token::TokenKind::RBracket);
+      left = arena.create<ArrayAccessExpr>(
+          left, index_expr,
+          SourceLocation{lexer.get_file_name(), std::get<0>(lb->span.start),
+                         std::get<1>(lb->span.start)});
+    } else if (is_next(token::TokenKind::Arrow)) {
+      if (13 < minPrecedence)
+        break;
+      expect(token::TokenKind::Arrow);
+      const auto field_ident = expect(token::TokenKind::Identifier);
+      left = arena.create<PointerAccessExpr>(
+          left, field_ident->text,
+          SourceLocation{lexer.get_file_name(),
+                         std::get<0>(field_ident->span.start),
+                         std::get<1>(field_ident->span.start)});
+    } else if (is_next(token::TokenKind::Question)) {
+      if (1 < minPrecedence)
+        break;
+      const auto q = expect(token::TokenKind::Question);
+      Expression *then = parse_expr_with_precedence(2);
+      expect(token::TokenKind::Colon);
+      Expression *else_ = parse_expr_with_precedence(2);
+      left = arena.create<TernaryExpression>(
+          left, then, else_,
+          SourceLocation{lexer.get_file_name(), std::get<0>(q->span.start),
+                         std::get<1>(q->span.start)});
+    } else {
+      break;
+    }
   }
-  Expression *expr = parse_expression();
-  const auto unaryExpr = arena.create<UnaryOperatorExpression>(
-      expr, unOp,
-      SourceLocation{lexer.get_file_name(), std::get<0>(opToken.span.start),
-                     std::get<1>(opToken.span.start)});
-  return unaryExpr;
+  return left;
+}
+
+AllocExpression *Parser::parse_alloc_expr() {
+  const auto alloc = expect(token::TokenKind::Alloc);
+  expect(token::TokenKind::LParen);
+  const auto tp = parse_type();
+  expect(token::TokenKind::RParen);
+  const auto expr = arena.create<AllocExpression>(
+      tp, SourceLocation{lexer.get_file_name(), std::get<0>(alloc->span.start),
+                         std::get<1>(alloc->span.start)});
+  return expr;
+}
+
+AllocArrayExpression *Parser::parse_alloc_array_expr() {
+  const auto alloc = expect(token::TokenKind::AllocArray);
+  expect(token::TokenKind::LParen);
+  const auto tp = parse_type();
+  expect(token::TokenKind::Comma);
+  const auto size = parse_expression();
+  expect(token::TokenKind::RParen);
+  const auto expr = arena.create<AllocArrayExpression>(
+      tp, size,
+      SourceLocation{lexer.get_file_name(), std::get<0>(alloc->span.start),
+                     std::get<1>(alloc->span.start)});
+  return expr;
 }
 
 ParenthesisExpression *Parser::parse_paren_expr() {
@@ -228,63 +313,6 @@ BoolConstExpr *Parser::parse_bool_const() {
   return boolConstExpr;
 }
 
-Expression *Parser::parse_expr_tail(Expression *expr) {
-  if (is_next(token::TokenKind::Dot)) {
-    const auto dot = expect(token::TokenKind::Dot);
-    const auto fieldId = expect(token::TokenKind::Identifier); // Field id
-    const auto fieldExpr = arena.create<VarExpr>(
-        fieldId->text,
-        SourceLocation{lexer.get_file_name(), std::get<0>(fieldId->span.start),
-                       std::get<1>(fieldId->span.start)});
-    const auto fieldAccess = arena.create<BinaryOperatorExpression>(
-        expr, fieldExpr, BinaryOperator::FieldAccess,
-        SourceLocation{lexer.get_file_name(), std::get<0>(dot->span.start),
-                       std::get<1>(dot->span.start)});
-    return parse_expr_tail(fieldAccess);
-  } else if (is_next(token::TokenKind::Arrow)) {
-    const auto arrow = expect(token::TokenKind::Arrow);
-    const auto fieldId = expect(token::TokenKind::Identifier); // Field id
-    const auto fieldExpr = arena.create<VarExpr>(
-        fieldId->text,
-        SourceLocation{lexer.get_file_name(), std::get<0>(fieldId->span.start),
-                       std::get<1>(fieldId->span.start)});
-    const auto fieldAccess = arena.create<BinaryOperatorExpression>(
-        expr, fieldExpr, BinaryOperator::PointerAccess,
-        SourceLocation{lexer.get_file_name(), std::get<0>(arrow->span.start),
-                       std::get<1>(arrow->span.start)});
-    return parse_expr_tail(fieldAccess);
-  } else if (is_next(token::TokenKind::LBracket)) {
-    const auto lbracket = expect(token::TokenKind::LBracket);
-    Expression *index = parse_expression();
-    const auto rbracket = expect(token::TokenKind::RBracket);
-    const auto arrayAccess = arena.create<ArrayAccessExpr>(
-        expr, index,
-        SourceLocation{lexer.get_file_name(), std::get<0>(lbracket->span.start),
-                       std::get<1>(lbracket->span.start)});
-    return parse_expr_tail(arrayAccess);
-  } else if (is_next(token::TokenKind::Question)) {
-    // TODO: add ternaryoperator to ast
-    return expr;
-  } else if (token::binary_ops.contains(peek().kind)) {
-    const auto opToken = next_token();
-    const auto binOp = binOpFromToken(opToken.kind);
-    if (binOp == BinaryOperator::Unknown) {
-      throw std::runtime_error(
-          "lol du bist cooked (token::binary_ops enthält ein token, "
-          "das in func binOpFromToken(...) nicht als BinaryOperator aufgeführt "
-          "ist)");
-    }
-    const auto rightExpr = parse_expression();
-    const auto binOpExpr = arena.create<BinaryOperatorExpression>(
-        expr, rightExpr, binOp,
-        SourceLocation{lexer.get_file_name(), std::get<0>(opToken.span.start),
-                       std::get<1>(opToken.span.start)});
-    return parse_expr_tail(binOpExpr);
-  } else {
-    return expr;
-  }
-}
-
 CallExpr *Parser::parse_call_expression() {
   const auto fn_name = expect(token::TokenKind::Identifier);
   const auto call_expr = arena.create<CallExpr>(fn_name->text);
@@ -300,9 +328,21 @@ CallExpr *Parser::parse_call_expression() {
 }
 
 NumericExpr *Parser::parse_integer_literal() {
-  const auto num = expect(token::TokenKind::NumberLiteral);
+  NumericExpr::Base base;
+  std::optional<token::Token> num;
+  if (is_next(token::TokenKind::NumberLiteralDec)) {
+    base = NumericExpr::Base::Decimal;
+    num = expect(token::TokenKind::NumberLiteralDec);
+  }
+  else if (is_next(token::TokenKind::NumberLiteralHex)) {
+    base = NumericExpr::Base::Hexadecimal;
+    num = expect(token::TokenKind::NumberLiteralHex);
+  }
+  else {
+    throw std::runtime_error("du kannst nach hause gehen");
+  }
   const auto numExpr = arena.create<NumericExpr>(
-      num->text,
+      num->text, base,
       SourceLocation{lexer.get_file_name(), std::get<0>(num->span.start),
                      std::get<1>(num->span.start)});
   return numExpr;
@@ -385,11 +425,22 @@ Statement *Parser::parse_simple_stmt() {
     const auto lv = parse_lvalue();
     if (is_next(token::TokenKind::PlusPlus) ||
         is_next(token::TokenKind::MinusMinus)) {
+      UnaryMutationStatement::Op op;
+      if (is_next(token::TokenKind::PlusPlus)) {
+        op = UnaryMutationStatement::Op::PostIncrement;
+        expect(token::TokenKind::PlusPlus);
+      }
+      else if (is_next(token::TokenKind::MinusMinus)){
+        op = UnaryMutationStatement::Op::PostDecrement;
+        expect(token::TokenKind::MinusMinus);
+      }
+      else {
+        throw std::runtime_error("bro was tust du ???");
+      }
+
       const auto stmt = arena.create<UnaryMutationStatement>(
           lv,
-          is_next(token::TokenKind::PlusPlus)
-              ? UnaryMutationStatement::Op::PostIncrement
-              : UnaryMutationStatement::Op::PostDecrement,
+          op,
           lv->get_location());
       return stmt;
     } else {
@@ -464,13 +515,13 @@ ForStatement *Parser::parse_for_stmt() {
   const auto _for = expect(token::TokenKind::For);
   expect(token::TokenKind::LParen);
   if (!is_next(token::TokenKind::Semi)) {
-    init = parse_statement();
+    init = parse_simple_stmt();
   }
   expect(token::TokenKind::Semi);
   const auto cond = parse_expression();
   expect(token::TokenKind::Semi);
   if (!is_next(token::TokenKind::RParen)) {
-    incr = parse_statement();
+    incr = parse_simple_stmt();
   }
   expect(token::TokenKind::RParen);
   const auto body = parse_statement();

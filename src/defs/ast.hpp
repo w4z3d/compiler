@@ -53,10 +53,14 @@ enum class Builtin { Int, Bool, String, Char, Void, Unknown };
 std::string binOp2String(BinaryOperator binOp);
 std::string unOp2String(UnaryOperator unOp);
 std::string assmtOp2String(AssignmentOperator assmtOp);
-std::string builtin2String(Builtin type);
 BinaryOperator binOpFromToken(token::TokenKind token);
 UnaryOperator unOpFromToken(token::TokenKind token);
 AssignmentOperator assmtOpFromToken(token::TokenKind token);
+int precedenceFromBinOp(BinaryOperator binOp);
+int precedenceFromUnOp(UnaryOperator unOp);
+int precedenceFromAssmtOp(AssignmentOperator assmtOp);
+
+std::string builtin2String(Builtin type);
 Builtin builtinFromToken(token::TokenKind token);
 
 struct SourceLocation {
@@ -85,7 +89,6 @@ public:
 class Type : public ASTNode {
 public:
   explicit Type(SourceLocation loc = {}) : ASTNode(loc) {}
-  virtual ~Type() = default;
   virtual std::string toString() const = 0;
   void accept(class ASTVisitor &visitor) override = 0;
 };
@@ -160,7 +163,6 @@ public:
 };
 
 // ==== Expressions ====
-// TODO: there are still a lot more expressions
 class Expression : public ASTNode {
 public:
   enum class Kind {
@@ -171,10 +173,15 @@ public:
     BoolConst,
     Null,
     Var,
+    Ternary,
     BinOp,
     UnOp,
     Paren,
-    ArrayAccess
+    ArrayAccess,
+    FieldAccess,
+    PointerAccess,
+    Alloc,
+    Alloc_array
   };
 
 private:
@@ -186,6 +193,63 @@ public:
       : ASTNode(loc), kind(k), name(n) {}
   [[nodiscard]] Kind get_kind() const { return kind; }
   [[nodiscard]] std::string_view get_name() const { return name; }
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class AllocExpression : public Expression {
+private:
+  Type *type;
+
+public:
+  AllocExpression(Type *type, SourceLocation loc = {})
+      : Expression(Expression::Kind::Alloc, "AllocExpr", loc), type(type) {}
+  [[nodiscard]] Type *get_type() const { return type; };
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class AllocArrayExpression : public Expression {
+private:
+  Type *type;
+  Expression *size;
+
+public:
+  AllocArrayExpression(Type *type, Expression *size, SourceLocation loc = {})
+      : Expression(Expression::Kind::Alloc_array, "AllocArrayExpr", loc),
+        type(type), size(size) {}
+  [[nodiscard]] Type *get_type() const { return type; };
+  [[nodiscard]] Expression *get_size() const { return size; };
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class PointerAccessExpr : public Expression {
+private:
+  Expression *struct_pointer;
+  std::string_view field;
+
+public:
+  PointerAccessExpr(Expression *struct_pointer, std::string_view field,
+                    SourceLocation loc = {})
+      : Expression(Expression::Kind::PointerAccess, "PointerAccessExpr", loc),
+        struct_pointer(struct_pointer), field(field) {}
+  [[nodiscard]] Expression *get_struct_pointer() const {
+    return struct_pointer;
+  };
+  [[nodiscard]] std::string_view get_field() const { return field; };
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class FieldAccessExpr : public Expression {
+private:
+  Expression *struct_;
+  std::string_view field;
+
+public:
+  FieldAccessExpr(Expression *struct_, std::string_view field,
+                  SourceLocation loc = {})
+      : Expression(Expression::Kind::FieldAccess, "FieldAccessExpr", loc),
+        struct_(struct_), field(field) {}
+  [[nodiscard]] Expression *get_struct() const { return struct_; };
+  [[nodiscard]] std::string_view get_field() const { return field; };
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -204,13 +268,20 @@ public:
 };
 
 class NumericExpr : public Expression {
+public:
+  enum class Base { Decimal, Hexadecimal };
+
 private:
   std::string_view value;
+  Base base;
 
 public:
-  explicit NumericExpr(std::string_view value, SourceLocation loc = {})
-      : Expression(Expression::Kind::Numeric, "Numeric", loc), value(value) {}
+  explicit NumericExpr(std::string_view value, Base base,
+                       SourceLocation loc = {})
+      : Expression(Expression::Kind::Numeric, "NumericLiteral", loc), value(value),
+        base(base) {}
   [[nodiscard]] std::string_view get_value() const { return value; }
+  [[nodiscard]] Base get_base() const { return base; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -223,6 +294,23 @@ public:
       : Expression(Expression::Kind::Paren, "ParenExpr", loc),
         expression(expr) {}
   [[nodiscard]] Expression *get_expression() const { return expression; }
+  void accept(class ASTVisitor &visitor) override;
+};
+
+class TernaryExpression : public Expression {
+private:
+  Expression *condition;
+  Expression *then;
+  Expression *else_;
+
+public:
+  explicit TernaryExpression(Expression *condition, Expression *then,
+                             Expression *else_, SourceLocation loc = {})
+      : Expression(Expression::Kind::Ternary, "TernaryOperator", loc),
+        condition(condition), then(then), else_(else_) {}
+  [[nodiscard]] Expression *get_condition() const { return condition; }
+  [[nodiscard]] Expression *get_then() const { return then; }
+  [[nodiscard]] Expression *get_else() const { return else_; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -308,12 +396,13 @@ private:
 public:
   explicit BoolConstExpr(std::string_view value, SourceLocation loc = {})
       : Expression(Expression::Kind::BoolConst, "BoolConst", loc) {
-    if (value.compare("true")) {
+    if (std::string(value) == "true") {
       this->value = true;
-    } else if (value.compare("false")) {
+    } else if (std::string(value) == "false") {
       this->value = false;
     } else {
-      throw std::runtime_error("Bool Const with unknown value.");
+      throw std::runtime_error(
+          std::format("Bool Const with illegal value {}", value));
     }
   }
   [[nodiscard]] bool get_value() const { return value; }
@@ -719,6 +808,11 @@ public:
   virtual void visit(BinaryOperatorExpression &expr) {}
   virtual void visit(UnaryOperatorExpression &expr) {}
   virtual void visit(ArrayAccessExpr &expr) {}
+  virtual void visit(PointerAccessExpr &expr) {}
+  virtual void visit(FieldAccessExpr &expr) {}
+  virtual void visit(AllocExpression &expr) {}
+  virtual void visit(AllocArrayExpression &expr) {}
+  virtual void visit(TernaryExpression &expr) {}
 
   virtual void visit(Type &type) {}
   virtual void visit(BuiltinType &type) {}
@@ -1165,6 +1259,24 @@ public:
     depth--;
   }
 
+  void visit(TernaryExpression &expr) override {
+    content +=
+        color("TernaryExpression", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + "\n";
+
+    depth++;
+    content += indent();
+    expr.get_condition()->accept(*this);
+    content += indent();
+    expr.get_then()->accept(*this);
+    content += indent();
+    expr.get_else()->accept(*this);
+    depth--;
+  }
+
   void visit(ArrayAccessExpr &expr) override {
     content +=
         color("ArrayAccess", GREEN) + " " +
@@ -1178,6 +1290,61 @@ public:
     expr.get_array()->accept(*this);
     content += indent();
     expr.get_index()->accept(*this);
+    depth--;
+  }
+
+  void visit(FieldAccessExpr &expr) override {
+    content +=
+        color("FieldAccess", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + " " +
+        std::string(expr.get_field()) + "\n";
+
+    depth++;
+    content += indent();
+    expr.get_struct()->accept(*this);
+    depth--;
+  }
+
+  void visit(PointerAccessExpr &expr) override {
+    content +=
+        color("PointerAccess", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + " " +
+        std::string(expr.get_field()) + "\n";
+
+    depth++;
+    content += indent();
+    expr.get_struct_pointer()->accept(*this);
+    depth--;
+  }
+
+  void visit(AllocExpression &expr) override {
+    content +=
+        color("AllocExpression", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + " " +
+        std::string(expr.get_type()->toString()) + "\n";
+  }
+
+  void visit(AllocArrayExpression &expr) override {
+    content +=
+        color("AllocArrayExpression", GREEN) + " " +
+        color(std::format("{:#x}",
+                          reinterpret_cast<std::size_t>(std::addressof(expr))),
+              YELLOW) +
+        " " + formatRange(expr.get_location()) + " " +
+        std::string(expr.get_type()->toString()) + "\n";
+
+    depth++;
+    content += indent();
+    expr.get_size()->accept(*this);
     depth--;
   }
 

@@ -15,7 +15,8 @@ enum class TokenKind {
   Eof,
   StringLiteral,
   Identifier,
-  NumberLiteral,
+  NumberLiteralDec,
+  NumberLiteralHex,
     CharLiteral,
   At,
   BackSlash,
@@ -128,8 +129,6 @@ const std::unordered_map<std::string_view, TokenKind> keyword_table = {
 const std::unordered_set<token::TokenKind> binary_ops = {
     token::TokenKind::Plus,
     token::TokenKind::Minus,
-    token::TokenKind::Dot,
-    token::TokenKind::Arrow,
     token::TokenKind::Asterisk,
     token::TokenKind::Slash,
     token::TokenKind::Percent,
@@ -220,8 +219,10 @@ inline std::string token_kind_to_string(TokenKind kind) {
       return "Eof";
     case TokenKind::Identifier:
       return "Identifier";
-    case TokenKind::NumberLiteral:
-      return "NumberLiteral";
+    case TokenKind::NumberLiteralDec:
+      return "NumberLiteralDec";
+    case TokenKind::NumberLiteralHex:
+      return "NumberLiteralHex";
     case TokenKind::CharLiteral:
       return "CharLiteral";
     case TokenKind::Plus:

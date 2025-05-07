@@ -20,10 +20,12 @@ private:
   int line = 1;
   int column = 1;
 
-  [[nodiscard]] char peek() const;
+  [[nodiscard]] char peek(int lookahead = 0) const;
   char get();
 
   void skip_whitespace();
+  void skip_oneline_comment();
+  void skip_multiline_comment();
 
   token::Token lex_identifier_or_keyword();
   token::Token lex_number();

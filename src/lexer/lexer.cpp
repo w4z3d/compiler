@@ -8,8 +8,8 @@
 Lexer::Lexer(std::string_view file_name, std::string_view source)
     : file_name(file_name), source(source) {}
 
-char Lexer::peek() const {
-  return index < source.size() ? source[index] : '\0';
+char Lexer::peek(int lookahead) const {
+  return index + lookahead < source.size() ? source[index + lookahead] : '\0';
 }
 
 char Lexer::get() {
@@ -34,6 +34,28 @@ void Lexer::skip_whitespace() {
     get();
 }
 
+void Lexer::skip_oneline_comment() {
+  while (peek() != '\n' && peek() != '\0')
+    get();
+}
+
+void Lexer::skip_multiline_comment() {
+  while (true) {
+    if (peek() == '\0') {
+      break;
+    }
+    if (peek() == '*') {
+      get();
+      if (peek() == '/') {
+        get();
+        break;
+      }
+    } else {
+      get();
+    }
+  }
+}
+
 token::Token Lexer::next_token() {
   skip_whitespace();
 
@@ -44,6 +66,20 @@ token::Token Lexer::next_token() {
   }
 
   char c = peek();
+
+  // remove comments
+  if (c == '/') {
+    if (peek(1) == '/') {
+      skip_oneline_comment();
+      // there could be whitespace again after comment...
+      return next_token();
+    } else if (peek(1) == '*') {
+      skip_multiline_comment();
+      // there could be whitespace again after comment...
+      return next_token();
+    }
+  }
+
   if (std::isalpha(c) || c == '_') {
     return lex_identifier_or_keyword();
   }
@@ -81,16 +117,27 @@ token::Token Lexer::lex_identifier_or_keyword() {
 
 token::Token Lexer::lex_number() {
   size_t start_index = index;
+  const auto start = std::make_tuple(line, column);
 
-  const auto start{std::make_tuple(line, column)};
+  if (peek(0) == '0' && (peek(1) == 'x' || peek(1) == 'X') &&
+      std::isxdigit(peek(2))) {
+    get();
+    get();
+    while (std::isxdigit(peek()))
+      get();
+    std::string_view text = source.substr(start_index, index - start_index);
+    const auto end = std::make_tuple(line, column);
+    token::Span span{file_name, start, end};
+    return token::Token{token::TokenKind::NumberLiteralHex, text, span};
+  }
+
   while (std::isdigit(peek()))
     get();
 
   std::string_view text = source.substr(start_index, index - start_index);
-
-  const auto end{std::make_tuple(line, column)};
+  const auto end = std::make_tuple(line, column);
   token::Span span{file_name, start, end};
-  return token::Token{token::TokenKind::NumberLiteral, text, span};
+  return token::Token{token::TokenKind::NumberLiteralDec, text, span};
 }
 
 token::Token Lexer::lex_string_literal() {
@@ -114,30 +161,42 @@ token::Token Lexer::lex_string_literal() {
 
 token::Token Lexer::lex_char_literal() {
   size_t start_index = index;
-  const auto start{std::make_tuple(line, column)};
+  const auto start = std::make_tuple(line, column);
   bool is_invalid = false;
 
-  // Consume initial
-  get();
+  get(); // consume opening '
 
-  if (eof()) {
+  if (eof() || peek() == '\n' || peek() == '\'') {
     is_invalid = true;
-  } else {
-    if (peek() != '\'') {
+  } else if (peek() == '\\') {
+    get(); // consume '\'
+    char esc = peek();
+    switch (esc) {
+    case 'n': case 't': case 'r': case '\\':
+    case '\'': case '\"': case '0':
+      get(); // consume escape char
+      break;
+    default:
+      get(); // consume invalid escape anyway
       is_invalid = true;
-    } else {
-      get();
+      break;
     }
+  } else {
+    get(); // consume regular char
   }
 
-  get();
+  if (peek() != '\'') {
+    is_invalid = true;
+  } else {
+    get(); // consume closing '
+  }
 
   std::string_view text = source.substr(start_index, index - start_index);
-
-  const auto end{std::make_tuple(line, column)};
+  const auto end = std::make_tuple(line, column);
   token::Span span{file_name, start, end};
   return token::Token{token::TokenKind::CharLiteral, text, span, is_invalid};
 }
+
 
 token::Token Lexer::lex_operator_or_punctuation() {
   auto i = index;
@@ -150,12 +209,10 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '+') {
       get();
       tokenKind = token::TokenKind::PlusPlus;
-    }
-    else if (peek() == '=') {
+    } else if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::PlusEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Plus;
     }
     break;
@@ -163,16 +220,13 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '-') {
       get();
       tokenKind = token::TokenKind::MinusMinus;
-    }
-    else if (peek() == '=') {
+    } else if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::MinusEquals;
-    }
-    else if (peek() == '>') {
+    } else if (peek() == '>') {
       get();
       tokenKind = token::TokenKind::Arrow;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Minus;
     }
     break;
@@ -180,8 +234,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::CaretEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Caret;
     }
     break;
@@ -192,8 +245,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::PercentEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Percent;
     }
     break;
@@ -219,8 +271,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::SlashEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Slash;
     }
     break;
@@ -228,8 +279,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::AsteriskEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Asterisk;
     }
     break;
@@ -239,16 +289,13 @@ token::Token Lexer::lex_operator_or_punctuation() {
       if (peek() == '=') {
         get();
         tokenKind = token::TokenKind::LAngleAngleEquals;
-      }
-      else {
+      } else {
         tokenKind = token::TokenKind::LAngleAngle;
       }
-    }
-    else if (peek() == '=') {
+    } else if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::LessEqual;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::LAngleBracket;
     }
     break;
@@ -258,16 +305,13 @@ token::Token Lexer::lex_operator_or_punctuation() {
       if (peek() == '=') {
         get();
         tokenKind = token::TokenKind::RAngleAngleEquals;
-      }
-      else {
+      } else {
         tokenKind = token::TokenKind::RAngleAngle;
       }
-    }
-    else if (peek() == '=') {
+    } else if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::GreaterEqual;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::RAngleBracket;
     }
     break;
@@ -287,8 +331,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::EqualEqual;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Equals;
     }
     break;
@@ -296,8 +339,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::BangEqual;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Bang;
     }
     break;
@@ -311,12 +353,10 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '|') {
       get();
       tokenKind = token::TokenKind::PipePipe;
-    }
-    else if (peek() == '=') {
+    } else if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::PipeEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::Pipe;
     }
     break;
@@ -324,12 +364,10 @@ token::Token Lexer::lex_operator_or_punctuation() {
     if (peek() == '&') {
       get();
       tokenKind = token::TokenKind::AndAnd;
-    }
-    else if (peek() == '=') {
+    } else if (peek() == '=') {
       get();
       tokenKind = token::TokenKind::AndEquals;
-    }
-    else {
+    } else {
       tokenKind = token::TokenKind::And;
     }
     break;

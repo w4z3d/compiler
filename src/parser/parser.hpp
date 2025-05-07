@@ -111,7 +111,8 @@ private:
   VariableDeclarationStatement *parse_var_decl_stmt();
 
   Expression *parse_expression();
-  Expression *parse_expr_tail(Expression *expr);
+  Expression *parse_expr_with_precedence(int minPrecedence);
+  Expression *parse_exp_head();
   CallExpr *parse_call_expression();
   NumericExpr *parse_integer_literal();
   CharLiteralExpr *parse_char_literal();
@@ -120,7 +121,8 @@ private:
   NullExpr *parse_null_expr();
   ParenthesisExpression *parse_paren_expr();
   VarExpr *parse_var_expr();
-  UnaryOperatorExpression *parse_unary_op_expr();
+  AllocExpression *parse_alloc_expr();
+  AllocArrayExpression *parse_alloc_array_expr();
 
   Type *parse_type();
   Type *parse_type_tail(Type *type);
