@@ -433,8 +433,7 @@ public:
 class Statement : public ASTNode {
 public:
   explicit Statement(SourceLocation loc = {}) : ASTNode(loc) {}
-  virtual ~Statement() = default;
-  virtual void accept(class ASTVisitor &visitor) override = 0;
+  void accept(class ASTVisitor &visitor) override;
 };
 
 class ErrorStatement : public Statement {

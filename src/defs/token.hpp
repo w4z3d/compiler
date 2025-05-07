@@ -324,7 +324,7 @@ inline std::string token_kind_to_string(TokenKind kind) {
       return "Char";
     case TokenKind::Void:
       return "Void";
-    case TokenKind::Unsupported:
+    default:
       return "Unsupported";
   }
 }

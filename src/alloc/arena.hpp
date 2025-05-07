@@ -16,7 +16,7 @@ private:
     std::size_t size;
     std::size_t used;
 
-    Block(std::size_t block_size) : size(block_size), used(0) {
+    explicit Block(std::size_t block_size) : size(block_size), used(0) {
       data = std::make_unique<std::uint8_t[]>(block_size);
     }
   };
@@ -25,14 +25,14 @@ private:
   std::size_t block_size_;
   std::size_t alignment_;
 
-  inline std::size_t align(std::size_t n) const noexcept {
+  [[nodiscard]] inline std::size_t align(std::size_t n) const noexcept {
     return (n + alignment_ - 1) & ~(alignment_ - 1);
   }
 
 public:
-  Arena(std::size_t block_size = 4096, size_t alignment = 8)
+  explicit Arena(std::size_t block_size = 4096, size_t alignment = 8)
       : block_size_(block_size), alignment_(alignment) {
-    blocks_.emplace_back(Block{block_size_});
+    blocks_.emplace_back(block_size_);
   }
 
   void *allocate(std::size_t size) {
@@ -42,7 +42,7 @@ public:
     // Allocate a dedicated block if the size exceedes the standard blocksize
     // (So we dont end up in a loop of generating blocks)
     if (size > block_size_) {
-      blocks_.emplace_back(Block{size});
+      blocks_.emplace_back(size);
       auto &block = blocks_.back();
       block.used = size;
       return block.data.get();
