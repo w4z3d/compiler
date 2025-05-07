@@ -2,19 +2,22 @@
 #define ANALYSIS_SYMBOL_H
 
 #include "../defs/ast.hpp"
+#include "spdlog/spdlog.h"
 #include <format>
+#include <iostream>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 
 class Symbol {
 public:
   enum class Kind { Variable, Function, Struct };
 
 private:
-  std::string_view name;
+  std::string name;
   Kind kind;
   bool initialized = false;
   bool constant = false;
@@ -25,7 +28,7 @@ public:
   explicit Symbol(std::string_view name, SourceLocation loc, Kind kind)
       : name(name), location(loc), kind(kind) {}
 
-  [[nodiscard]] std::string_view get_name() const { return name; }
+  [[nodiscard]] const std::string &get_name() const { return name; }
 
   [[nodiscard]] const SourceLocation &get_source_location() const {
     return location;
@@ -40,21 +43,41 @@ public:
 };
 
 class VariableSymbol : public Symbol {
-
+public:
   explicit VariableSymbol(std::string_view name, SourceLocation loc)
       : Symbol(name, loc, Kind::Variable) {}
 };
 
+class FunctionSymbol : public Symbol {
+public:
+  explicit FunctionSymbol(std::string_view name, SourceLocation loc)
+      : Symbol(name, loc, Kind::Function) {}
+};
+
 class Scope {
 private:
-  std::unordered_map<std::string_view, Symbol> symbols;
+  struct StringHash {
+    using is_transparent = void;
+    std::size_t operator()(std::string_view str) const noexcept {
+      return std::hash<std::string_view>{}(str);
+    }
+  };
+
+  struct StringEqual {
+    using is_transparent = void;
+    bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
+      return lhs == rhs;
+    }
+  };
+
+  std::unordered_map<std::string, Symbol, StringHash, StringEqual> symbols;
   std::weak_ptr<Scope> parent;
-  std::string_view scope_name;
+  std::string scope_name;
 
 public:
-  explicit Scope(std::string_view name = "unnamed",
+  explicit Scope(std::string name = "unnamed",
                  const std::shared_ptr<Scope> &parent = nullptr)
-      : parent(parent), scope_name(name) {}
+      : parent(parent), scope_name(std::move(name)) {}
 
   [[nodiscard]] std::shared_ptr<Scope> get_parent() const {
     return parent.lock();
@@ -64,7 +87,7 @@ public:
     if (symbols.find(symbol.get_name()) != symbols.end()) {
       return false;
     }
-    symbols[symbol.get_name()] = symbol;
+    symbols.emplace(symbol.get_name(), symbol);
     return true;
   }
 
@@ -77,7 +100,7 @@ public:
     return std::nullopt;
   }
 
-  std::optional<Symbol> lookup(std::string_view name) const {
+  std::optional<Symbol> lookup(const std::string_view name) const {
     auto symbol = lookup_local(name);
 
     if (symbol) {
@@ -92,7 +115,8 @@ public:
     return std::nullopt;
   }
 
-  std::unordered_map<std::string_view, Symbol> get_scoped_symbols() const {
+  std::unordered_map<std::string, Symbol, StringHash, StringEqual>
+  get_scoped_symbols() const {
     return symbols;
   }
 
@@ -106,17 +130,25 @@ private:
 public:
   SymbolTable() { current_scope = std::make_shared<Scope>("top_level"); }
 
-  void enter_scope(std::string_view name = "anonymous") {
+  void enter_scope(std::string name = "anonymous") {
     auto new_scope = std::make_shared<Scope>(name, current_scope);
+    spdlog::debug("Entering scope {} with parent {}", new_scope->get_name(),
+                  current_scope->get_name());
     current_scope = new_scope;
   }
 
   bool exit_scope() {
+
+    spdlog::debug("Exiting Scope {}", current_scope->get_name());
     auto parent = current_scope->get_parent();
+
     if (parent) {
+      spdlog::debug("Exiting scope {} with parent {}",
+                    current_scope->get_name(), parent->get_name());
       current_scope = parent;
       return true;
     }
+    spdlog::debug("New Scope {}", current_scope->get_name());
     return false;
   }
 

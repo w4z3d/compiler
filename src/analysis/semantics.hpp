@@ -2,19 +2,26 @@
 #define ANALYSIS_SEMANTICS_H
 
 #include "../defs/ast.hpp"
+#include "symbol.hpp"
 namespace semantic {
 
 class SemanticVisitor : public ASTVisitor {
+private:
+  SymbolTable symbol_table{};
+
+public:
   void visit(TranslationUnit &unit) override;
-  void visit(AssignmentStatement &stmt) override;
-  void visit(Declaration &decl) override;
-  void visit(ParameterDeclaration &decl) override;
-  void visit(BinaryOperatorExpression &expr) override;
-  void visit(UnaryOperatorExpression &expr) override;
-  void visit(VariableDeclarationStatement &stmt) override;
-  void visit(ExpressionStatement &stmt) override;
-  void visit(CallExpr &expr) override;
+  void visit(CompoundStmt &stmt) override;
   void visit(FunctionDeclaration &decl) override;
+  void visit(AssignmentStatement &stmt) override;
+  void visit(VariableLValue &val) override;
+  void visit(VariableDeclarationStatement &stmt) override;
+  void visit(VarExpr &expr) override;
+  void visit(CallExpr &expr) override;
+  void visit(IfStatement &stmt) override;
+  void visit(ReturnStmt &stmt) override;
+  void visit(BinaryOperatorExpression &expr) override;
+  void visit(FieldAccessLValue &val) override;
 };
 
 } // namespace semantic

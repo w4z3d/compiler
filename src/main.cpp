@@ -1,3 +1,4 @@
+#include "analysis/semantics.hpp"
 #include "defs/ast.hpp"
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
@@ -17,7 +18,10 @@ int main(int argc, char *argv[]) {
   ClangStylePrintVisitor visitor{};
   const auto unit{parser.parse_translation_unit()};
   unit->accept(visitor);
-
   std::cout << visitor.get_content() << std::endl;
+
+  semantic::SemanticVisitor semantic_visitor{};
+  unit->accept(semantic_visitor);
+
   return 0;
 }

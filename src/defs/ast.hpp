@@ -356,7 +356,6 @@ public:
 class LValue : public ASTNode {
 public:
   explicit LValue(SourceLocation loc = {}) : ASTNode(loc) {}
-  virtual ~LValue() = default;
   void accept(class ASTVisitor &visitor) override = 0;
 };
 
@@ -590,7 +589,7 @@ private:
 public:
   explicit CompoundStmt(std::vector<Statement *> stmts, SourceLocation loc = {})
       : Statement(loc), statements(std::move(stmts)) {}
-  [[nodiscard]] const std::vector<Statement *> &getStatements() const {
+  [[nodiscard]] const std::vector<Statement *> &get_statements() const {
     return statements;
   }
 
@@ -664,7 +663,7 @@ public:
   void set_body(CompoundStmt *stmt) { body = stmt; }
 
   [[nodiscard]] const std::vector<ParameterDeclaration *> &
-  getParamDecls() const {
+  get_parameter_declarations() const {
     return parameters;
   }
   [[nodiscard]] CompoundStmt *get_body() const { return body; };
@@ -819,7 +818,7 @@ public:
 
     // Parameter types list
     bool first = true;
-    for (const auto &param : decl.getParamDecls()) {
+    for (const auto &param : decl.get_parameter_declarations()) {
       if (!first)
         content += ", ";
       content += param->get_type()->toString();
@@ -829,7 +828,7 @@ public:
 
     depth++;
     // Function parameters
-    for (const auto &param : decl.getParamDecls()) {
+    for (const auto &param : decl.get_parameter_declarations()) {
       content += indent();
       param->accept(*this);
     }
@@ -863,7 +862,7 @@ public:
         " " + formatRange(stmt.get_location()) + "\n";
 
     depth++;
-    for (const auto &statement : stmt.getStatements()) {
+    for (const auto &statement : stmt.get_statements()) {
       content += indent();
       statement->accept(*this);
     }
