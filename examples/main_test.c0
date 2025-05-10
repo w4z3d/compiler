@@ -1,0 +1,15 @@
+int main (Test test, Hallo** doppelPanzer) {
+  assert(string_equal(int2hex(0), "00000000"));
+  assert(string_equal(int2hex(int_min()), "80000000"));
+  assert(string_equal(int2hex(int_max()), "7FFFFFFF"));
+  assert(string_equal(int2hex("LAMOOADMAWOMDAOWDMAWO"), "0ABCDEF3"));
+  assert(peter);
+  return 1;
+}
+
+int test();
+
+string kaka(Anadrol abc) {
+    int y = true ? test/10+1<<3 : test2;
+    return 123;
+}

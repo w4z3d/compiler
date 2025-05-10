@@ -1,3 +1,5 @@
+# Compiler
+
 ## Content
 <!--toc:start-->
 - [How to build](#how-to-build)
@@ -16,5 +18,5 @@ cd build && cmake .. -DCAMKE_BUILD_TYPE=Release && cmake --build . --parallel 8
 ### Windows
 
 ```bash
-cd build && cmake .. -DCAMKE_BUILD_TYPE=Release && cmake --build . --parallel 8
+cd build && cmake .. -DCAMKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCAMKE_C_COMPILER=/usr/bin/clang && cmake --build . --parallel 8
 ```

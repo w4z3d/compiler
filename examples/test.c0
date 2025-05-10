@@ -1,6 +1,7 @@
-Test test();
-Test test();
-Test test(awdaw);
-Test test();
-Test test();
-Test test();
+struct test;
+struct hallo {};
+struct abc {
+    int a;
+    welt welt;
+};
+typedef abc Trattis;

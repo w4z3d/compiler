@@ -10,8 +10,8 @@ public:
   Lexer(std::string_view file_name, std::string_view source);
 
   token::Token next_token();
-  bool eof() const;
-  const std::string_view get_file_name() const { return file_name; }
+  [[nodiscard]] bool eof() const;
+  [[nodiscard]] std::string_view get_file_name() const { return file_name; }
 
 private:
   std::string_view file_name;
@@ -20,10 +20,12 @@ private:
   int line = 1;
   int column = 1;
 
-  char peek() const;
+  [[nodiscard]] char peek(int lookahead = 0) const;
   char get();
 
   void skip_whitespace();
+  void skip_oneline_comment();
+  void skip_multiline_comment();
 
   token::Token lex_identifier_or_keyword();
   token::Token lex_number();

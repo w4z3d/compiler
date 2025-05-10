@@ -2,7 +2,7 @@
  * Frank Pfenning
  */
 
-#use < string>
+//#use < string>
 
 /* Some limits, which are fixed in the language definition */
 int int_size() { return 4; }         /* size of ints, in bytes */
