@@ -1,6 +1,7 @@
 #ifndef ANALYSIS_SYMBOL_H
 #define ANALYSIS_SYMBOL_H
 
+#include "../alloc/arena.hpp"
 #include "../defs/ast.hpp"
 #include "spdlog/spdlog.h"
 #include <format>
@@ -11,7 +12,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
-#include "../alloc/arena.hpp"
 
 class Symbol {
 public:
@@ -55,6 +55,12 @@ public:
       : Symbol(name, loc, Kind::Function) {}
 };
 
+class StructSymbol : public Symbol {
+public:
+  explicit StructSymbol(std::string_view name, SourceLocation loc)
+      : Symbol(name, loc, Kind::Struct) {}
+};
+
 class Scope {
 private:
   struct StringHash {
@@ -76,13 +82,10 @@ private:
   std::string scope_name;
 
 public:
-  explicit Scope(std::string name = "unnamed",
-                 Scope *parent = nullptr)
+  explicit Scope(std::string name = "unnamed", Scope *parent = nullptr)
       : parent(parent), scope_name(std::move(name)) {}
 
-  [[nodiscard]] Scope *get_parent() const {
-    return parent;
-  }
+  [[nodiscard]] Scope *get_parent() const { return parent; }
 
   bool define(const Symbol &symbol) {
     if (symbols.find(symbol.get_name()) != symbols.end()) {
@@ -92,7 +95,8 @@ public:
     return true;
   }
 
-  [[nodiscard]] std::optional<Symbol> lookup_local(std::string_view name) const {
+  [[nodiscard]] std::optional<Symbol>
+  lookup_local(std::string_view name) const {
     auto it = symbols.find(name);
     if (it != symbols.end()) {
       return it->second;
@@ -101,7 +105,8 @@ public:
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<Symbol> lookup(const std::string_view name) const {
+  [[nodiscard]] std::optional<Symbol>
+  lookup(const std::string_view name) const {
     auto symbol = lookup_local(name);
 
     if (symbol) {
@@ -130,9 +135,11 @@ private:
   arena::Arena arena;
 
 public:
-  explicit SymbolTable() : arena(arena::Arena{}) { current_scope = arena.create<Scope>("top_level"); }
+  explicit SymbolTable() : arena(arena::Arena{}) {
+    current_scope = arena.create<Scope>("top_level");
+  }
 
-  void enter_scope(const std::string& name = "anonymous") {
+  void enter_scope(const std::string &name = "anonymous") {
     auto new_scope = arena.create<Scope>(name, current_scope);
     spdlog::debug("Entering scope {} with parent {}", new_scope->get_name(),
                   current_scope->get_name());
@@ -166,9 +173,7 @@ public:
   }
 
 private:
-  static std::string dump_scope(std::string &content,
-                                Scope *scope,
-                                int level) {
+  static std::string dump_scope(std::string &content, Scope *scope, int level) {
     std::string indent(level * 2, ' ');
     content += std::format("Scope: {} \n", scope->get_name());
 

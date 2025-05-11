@@ -2,6 +2,8 @@
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
 #include "symbol.hpp"
+#include <cstdint>
+#include <sys/types.h>
 
 void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
   for (const auto &declaration : unit.get_declarations()) {
@@ -59,14 +61,22 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
 void semantic::SemanticVisitor::visit(VarExpr &expr) {
   const auto lookup = symbol_table.lookup(expr.get_variable_name());
   if (!lookup) {
-    spdlog::error("Unresolved reference {}", expr.get_variable_name());
+    spdlog::error("Unresolved reference {} at {}:{}:{}",
+                  expr.get_variable_name(), expr.get_location().file_name,
+                  expr.get_location().line, expr.get_location().column);
   }
 }
 
 void semantic::SemanticVisitor::visit(CallExpr &expr) {
   const auto lookup = symbol_table.lookup(expr.get_function_name());
   if (!lookup) {
-    spdlog::error("Unresolved method reference {}", expr.get_function_name());
+    spdlog::error("Unresolved method reference {} at {}:{}:{}",
+                  expr.get_function_name(), expr.get_location().file_name,
+                  expr.get_location().line, expr.get_location().column);
+  }
+
+  for (const auto &param : expr.get_params()) {
+    param->accept(*this);
   }
 }
 
@@ -99,101 +109,89 @@ void semantic::SemanticVisitor::visit(FieldAccessLValue &val) {}
 void semantic::SemanticVisitor::visit(Typedef &typedef_) {
   ASTVisitor::visit(typedef_);
 }
-void semantic::SemanticVisitor::visit(Declaration &decl) {
-  ASTVisitor::visit(decl);
-}
-void semantic::SemanticVisitor::visit(ParameterDeclaration &decl) {
-  ASTVisitor::visit(decl);
-}
 void semantic::SemanticVisitor::visit(StructDeclaration &decl) {
-  ASTVisitor::visit(decl);
-}
-void semantic::SemanticVisitor::visit(Statement &stmt) {
-  ASTVisitor::visit(stmt);
+  symbol_table.define(StructSymbol{decl.get_name(), decl.get_location()});
 }
 void semantic::SemanticVisitor::visit(AssertStmt &stmt) {
-  ASTVisitor::visit(stmt);
+  stmt.get_expression()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(UnaryMutationStatement &stmt) {
-  ASTVisitor::visit(stmt);
+  stmt.get_target()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ExpressionStatement &stmt) {
   stmt.get_expression()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ForStatement &stmt) {
-  ASTVisitor::visit(stmt);
+  symbol_table.enter_scope(
+      std::format("for_{}_head", stmt.get_location().line));
+  stmt.get_init()->accept(*this);
+  stmt.get_condition()->accept(*this);
+  stmt.get_increment()->accept(*this);
+
+  symbol_table.enter_scope(
+      std::format("for_{}_body", stmt.get_location().line));
+  stmt.get_body()->accept(*this);
+  symbol_table.exit_scope();
+  symbol_table.exit_scope();
 }
 void semantic::SemanticVisitor::visit(WhileStatement &stmt) {
-  ASTVisitor::visit(stmt);
+  stmt.get_condition()->accept(*this);
+  symbol_table.enter_scope(std::format("while_{}", stmt.get_location().line));
+  stmt.get_body()->accept(*this);
+  symbol_table.exit_scope();
 }
 void semantic::SemanticVisitor::visit(ErrorStatement &stmt) {
-  ASTVisitor::visit(stmt);
-}
-void semantic::SemanticVisitor::visit(Expression &expr) {
-  ASTVisitor::visit(expr);
-}
-void semantic::SemanticVisitor::visit(NumericExpr &expr) {
-  ASTVisitor::visit(expr);
-}
-void semantic::SemanticVisitor::visit(StringLiteralExpr &expr) {
-  ASTVisitor::visit(expr);
-}
-void semantic::SemanticVisitor::visit(CharLiteralExpr &expr) {
-  ASTVisitor::visit(expr);
-}
-void semantic::SemanticVisitor::visit(BoolConstExpr &expr) {
-  ASTVisitor::visit(expr);
-}
-void semantic::SemanticVisitor::visit(NullExpr &expr) {
-  ASTVisitor::visit(expr);
+  stmt.get_expr()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ParenthesisExpression &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_expression()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(UnaryOperatorExpression &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_expression()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ArrayAccessExpr &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_array()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(PointerAccessExpr &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_struct_pointer()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(FieldAccessExpr &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_struct()->accept(*this);
+  // TODO: Check for struct reference? somehow i guess
 }
 void semantic::SemanticVisitor::visit(AllocExpression &expr) {
-  ASTVisitor::visit(expr);
+  // TODO: Typechecking here
 }
 void semantic::SemanticVisitor::visit(AllocArrayExpression &expr) {
-  ASTVisitor::visit(expr);
+  // TODO: Typechecking here too
 }
 void semantic::SemanticVisitor::visit(TernaryExpression &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_condition()->accept(*this);
+  expr.get_then()->accept(*this);
+  expr.get_else()->accept(*this);
 }
-void semantic::SemanticVisitor::visit(TypeAnnotation &type) { ASTVisitor::visit(type); }
-void semantic::SemanticVisitor::visit(BuiltinTypeAnnotation &type) {
-  ASTVisitor::visit(type);
-}
-void semantic::SemanticVisitor::visit(NamedTypeAnnotation &type) {
-  ASTVisitor::visit(type);
-}
-void semantic::SemanticVisitor::visit(StructTypeAnnotation &type) {
-  ASTVisitor::visit(type);
-}
-void semantic::SemanticVisitor::visit(PointerTypeAnnotation &type) {
-  ASTVisitor::visit(type);
-}
-void semantic::SemanticVisitor::visit(ArrayTypeAnnotation &type) {
-  ASTVisitor::visit(type);
-}
-void semantic::SemanticVisitor::visit(LValue &val) { ASTVisitor::visit(val); }
 void semantic::SemanticVisitor::visit(ArrayAccessLValue &val) {
-  ASTVisitor::visit(val);
+  val.get_base()->accept(*this);
+  val.get_index()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {
-  ASTVisitor::visit(val);
+  const auto lookup = symbol_table.lookup(val.get_field());
+  if (!lookup) {
+    spdlog::error("Unresolved reference {} at {}:{}:{}", val.get_field(),
+                  val.get_location().file_name, val.get_location().line,
+                  val.get_location().column);
+  }
+  val.get_base()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(DereferenceLValue &val) {
-  ASTVisitor::visit(val);
+  val.get_operand()->accept(*this);
+}
+
+void semantic::SemanticVisitor::visit(NumericExpr &expr) {
+  const auto value = expr.try_parse<int>();
+  if (!value) {
+    spdlog::error("Integer literal out of bounds {} at {}:{}:{}",
+                  expr.get_value(), expr.get_location().file_name,
+                  expr.get_location().line, expr.get_location().column);
+  }
 }

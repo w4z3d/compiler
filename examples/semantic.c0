@@ -1,0 +1,16 @@
+struct Test {
+    int x;
+};
+
+int main() {
+  Test a = 100;
+
+  int i = 0;
+  if (300 + 100) {
+    int o = i.xawd;
+  } else {
+    int b = o;
+  }
+
+  return o;
+}

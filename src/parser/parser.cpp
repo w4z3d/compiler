@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "spdlog/common.h"
+#include <vector>
 
 // Grammar reference:
 // https://c0.cs.cmu.edu/docs/c0-reference.pdf#subsection.14.2
