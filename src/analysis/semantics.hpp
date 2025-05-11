@@ -8,11 +8,17 @@
 #include "symbol.hpp"
 namespace semantic {
 
+#define L1
+
 class SemanticVisitor : public ASTVisitor {
 private:
   SymbolTable symbol_table{};
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
+
+#ifdef L1
+  bool has_return_statement = false;
+#endif
 
 public:
   explicit SemanticVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,

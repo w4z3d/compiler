@@ -30,12 +30,19 @@ void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
 }
 
 void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
-#ifdef L1
-  bool contains_return;
-#endif
+
   for (const auto &statement : stmt.get_statements()) {
+
     statement->accept(*this);
   }
+#ifdef L1
+  if (!has_return_statement) {
+    diagnostics->emit_error(stmt.get_location(), "Missing return statement");
+    diagnostics->add_source_context(
+        source_manager->get_line(stmt.get_location().start_line()));
+    diagnostics->suggest_fix("This is only present in L1");
+  }
+#endif
 }
 
 void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
@@ -110,6 +117,9 @@ void semantic::SemanticVisitor::visit(IfStatement &stmt) {
 }
 
 void semantic::SemanticVisitor::visit(ReturnStmt &stmt) {
+#ifdef L1
+  has_return_statement = true;
+#endif
   stmt.get_expression()->accept(*this);
 }
 

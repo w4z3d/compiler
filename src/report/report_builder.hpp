@@ -190,7 +190,7 @@ public:
   void print_all(std::ostream &out = std::cerr) const {
     out << std::endl;
     for (const auto &diag : diagnostics) {
-      out << diag.formatted_message();
+      out << diag.formatted_message() << std::endl;
     }
 
     // Print summary
@@ -205,7 +205,7 @@ public:
         });
 
     if (error_count > 0 || warning_count > 0) {
-      out << "\n" << Color::Bold;
+      out << Color::Bold;
       if (error_count > 0) {
         out << Color::Red << error_count << " error"
             << (error_count > 1 ? "s" : "");
