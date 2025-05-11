@@ -26,7 +26,8 @@ class Parser {
 private:
   Lexer lexer;
   arena::Arena arena;
-  std::vector<report::ParserError> parse_errors;
+  std::shared_ptr<SourceManager> source_manager;
+  std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::vector<token::Token> token_buffer;
 
   [[nodiscard]] token::Token peek(std::size_t n = 0) {
@@ -68,6 +69,19 @@ private:
       next_token();
       return token;
     }
+    const auto loc =
+        SourceLocation{lexer.get_file_name(), token.span.start, token.span.end};
+
+    diagnostics->emit_error(
+        loc, std::format("Unexpected {} token on line {}:{} \'{}\' expected {}",
+                         token_kind_to_string(token.kind),
+                         std::get<0>(token.span.start),
+                         std::get<1>(token.span.start), token.text,
+                         token::token_kind_to_string(expected)));
+
+    diagnostics->add_source_context(
+        source_manager->get_line(std::get<0>(token.span.start)));
+
     throw ParseError{std::format(
         "Unexpected {} token on line {}:{} \'{}\' expected {}",
         token_kind_to_string(token.kind), std::get<0>(token.span.start),
@@ -142,11 +156,11 @@ private:
 public:
   TranslationUnit *parse_translation_unit();
   bool is_eof() { return peek().kind == token::TokenKind::Eof; }
-  [[nodiscard]] const std::vector<report::ParserError> &get_errors() const {
-    return parse_errors;
-  }
 
-  explicit Parser(Lexer lexer) : lexer(lexer), arena(arena::Arena{}) {}
+  explicit Parser(Lexer lexer, std::shared_ptr<DiagnosticEmitter> diagnostics,
+                  std::shared_ptr<SourceManager> source_manager)
+      : lexer(lexer), diagnostics(std::move(diagnostics)),
+        source_manager(std::move(source_manager)), arena(arena::Arena{}) {}
 };
 
 #endif

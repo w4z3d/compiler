@@ -79,6 +79,12 @@ struct SourceLocation {
                  std::tuple<int, int> begin = {0, 0},
                  std::tuple<int, int> end = {0, 0})
       : file_name(file_name), begin(begin), end(end) {}
+
+public:
+  [[nodiscard]] int start_line() const { return std::get<0>(begin); }
+  [[nodiscard]] int end_line() const { return std::get<0>(end); }
+  [[nodiscard]] int start_col() const { return std::get<1>(begin); }
+  [[nodiscard]] int end_col() const { return std::get<1>(end); }
 };
 
 class ASTNode {
@@ -311,7 +317,7 @@ public:
     auto [ptr, ec] =
         std::from_chars(value.data(), value.data() + value.size(), result);
 
-    spdlog::info("String repr: {} errc: {}", value, static_cast<int>(ec));
+    // spdlog::info("String repr: {} errc: {}", value, static_cast<int>(ec));
     if (ec == std::errc()) {
       return result;
     }

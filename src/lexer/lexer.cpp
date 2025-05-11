@@ -174,8 +174,13 @@ token::Token Lexer::lex_char_literal() {
     get(); // consume '\'
     char esc = peek();
     switch (esc) {
-    case 'n': case 't': case 'r': case '\\':
-    case '\'': case '\"': case '0':
+    case 'n':
+    case 't':
+    case 'r':
+    case '\\':
+    case '\'':
+    case '\"':
+    case '0':
       get(); // consume escape char
       break;
     default:
@@ -198,7 +203,6 @@ token::Token Lexer::lex_char_literal() {
   token::Span span{file_name, start, end};
   return token::Token{token::TokenKind::CharLiteral, text, span, is_invalid};
 }
-
 
 token::Token Lexer::lex_operator_or_punctuation() {
   auto i = index;
@@ -381,7 +385,7 @@ token::Token Lexer::lex_operator_or_punctuation() {
     break;
   };
   std::string_view text = source.substr(i, index - i);
-  const auto end{std::make_tuple(line, column + 1)};
+  const auto end{std::make_tuple(line, column)};
   const token::Span span{file_name, start, end};
   return token::Token{tokenKind, text, span};
 }

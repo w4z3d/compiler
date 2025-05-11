@@ -5,12 +5,6 @@ struct Test {
 int main() {
   Test a = 100;
 
-  int i = 0;
-  if (300 + 100) {
-    int o = i.xawd;
-  } else {
-    int b = o;
-  }
-
+  int i = 1312; int i = a * 100;
   return o;
 }

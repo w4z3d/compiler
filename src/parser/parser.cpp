@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "spdlog/common.h"
+#include "spdlog/spdlog.h"
 #include <vector>
 
 // Grammar reference:
@@ -654,6 +655,7 @@ TranslationUnit *Parser::parse_translation_unit() {
       else
         unit->add_declaration(parse_function_declaration());
     } catch (ParseError &error) {
+      // spdlog::error("{}", error.what());
       synchronize();
     }
   }

@@ -1,8 +1,5 @@
 #include "semantics.hpp"
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
 #include "symbol.hpp"
-#include <cstdint>
 #include <sys/types.h>
 
 void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
@@ -33,6 +30,9 @@ void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
 }
 
 void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
+#ifdef L1
+  bool contains_return;
+#endif
   for (const auto &statement : stmt.get_statements()) {
     statement->accept(*this);
   }
@@ -54,27 +54,38 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
   stmt.get_initializer()->accept(*this);
   if (!symbol_table.define(
           VariableSymbol{stmt.get_identifier(), stmt.get_location()})) {
-    spdlog::error("Variable {} already defined", stmt.get_identifier());
+    const auto previous_def = symbol_table.lookup(stmt.get_identifier());
+    diagnostics->emit_error(
+        stmt.get_location(),
+        std::format("Redefinition of variable {} ", stmt.get_identifier()));
+    diagnostics->add_source_context(
+        source_manager->get_line(stmt.get_location().start_line()));
+    diagnostics->emit_note(previous_def->get_source_location(),
+                           "Previously defined here:");
+    diagnostics->add_source_context(source_manager->get_line(
+        previous_def->get_source_location().start_line()));
   }
 }
 
 void semantic::SemanticVisitor::visit(VarExpr &expr) {
   const auto lookup = symbol_table.lookup(expr.get_variable_name());
   if (!lookup) {
-    spdlog::error("Unresolved reference {} at {}:{}:{}",
-                  expr.get_variable_name(), expr.get_location().file_name,
-                  std::get<0>(expr.get_location().begin),
-                  std::get<1>(expr.get_location().begin));
+    diagnostics->emit_error(
+        expr.get_location(),
+        std::format("Unresolved reference {}", expr.get_variable_name()));
+    diagnostics->add_source_context(
+        source_manager->get_line(expr.get_location().start_line()));
   }
 }
 
 void semantic::SemanticVisitor::visit(CallExpr &expr) {
   const auto lookup = symbol_table.lookup(expr.get_function_name());
-  if (!lookup) {
-    spdlog::error("Unresolved method reference {} at {}:{}:{}",
-                  expr.get_function_name(), expr.get_location().file_name,
-                  std::get<0>(expr.get_location().begin),
-                  std::get<1>(expr.get_location().begin));
+  if (lookup) {
+    diagnostics->emit_error(expr.get_location(),
+                            std::format("Unresolved method reference {}",
+                                        expr.get_function_name()));
+    diagnostics->add_source_context(
+        source_manager->get_line(expr.get_location().start_line()));
   }
 
   for (const auto &param : expr.get_params()) {
@@ -180,10 +191,12 @@ void semantic::SemanticVisitor::visit(ArrayAccessLValue &val) {
 void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {
   const auto lookup = symbol_table.lookup(val.get_field());
   if (!lookup) {
-    spdlog::error("Unresolved reference {} at {}:{}:{}", val.get_field(),
-                  val.get_location().file_name,
-                  std::get<0>(val.get_location().begin),
-                  std::get<1>(val.get_location().begin));
+    diagnostics->emit_error(
+        val.get_location(),
+        std::format("Unresolved reference {}", val.get_field()));
+
+    diagnostics->add_source_context(
+        source_manager->get_line(val.get_location().start_line()));
   }
   val.get_base()->accept(*this);
 }
@@ -194,9 +207,13 @@ void semantic::SemanticVisitor::visit(DereferenceLValue &val) {
 void semantic::SemanticVisitor::visit(NumericExpr &expr) {
   const auto value = expr.try_parse<int>();
   if (!value) {
-    spdlog::error("Integer literal out of bounds {} at {}:{}:{}",
-                  expr.get_value(), expr.get_location().file_name,
-                  std::get<0>(expr.get_location().begin),
-                  std::get<1>(expr.get_location().begin));
+    diagnostics->emit_error(
+        expr.get_location(),
+        std::format("Integer literal out of bounds {}", expr.get_value()));
+
+    diagnostics->add_source_context(
+        source_manager->get_line(expr.get_location().start_line()));
+
+    diagnostics->suggest_fix("The bounds are -2^31 < c < 2^31");
   }
 }
