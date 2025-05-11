@@ -3,6 +3,7 @@
 #include "../alloc/arena.hpp"
 #include "../defs/ast.hpp"
 #include "../lexer/lexer.hpp"
+#include "../report/report_builder.hpp"
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
 #include <cstddef>
@@ -25,7 +26,7 @@ class Parser {
 private:
   Lexer lexer;
   arena::Arena arena;
-
+  std::vector<report::ParserError> parse_errors;
   std::vector<token::Token> token_buffer;
 
   [[nodiscard]] token::Token peek(std::size_t n = 0) {
@@ -135,14 +136,16 @@ private:
   LValue *parse_lvalue();
   LValue *parse_lvalue_tail(LValue *lvalue);
 
-
   bool is_var_decl_stmt();
   bool is_lv();
 
 public:
   TranslationUnit *parse_translation_unit();
-
   bool is_eof() { return peek().kind == token::TokenKind::Eof; }
+  [[nodiscard]] const std::vector<report::ParserError> &get_errors() const {
+    return parse_errors;
+  }
+
   explicit Parser(Lexer lexer) : lexer(lexer), arena(arena::Arena{}) {}
 };
 

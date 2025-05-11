@@ -63,7 +63,8 @@ void semantic::SemanticVisitor::visit(VarExpr &expr) {
   if (!lookup) {
     spdlog::error("Unresolved reference {} at {}:{}:{}",
                   expr.get_variable_name(), expr.get_location().file_name,
-                  expr.get_location().line, expr.get_location().column);
+                  std::get<0>(expr.get_location().begin),
+                  std::get<1>(expr.get_location().begin));
   }
 }
 
@@ -72,7 +73,8 @@ void semantic::SemanticVisitor::visit(CallExpr &expr) {
   if (!lookup) {
     spdlog::error("Unresolved method reference {} at {}:{}:{}",
                   expr.get_function_name(), expr.get_location().file_name,
-                  expr.get_location().line, expr.get_location().column);
+                  std::get<0>(expr.get_location().begin),
+                  std::get<1>(expr.get_location().begin));
   }
 
   for (const auto &param : expr.get_params()) {
@@ -84,13 +86,13 @@ void semantic::SemanticVisitor::visit(IfStatement &stmt) {
   stmt.get_condition()->accept(*this);
 
   symbol_table.enter_scope(
-      std::format("Scope_if_{}", stmt.get_location().line));
+      std::format("Scope_if_{}", std::get<0>(stmt.get_location().begin)));
   stmt.get_then_branch()->accept(*this);
   symbol_table.exit_scope();
 
   if (stmt.get_else_branch()) {
     symbol_table.enter_scope(
-        std::format("Scope_else_{}_test", stmt.get_location().line));
+        std::format("Scope_else_{}", std::get<0>(stmt.get_location().begin)));
     stmt.get_else_branch()->accept(*this);
     symbol_table.exit_scope();
   }
@@ -123,20 +125,21 @@ void semantic::SemanticVisitor::visit(ExpressionStatement &stmt) {
 }
 void semantic::SemanticVisitor::visit(ForStatement &stmt) {
   symbol_table.enter_scope(
-      std::format("for_{}_head", stmt.get_location().line));
+      std::format("for_{}_head", std::get<0>(stmt.get_location().begin)));
   stmt.get_init()->accept(*this);
   stmt.get_condition()->accept(*this);
   stmt.get_increment()->accept(*this);
 
   symbol_table.enter_scope(
-      std::format("for_{}_body", stmt.get_location().line));
+      std::format("for_{}_body", std::get<0>(stmt.get_location().begin)));
   stmt.get_body()->accept(*this);
   symbol_table.exit_scope();
   symbol_table.exit_scope();
 }
 void semantic::SemanticVisitor::visit(WhileStatement &stmt) {
   stmt.get_condition()->accept(*this);
-  symbol_table.enter_scope(std::format("while_{}", stmt.get_location().line));
+  symbol_table.enter_scope(
+      std::format("while_{}", std::get<0>(stmt.get_location().begin)));
   stmt.get_body()->accept(*this);
   symbol_table.exit_scope();
 }
@@ -178,8 +181,9 @@ void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {
   const auto lookup = symbol_table.lookup(val.get_field());
   if (!lookup) {
     spdlog::error("Unresolved reference {} at {}:{}:{}", val.get_field(),
-                  val.get_location().file_name, val.get_location().line,
-                  val.get_location().column);
+                  val.get_location().file_name,
+                  std::get<0>(val.get_location().begin),
+                  std::get<1>(val.get_location().begin));
   }
   val.get_base()->accept(*this);
 }
@@ -192,6 +196,7 @@ void semantic::SemanticVisitor::visit(NumericExpr &expr) {
   if (!value) {
     spdlog::error("Integer literal out of bounds {} at {}:{}:{}",
                   expr.get_value(), expr.get_location().file_name,
-                  expr.get_location().line, expr.get_location().column);
+                  std::get<0>(expr.get_location().begin),
+                  std::get<1>(expr.get_location().begin));
   }
 }

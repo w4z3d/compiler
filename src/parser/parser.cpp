@@ -10,9 +10,8 @@ LValue *Parser::parse_lvalue() {
     const auto star = expect(token::TokenKind::Asterisk);
     const auto operand = parse_lvalue();
     const auto lv = arena.create<DereferenceLValue>(
-        operand,
-        SourceLocation{lexer.get_file_name(), std::get<0>(star->span.start),
-                       std::get<1>(star->span.start)});
+        operand, SourceLocation{lexer.get_file_name(), star->span.start,
+                                operand->get_location().end});
     return parse_lvalue_tail(lv);
   } else if (is_next(token::TokenKind::LParen)) {
     const auto lp = expect(token::TokenKind::LParen);
@@ -22,9 +21,8 @@ LValue *Parser::parse_lvalue() {
   } else {
     const auto iden = expect(token::TokenKind::Identifier);
     const auto lv = arena.create<VariableLValue>(
-        iden->text,
-        SourceLocation{lexer.get_file_name(), std::get<0>(iden->span.start),
-                       std::get<1>(iden->span.start)});
+        iden->text, SourceLocation{lexer.get_file_name(), iden->span.start,
+                                   iden->span.end});
     return parse_lvalue_tail(lv);
   }
 }
@@ -35,16 +33,14 @@ LValue *Parser::parse_lvalue_tail(LValue *lvalue) {
     const auto fid = expect(token::TokenKind::Identifier);
     const auto lv = arena.create<FieldAccessLValue>(
         lvalue, fid->text,
-        SourceLocation{lexer.get_file_name(), std::get<0>(dot->span.start),
-                       std::get<1>(dot->span.start)});
+        SourceLocation{lexer.get_file_name(), dot->span.start, fid->span.end});
     return parse_lvalue_tail(lv);
   } else if (is_next(token::TokenKind::Arrow)) {
     const auto dot = expect(token::TokenKind::Arrow);
     const auto fid = expect(token::TokenKind::Identifier);
     const auto lv = arena.create<PointerAccessLValue>(
         lvalue, fid->text,
-        SourceLocation{lexer.get_file_name(), std::get<0>(dot->span.start),
-                       std::get<1>(dot->span.start)});
+        SourceLocation{lexer.get_file_name(), dot->span.start, fid->span.end});
     return parse_lvalue_tail(lv);
   } else if (is_next(token::TokenKind::LBracket)) {
     const auto lb = expect(token::TokenKind::LBracket);
@@ -52,8 +48,7 @@ LValue *Parser::parse_lvalue_tail(LValue *lvalue) {
     const auto rb = expect(token::TokenKind::RBracket);
     const auto lv = arena.create<ArrayAccessLValue>(
         lvalue, expr,
-        SourceLocation{lexer.get_file_name(), std::get<0>(lb->span.start),
-                       std::get<1>(lb->span.start)});
+        SourceLocation{lexer.get_file_name(), lb->span.start, rb->span.end});
     return parse_lvalue_tail(lv);
   } else {
     return lvalue;
@@ -80,8 +75,8 @@ BuiltinTypeAnnotation *Parser::parse_builtin_type(token::TokenKind type) {
   const auto builtin = expect(type);
   const auto tp = arena.create<BuiltinTypeAnnotation>(
       builtinFromToken(builtin->kind),
-      SourceLocation{lexer.get_file_name(), std::get<0>(builtin->span.start),
-                     std::get<1>(builtin->span.start)});
+      SourceLocation{lexer.get_file_name(), builtin->span.start,
+                     builtin->span.end});
   return tp;
 }
 
@@ -90,8 +85,7 @@ StructTypeAnnotation *Parser::parse_struct_type() {
   const auto iden = expect(token::TokenKind::Identifier);
   const auto tp = arena.create<StructTypeAnnotation>(
       iden->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(str->span.start),
-                     std::get<1>(str->span.start)});
+      SourceLocation{lexer.get_file_name(), str->span.start, iden->span.end});
   return tp;
 }
 
@@ -99,8 +93,7 @@ NamedTypeAnnotation *Parser::parse_named_type() {
   const auto iden = expect(token::TokenKind::Identifier);
   const auto tp = arena.create<NamedTypeAnnotation>(
       iden->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(iden->span.start),
-                     std::get<1>(iden->span.start)});
+      SourceLocation{lexer.get_file_name(), iden->span.start, iden->span.end});
   return tp;
 }
 
@@ -108,17 +101,15 @@ TypeAnnotation *Parser::parse_type_tail(TypeAnnotation *type) {
   if (is_next(token::TokenKind::Asterisk)) {
     const auto star = expect(token::TokenKind::Asterisk);
     const auto tp = arena.create<PointerTypeAnnotation>(
-        type,
-        SourceLocation{lexer.get_file_name(), std::get<0>(star->span.start),
-                       std::get<1>(star->span.start)});
+        type, SourceLocation{lexer.get_file_name(), star->span.start,
+                             star->span.end});
     return parse_type_tail(tp);
   } else if (is_next(token::TokenKind::LBracket)) {
     const auto first = expect(token::TokenKind::LBracket);
     const auto second = expect(token::TokenKind::RBracket);
     const auto tp = arena.create<ArrayTypeAnnotation>(
-        type,
-        SourceLocation{lexer.get_file_name(), std::get<0>(first->span.start),
-                       std::get<1>(first->span.start)});
+        type, SourceLocation{lexer.get_file_name(), first->span.start,
+                             second->span.end});
     return parse_type_tail(tp);
   } else {
     return type;
@@ -183,9 +174,8 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
       Expression *right = parse_expr_with_precedence(precedence + 1);
       left = arena.create<UnaryOperatorExpression>(
           right, op,
-          SourceLocation{lexer.get_file_name(),
-                         std::get<0>(next_token.span.start),
-                         std::get<1>(next_token.span.start)});
+          SourceLocation{lexer.get_file_name(), next_token.span.start,
+                         right->get_location().end});
     } else if (token::binary_ops.contains(next_token.kind)) {
       const auto op = binOpFromToken(next_token.kind);
       const auto precedence = precedenceFromBinOp(op);
@@ -195,9 +185,8 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
       Expression *right = parse_expr_with_precedence(precedence + 1);
       left = arena.create<BinaryOperatorExpression>(
           left, right, op,
-          SourceLocation{lexer.get_file_name(),
-                         std::get<0>(next_token.span.start),
-                         std::get<1>(next_token.span.start)});
+          SourceLocation{lexer.get_file_name(), next_token.span.start,
+                         right->get_location().end});
     } else if (is_next(token::TokenKind::Dot)) {
       if (13 < minPrecedence) // oh
         break;
@@ -205,9 +194,8 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
       const auto field_ident = expect(token::TokenKind::Identifier);
       left = arena.create<FieldAccessExpr>(
           left, field_ident->text,
-          SourceLocation{lexer.get_file_name(),
-                         std::get<0>(field_ident->span.start),
-                         std::get<1>(field_ident->span.start)});
+          SourceLocation{lexer.get_file_name(), next_token.span.start,
+                         field_ident->span.end});
     } else if (is_next(token::TokenKind::LBracket)) {
       if (13 < minPrecedence)
         break;
@@ -216,8 +204,8 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
       expect(token::TokenKind::RBracket);
       left = arena.create<ArrayAccessExpr>(
           left, index_expr,
-          SourceLocation{lexer.get_file_name(), std::get<0>(lb->span.start),
-                         std::get<1>(lb->span.start)});
+          SourceLocation{lexer.get_file_name(), next_token.span.start,
+                         index_expr->get_location().end});
     } else if (is_next(token::TokenKind::Arrow)) {
       if (13 < minPrecedence)
         break;
@@ -225,9 +213,8 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
       const auto field_ident = expect(token::TokenKind::Identifier);
       left = arena.create<PointerAccessExpr>(
           left, field_ident->text,
-          SourceLocation{lexer.get_file_name(),
-                         std::get<0>(field_ident->span.start),
-                         std::get<1>(field_ident->span.start)});
+          SourceLocation{lexer.get_file_name(), next_token.span.start,
+                         field_ident->span.end});
     } else if (is_next(token::TokenKind::Question)) {
       if (1 < minPrecedence)
         break;
@@ -237,8 +224,8 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
       Expression *else_ = parse_expr_with_precedence(2);
       left = arena.create<TernaryExpression>(
           left, then, else_,
-          SourceLocation{lexer.get_file_name(), std::get<0>(q->span.start),
-                         std::get<1>(q->span.start)});
+          SourceLocation{lexer.get_file_name(), next_token.span.start,
+                         else_->get_location().end});
     } else {
       break;
     }
@@ -250,10 +237,10 @@ AllocExpression *Parser::parse_alloc_expr() {
   const auto alloc = expect(token::TokenKind::Alloc);
   expect(token::TokenKind::LParen);
   const auto tp = parse_type();
-  expect(token::TokenKind::RParen);
+  const auto rp = expect(token::TokenKind::RParen);
   const auto expr = arena.create<AllocExpression>(
-      tp, SourceLocation{lexer.get_file_name(), std::get<0>(alloc->span.start),
-                         std::get<1>(alloc->span.start)});
+      tp,
+      SourceLocation{lexer.get_file_name(), alloc->span.start, rp->span.end});
   return expr;
 }
 
@@ -263,38 +250,34 @@ AllocArrayExpression *Parser::parse_alloc_array_expr() {
   const auto tp = parse_type();
   expect(token::TokenKind::Comma);
   const auto size = parse_expression();
-  expect(token::TokenKind::RParen);
+  const auto rp = expect(token::TokenKind::RParen);
   const auto expr = arena.create<AllocArrayExpression>(
       tp, size,
-      SourceLocation{lexer.get_file_name(), std::get<0>(alloc->span.start),
-                     std::get<1>(alloc->span.start)});
+      SourceLocation{lexer.get_file_name(), alloc->span.start, rp->span.end});
   return expr;
 }
 
 ParenthesisExpression *Parser::parse_paren_expr() {
-  const auto lParen = expect(token::TokenKind::LParen);
+  const auto lp = expect(token::TokenKind::LParen);
   Expression *expr = parse_expression();
-  const auto rParen = expect(token::TokenKind::RParen);
+  const auto rp = expect(token::TokenKind::RParen);
   const auto parenExpr = arena.create<ParenthesisExpression>(
       expr,
-      SourceLocation{lexer.get_file_name(), std::get<0>(lParen->span.start),
-                     std::get<1>(lParen->span.start)});
+      SourceLocation{lexer.get_file_name(), lp->span.start, rp->span.end});
   return parenExpr;
 }
 
 NullExpr *Parser::parse_null_expr() {
   const auto tok = expect(token::TokenKind::Null);
-  return arena.create<NullExpr>(SourceLocation{lexer.get_file_name(),
-                                               std::get<0>(tok->span.start),
-                                               std::get<1>(tok->span.start)});
+  return arena.create<NullExpr>(
+      SourceLocation{lexer.get_file_name(), tok->span.start, tok->span.end});
 }
 
 VarExpr *Parser::parse_var_expr() {
   const auto var = expect(token::TokenKind::Identifier);
   const auto expr = arena.create<VarExpr>(
       var->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(var->span.start),
-                     std::get<1>(var->span.start)});
+      SourceLocation{lexer.get_file_name(), var->span.start, var->span.end});
   return expr;
 }
 
@@ -308,26 +291,24 @@ BoolConstExpr *Parser::parse_bool_const() {
     throw std::runtime_error("merkste selber wa");
   }
   const auto boolConstExpr = arena.create<BoolConstExpr>(
-      next_tok.text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(next_tok.span.start),
-                     std::get<1>(next_tok.span.start)});
+      next_tok.text, SourceLocation{lexer.get_file_name(), next_tok.span.start,
+                                    next_tok.span.end});
   return boolConstExpr;
 }
 
 CallExpr *Parser::parse_call_expression() {
   const auto fn_name = expect(token::TokenKind::Identifier);
-  const auto call_expr = arena.create<CallExpr>(
-      fn_name->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(fn_name->span.start),
-                     std::get<1>(fn_name->span.start)});
-  expect(token::TokenKind::LParen);
+  const auto call_expr = arena.create<CallExpr>(fn_name->text);
+  const auto lp = expect(token::TokenKind::LParen);
   if (!is_next(token::TokenKind::RParen)) {
     do {
       const auto param = parse_expression();
       call_expr->add_param(param);
     } while (match(token::TokenKind::Comma));
   }
-  expect(token::TokenKind::RParen);
+  const auto rp = expect(token::TokenKind::RParen);
+  call_expr->set_source_location(lexer.get_file_name(), fn_name->span.start,
+                                 rp->span.end);
   return call_expr;
 }
 
@@ -345,8 +326,7 @@ NumericExpr *Parser::parse_integer_literal() {
   }
   const auto numExpr = arena.create<NumericExpr>(
       num->text, base,
-      SourceLocation{lexer.get_file_name(), std::get<0>(num->span.start),
-                     std::get<1>(num->span.start)});
+      SourceLocation{lexer.get_file_name(), num->span.start, num->span.end});
   return numExpr;
 }
 
@@ -354,17 +334,15 @@ CharLiteralExpr *Parser::parse_char_literal() {
   const auto ctok = expect(token::TokenKind::CharLiteral);
   const auto expr = arena.create<CharLiteralExpr>(
       ctok->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(ctok->span.start),
-                     std::get<1>(ctok->span.start)});
+      SourceLocation{lexer.get_file_name(), ctok->span.start, ctok->span.end});
   return expr;
 }
 
 StringLiteralExpr *Parser::parse_string_literal() {
   const auto string = expect(token::TokenKind::StringLiteral);
   const auto expr = arena.create<StringLiteralExpr>(
-      string->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(string->span.start),
-                     std::get<1>(string->span.start)});
+      string->text, SourceLocation{lexer.get_file_name(), string->span.start,
+                                   string->span.end});
 
   return expr;
 }
@@ -477,8 +455,8 @@ VariableDeclarationStatement *Parser::parse_var_decl_stmt() {
   }
   const auto stmt = arena.create<VariableDeclarationStatement>(
       tp, ident->text, expr,
-      SourceLocation{lexer.get_file_name(), std::get<0>(ident->span.start),
-                     std::get<1>(ident->span.start)});
+      SourceLocation{lexer.get_file_name(), tp->get_location().begin,
+                     expr ? expr->get_location().end : ident->span.end});
   return stmt;
 }
 
@@ -486,10 +464,10 @@ ErrorStatement *Parser::parse_error_stmt() {
   const auto er = expect(token::TokenKind::Error);
   expect(token::TokenKind::LParen);
   const auto expr = parse_expression();
-  expect(token::TokenKind::RParen);
+  const auto rp = expect(token::TokenKind::RParen);
   const auto stmt = arena.create<ErrorStatement>(
-      expr, SourceLocation{lexer.get_file_name(), std::get<0>(er->span.start),
-                           std::get<1>(er->span.start)});
+      expr,
+      SourceLocation{lexer.get_file_name(), er->span.start, rp->span.end});
   return stmt;
 }
 
@@ -501,8 +479,8 @@ WhileStatement *Parser::parse_while_stmt() {
   const auto body = parse_statement();
   const auto stmt = arena.create<WhileStatement>(
       cond, body,
-      SourceLocation{lexer.get_file_name(), std::get<0>(_while->span.start),
-                     std::get<1>(_while->span.start)});
+      SourceLocation{lexer.get_file_name(), _while->span.start,
+                     body->get_location().end});
   return stmt;
 }
 
@@ -524,8 +502,8 @@ ForStatement *Parser::parse_for_stmt() {
   const auto body = parse_statement();
   const auto stmt = arena.create<ForStatement>(
       init, cond, incr, body,
-      SourceLocation{lexer.get_file_name(), std::get<0>(_for->span.start),
-                     std::get<1>(_for->span.start)});
+      SourceLocation{lexer.get_file_name(), _for->span.start,
+                     body->get_location().end});
   return stmt;
 }
 
@@ -542,8 +520,9 @@ IfStatement *Parser::parse_if_stmt() {
   }
   const auto stmt = arena.create<IfStatement>(
       cond, then, _else,
-      SourceLocation{lexer.get_file_name(), std::get<0>(_if->span.start),
-                     std::get<1>(_if->span.start)});
+      SourceLocation{lexer.get_file_name(), _if->span.start,
+                     _else ? _else->get_location().end
+                           : then->get_location().end});
   return stmt;
 }
 
@@ -557,20 +536,19 @@ CompoundStmt *Parser::parse_compound_statement() {
 
   const auto r_brace = expect(token::TokenKind::RBrace);
   const auto compStmt = arena.create<CompoundStmt>(
-      statements,
-      SourceLocation{lexer.get_file_name(), std::get<0>(l_brace->span.start),
-                     std::get<1>(r_brace->span.start)});
+      statements, SourceLocation{lexer.get_file_name(), l_brace->span.start,
+                                 r_brace->span.end});
   return compStmt;
 }
 ReturnStmt *Parser::parse_return_statement() {
   const auto ret = expect(token::TokenKind::Return);
-  const auto retStmt = arena.create<ReturnStmt>(
-      SourceLocation{lexer.get_file_name(), std::get<0>(ret->span.start),
-                     std::get<1>(ret->span.start)});
+  const auto retStmt = arena.create<ReturnStmt>();
   if (!is_next(token::TokenKind::Semi)) {
     retStmt->set_expression(parse_expression());
   }
-  expect(token::TokenKind::Semi);
+  const auto semi = expect(token::TokenKind::Semi);
+  retStmt->set_source_location(lexer.get_file_name(), ret->span.start,
+                               semi->span.end);
   return retStmt;
 }
 
@@ -591,8 +569,8 @@ ParameterDeclaration *Parser::parse_parameter_declaration() {
   const auto ident{expect(token::TokenKind::Identifier)};
   const auto declaration = arena.create<ParameterDeclaration>(
       ident->text, param_type,
-      SourceLocation{lexer.get_file_name(), std::get<0>(ident->span.start),
-                     std::get<1>(ident->span.start)});
+      SourceLocation{lexer.get_file_name(), param_type->get_location().begin,
+                     ident->span.end});
   return declaration;
 }
 
@@ -600,10 +578,8 @@ FunctionDeclaration *Parser::parse_function_declaration() {
   const auto ret_type = parse_type();
   const auto ident{expect(token::TokenKind::Identifier)};
   expect(token::TokenKind::LParen);
-  const auto declaration = arena.create<FunctionDeclaration>(
-      ident->text, ret_type,
-      SourceLocation{lexer.get_file_name(), std::get<0>(ident->span.start),
-                     std::get<1>(ident->span.start)});
+  const auto declaration =
+      arena.create<FunctionDeclaration>(ident->text, ret_type);
   if (!is_next(token::TokenKind::RParen)) {
     declaration->add_parameter_declaration(parse_parameter_declaration());
     while (check_sequence({token::TokenKind::Comma})) {
@@ -613,11 +589,16 @@ FunctionDeclaration *Parser::parse_function_declaration() {
   }
   expect(token::TokenKind::RParen);
   if (is_next(token::TokenKind::LBrace)) {
-    declaration->set_body(parse_compound_statement());
+    const auto comp_stmt = parse_compound_statement();
+    declaration->set_body(comp_stmt);
+    declaration->set_source_location(lexer.get_file_name(),
+                                     ret_type->get_location().begin,
+                                     comp_stmt->get_location().end);
   } else {
-    expect(token::TokenKind::Semi);
+    const auto semi = expect(token::TokenKind::Semi);
+    declaration->set_source_location(
+        lexer.get_file_name(), ret_type->get_location().begin, semi->span.end);
   }
-
   return declaration;
 }
 
@@ -625,11 +606,10 @@ Typedef *Parser::parse_typedef() {
   const auto td = expect(token::TokenKind::Typedef);
   const auto tp = parse_type();
   const auto name = expect(token::TokenKind::Identifier);
-  expect(token::TokenKind::Semi);
+  const auto semi = expect(token::TokenKind::Semi);
   const auto typedef_ = arena.create<Typedef>(
       tp, name->text,
-      SourceLocation{lexer.get_file_name(), std::get<0>(td->span.start),
-                     std::get<1>(td->span.start)});
+      SourceLocation{lexer.get_file_name(), td->span.start, semi->span.end});
   return typedef_;
 }
 
@@ -637,11 +617,10 @@ StructDeclaration *Parser::parse_struct_decl() {
   const auto str = expect(token::TokenKind::Struct);
   const auto name = expect(token::TokenKind::Identifier);
   if (is_next(token::TokenKind::Semi)) {
-    expect(token::TokenKind::Semi);
+    const auto semi = expect(token::TokenKind::Semi);
     const auto struct_ = arena.create<StructDeclaration>(
         name->text,
-        SourceLocation{lexer.get_file_name(), std::get<0>(str->span.start),
-                       std::get<1>(str->span.start)});
+        SourceLocation{lexer.get_file_name(), str->span.start, semi->span.end});
     return struct_;
   } else {
     expect(token::TokenKind::LBrace);
@@ -655,18 +634,17 @@ StructDeclaration *Parser::parse_struct_decl() {
       fields.push_back(decl);
     }
     expect(token::TokenKind::RBrace);
-    expect(token::TokenKind::Semi);
+    const auto semi = expect(token::TokenKind::Semi);
     const auto struct_ = arena.create<StructDeclaration>(
         name->text, fields,
-        SourceLocation{lexer.get_file_name(), std::get<0>(str->span.start),
-                       std::get<1>(str->span.start)});
+        SourceLocation{lexer.get_file_name(), str->span.start, semi->span.end});
+
     return struct_;
   }
 }
 
 TranslationUnit *Parser::parse_translation_unit() {
-  auto *unit = arena.create<TranslationUnit>(
-      SourceLocation{lexer.get_file_name(), 0, 0});
+  auto *unit = arena.create<TranslationUnit>();
   while (!is_eof()) {
     try {
       if (is_next(token::TokenKind::Struct))
@@ -676,9 +654,10 @@ TranslationUnit *Parser::parse_translation_unit() {
       else
         unit->add_declaration(parse_function_declaration());
     } catch (ParseError &error) {
-      spdlog::log(spdlog::level::err, error.what());
       synchronize();
     }
   }
+  const auto last_stmt = unit->get_declarations().front()->get_location();
+  unit->set_source_location(lexer.get_file_name(), {0, 0}, last_stmt.end);
   return unit;
 }

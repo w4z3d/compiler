@@ -47,7 +47,9 @@ private:
     if (loc.file_name.empty()) {
       return "<invalid sloc>";
     }
-    return std::format("<line:{}, col:{}>", loc.line, loc.column);
+    return std::format("<{}:{} - {}:{}>", std::get<0>(loc.begin),
+                       std::get<1>(loc.begin), std::get<0>(loc.end),
+                       std::get<1>(loc.end));
   }
 
 public:
