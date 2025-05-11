@@ -72,6 +72,10 @@ void semantic::SemanticVisitor::visit(CallExpr &expr) {
                   expr.get_function_name(), expr.get_location().file_name,
                   expr.get_location().line, expr.get_location().column);
   }
+
+  for (const auto &param : expr.get_params()) {
+    param->accept(*this);
+  }
 }
 
 void semantic::SemanticVisitor::visit(IfStatement &stmt) {
