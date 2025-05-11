@@ -3,6 +3,7 @@
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
+#include "report/error_report.hpp"
 #include "spdlog/cfg/env.h"
 #include <iostream>
 
@@ -12,6 +13,9 @@ int main(int argc, char *argv[]) {
   spdlog::info("Start");
   const auto file = io::read_file(argv[1]);
   std::cout << file.content << std::endl;
+
+  ReportBuilder report_builder{};
+
   Lexer lexer{file.name, file.content};
   Parser parser{lexer};
 

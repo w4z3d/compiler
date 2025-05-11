@@ -1,5 +1,6 @@
 #include "parser.hpp"
 #include "spdlog/common.h"
+#include <vector>
 
 // Grammar reference:
 // https://c0.cs.cmu.edu/docs/c0-reference.pdf#subsection.14.2
@@ -663,7 +664,12 @@ StructDeclaration *Parser::parse_struct_decl() {
   }
 }
 
-TranslationUnit *Parser::parse_translation_unit() {
+struct ParserResult {
+  TranslationUnit *unit;
+  std::vector<ParseError> errors;
+};
+
+ParserResult Parser::parse_translation_unit() {
   auto *unit = arena.create<TranslationUnit>(
       SourceLocation{lexer.get_file_name(), 0, 0});
   while (!is_eof()) {
@@ -679,5 +685,7 @@ TranslationUnit *Parser::parse_translation_unit() {
       synchronize();
     }
   }
-  return unit;
+  return {
+      unit,
+  };
 }

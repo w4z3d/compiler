@@ -1,10 +1,9 @@
+string kaka(Anadrol hallo);
+
 int main (Test test, Hallo** doppelPanzer) {
-  assert(string_equal(int2hex(0), "00000000"));
-  assert(string_equal(int2hex(int_min()), "80000000"));
-  assert(string_equal(int2hex(int_max()), "7FFFFFFF"));
-  assert(string_equal(int2hex("LAMOOADMAWOMDAOWDMAWO"), "0ABCDEF3"));
-  assert(peter);
-  return 1;
+
+  kaka();
+  return -4294967290;
 }
 
 string kaka(Anadrol abc) {

@@ -1,11 +1,16 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
+#include "spdlog/spdlog.h"
 #include "token.hpp"
+#include <charconv>
+#include <cstdint>
+#include <execution>
 #include <format>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -215,7 +220,8 @@ private:
   Expression *size;
 
 public:
-  AllocArrayExpression(TypeAnnotation *type, Expression *size, SourceLocation loc = {})
+  AllocArrayExpression(TypeAnnotation *type, Expression *size,
+                       SourceLocation loc = {})
       : Expression(Expression::Kind::Alloc_array, "AllocArrayExpr", loc),
         type(type), size(size) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; };
@@ -285,6 +291,27 @@ public:
   [[nodiscard]] std::string_view get_value() const { return value; }
   [[nodiscard]] Base get_base() const { return base; }
   void accept(class ASTVisitor &visitor) override;
+
+  template <typename IntType> std::optional<IntType> try_parse() {
+    int int_base;
+    IntType result{};
+    switch (base) {
+    case Base::Decimal:
+      int_base = 10;
+    case Base::Hexadecimal:
+      int_base = 16;
+    };
+
+    auto [ptr, ec] =
+        std::from_chars(value.data(), value.data() + value.size(), result);
+
+    spdlog::info("String repr: {} errc: {}", value, static_cast<int>(ec));
+    if (ec == std::errc()) {
+      return result;
+    }
+
+    return std::nullopt;
+  }
 };
 
 class ParenthesisExpression : public Expression {
@@ -648,7 +675,8 @@ private:
   Expression *initializer;
 
 public:
-  VariableDeclarationStatement(TypeAnnotation *type, std::string_view identifier,
+  VariableDeclarationStatement(TypeAnnotation *type,
+                               std::string_view identifier,
                                Expression *init = nullptr,
                                SourceLocation loc = {})
       : Statement(loc), type(type), identifier(identifier), initializer(init) {}
@@ -727,7 +755,8 @@ private:
 
 public:
   Typedef(TypeAnnotation *type, std::string_view name, SourceLocation loc = {})
-      : Declaration(Declaration::Kind::Typedef, name, loc), type(type), name(name) {}
+      : Declaration(Declaration::Kind::Typedef, name, loc), type(type),
+        name(name) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -868,674 +897,4 @@ public:
   virtual void visit(TranslationUnit &unit) {}
 };
 
-class ClangStylePrintVisitor : public ASTVisitor {
-private:
-  std::string content;
-  int depth = 0;
-  bool use_colors = true;
-
-  // ANSI color codes for terminal output
-  const std::string RESET = "\033[0m";
-  const std::string GREEN = "\u001b[32m";
-  const std::string YELLOW = "\033[33m";
-  const std::string BLUE = "\033[34m";
-  const std::string MAGENTA = "\033[35m";
-  const std::string CYAN = "\033[36m";
-
-  std::string color(const std::string &text, const std::string &color_code) {
-    if (use_colors) {
-      return color_code + text + RESET;
-    }
-    return text;
-  }
-
-  [[nodiscard]] std::string indent() const {
-    if (depth == 0) {
-      return "";
-    }
-    std::string result;
-    for (int i = 0; i < depth - 1; i++) {
-      result += "| ";
-    }
-    result += "|-";
-    return result;
-  }
-
-  static std::string formatLocation(const SourceLocation &loc) {
-    if (loc.file_name.empty()) {
-      return "<invalid sloc>";
-    }
-    return std::format("<{}>", loc.file_name);
-  }
-
-  static std::string formatRange(const SourceLocation &loc) {
-    if (loc.file_name.empty()) {
-      return "<invalid sloc>";
-    }
-    return std::format("<line:{}, col:{}>", loc.line, loc.column);
-  }
-
-public:
-  explicit ClangStylePrintVisitor(bool colored = true) : use_colors(colored) {}
-
-  [[nodiscard]] std::string_view get_content() const { return content; }
-
-  void visit(Typedef &typedef_) override {
-    content += color("Typedef", GREEN) + " " +
-               color(std::format("{:#x}", reinterpret_cast<std::size_t>(
-                                              std::addressof(typedef_))),
-                     YELLOW) +
-               " " + formatLocation(typedef_.get_location()) + " " +
-               color(std::string(typedef_.get_name()), MAGENTA) + " " +
-               typedef_.get_type()->toString() + "\n";
-  }
-
-  void visit(TranslationUnit &unit) override {
-    content +=
-        color("TranslationUnitDecl", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(unit))),
-              YELLOW) +
-        " " + formatLocation(unit.get_location()) + "\n";
-
-    depth++;
-    for (const auto &decl : unit.get_declarations()) {
-      content += indent();
-      decl->accept(*this);
-    }
-    depth--;
-  }
-
-  void visit(FunctionDeclaration &decl) override {
-    content +=
-        color("FunctionDecl", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(decl))),
-              YELLOW) +
-        " " + formatRange(decl.get_location()) + " " +
-        color(std::format("line:{}", decl.get_location().line), CYAN) + " " +
-        color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
-        decl.get_return_type()->toString() + " (";
-
-    // Parameter types list
-    bool first = true;
-    for (const auto &param : decl.get_parameter_declarations()) {
-      if (!first)
-        content += ", ";
-      content += param->get_type()->toString();
-      first = false;
-    }
-    content += ")'\n";
-
-    depth++;
-    // Function parameters
-    for (const auto &param : decl.get_parameter_declarations()) {
-      content += indent();
-      param->accept(*this);
-    }
-
-    // Function body
-    if (decl.get_body() != nullptr) {
-      content += indent();
-      decl.get_body()->accept(*this);
-    }
-    depth--;
-  }
-
-  void visit(ParameterDeclaration &decl) override {
-    content +=
-        color("ParmVarDecl", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(decl))),
-              YELLOW) +
-        " " + formatRange(decl.get_location()) + " " +
-        color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
-        color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
-        decl.get_type()->toString() + "'\n";
-  }
-
-  void visit(StructDeclaration &decl) override {
-    content +=
-        color("StructDecl", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(decl))),
-              YELLOW) +
-        " " + formatRange(decl.get_location()) + " " +
-        color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
-        color(std::string(decl.get_name()), MAGENTA) + "\n";
-    depth++;
-    if (const auto &fields = decl.get_fields()) {
-      for (const auto &statement : *fields) {
-        content += indent();
-        statement->accept(*this);
-      }
-    }
-    depth--;
-  }
-
-  void visit(CompoundStmt &stmt) override {
-    content +=
-        color("CompoundStmt", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    depth++;
-    for (const auto &statement : stmt.get_statements()) {
-      content += indent();
-      statement->accept(*this);
-    }
-    depth--;
-  }
-
-  void visit(ReturnStmt &stmt) override {
-    content +=
-        color("ReturnStmt", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    if (stmt.get_expression() != nullptr) {
-      depth++;
-      content += indent();
-      stmt.get_expression()->accept(*this);
-      depth--;
-    }
-  }
-
-  void visit(ErrorStatement &stmt) override {
-    content +=
-        color("ErrorStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    stmt.get_expr()->accept(*this);
-    depth--;
-  }
-
-  void visit(AssertStmt &stmt) override {
-    content +=
-        color("AssertStmt", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    if (stmt.get_expression() != nullptr) {
-      depth++;
-      content += indent();
-      stmt.get_expression()->accept(*this);
-      depth--;
-    }
-  }
-
-  void visit(IfStatement &stmt) override {
-    content +=
-        color("IfStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    stmt.get_condition()->accept(*this);
-    content += indent();
-    stmt.get_then_branch()->accept(*this);
-    if (stmt.get_else_branch() != nullptr) {
-      content += indent();
-      stmt.get_else_branch()->accept(*this);
-    }
-    depth--;
-  }
-
-  void visit(ForStatement &stmt) override {
-    content +=
-        color("ForStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    depth++;
-    if (stmt.get_init() != nullptr) {
-      content += indent();
-      stmt.get_init()->accept(*this);
-    }
-    content += indent();
-    stmt.get_condition()->accept(*this);
-    if (stmt.get_increment() != nullptr) {
-      content += indent();
-      stmt.get_increment()->accept(*this);
-    }
-    content += indent();
-    stmt.get_body()->accept(*this);
-    depth--;
-  }
-
-  void visit(WhileStatement &stmt) override {
-    content +=
-        color("WhileStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    stmt.get_condition()->accept(*this);
-    content += indent();
-    stmt.get_body()->accept(*this);
-    depth--;
-  }
-
-  void visit(VariableDeclarationStatement &stmt) override {
-    content +=
-        color("VarDeclStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + " " +
-        color(std::string(stmt.get_identifier()), MAGENTA) + " " +
-        stmt.get_type()->toString() + "\n";
-
-    if (stmt.get_initializer() != nullptr) {
-      depth++;
-      content += indent();
-      stmt.get_initializer()->accept(*this);
-      depth--;
-    }
-  }
-
-  void visit(AssignmentStatement &stmt) override {
-    content +=
-        color("AssignmentStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + " " +
-        assmtOp2String(stmt.get_op()) + "\n";
-
-    depth++;
-    content += indent();
-    stmt.get_lvalue()->accept(*this);
-    content += indent();
-    stmt.get_expr()->accept(*this);
-    depth--;
-  }
-
-  void visit(UnaryMutationStatement &stmt) override {
-    content +=
-        color("UnaryMutStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + " " +
-        (stmt.get_operation() == UnaryMutationStatement::Op::PostIncrement
-             ? "PostIncrement"
-             : "PostDecrement") +
-        "\n";
-
-    depth++;
-    content += indent();
-    stmt.get_target()->accept(*this);
-    depth--;
-  }
-
-  void visit(ExpressionStatement &stmt) override {
-    content +=
-        color("ExprStatement", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(stmt))),
-              YELLOW) +
-        " " + formatRange(stmt.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    stmt.get_expression()->accept(*this);
-    depth--;
-  }
-
-  void visit(CallExpr &expr) override {
-    content +=
-        color("CallExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        std::string(expr.get_function_name()) + "\n";
-
-    // Visit param expressions
-    depth++;
-    for (const auto &param : expr.get_params()) {
-      content += indent();
-      param->accept(*this);
-    }
-    depth--;
-  }
-
-  void visit(NumericExpr &expr) override {
-    content +=
-        color("IntegerLiteralExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + "'int' " +
-        std::string(expr.get_value()) + "\n";
-  }
-
-  void visit(StringLiteralExpr &expr) override {
-    content +=
-        color("StringLiteralExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + "'string' " +
-        std::string(expr.get_value()) + "\n";
-  }
-
-  void visit(CharLiteralExpr &expr) override {
-    content +=
-        color("CharLiteralExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + "'char' " +
-        std::string(expr.get_value()) + "\n";
-  }
-
-  void visit(BoolConstExpr &expr) override {
-    content +=
-        color("BoolConstExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " + "'bool' " +
-        (expr.get_value() ? "true" : "false") + "\n";
-  }
-
-  void visit(NullExpr &expr) override {
-    content +=
-        color("NullExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " 'void' NULL \n";
-  }
-
-  void visit(ParenthesisExpression &expr) override {
-    content +=
-        color("ParenExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_expression()->accept(*this);
-    depth--;
-  }
-
-  void visit(VarExpr &expr) override {
-    content +=
-        color("VarExpr", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        std::string(expr.get_variable_name()) + "\n";
-  }
-
-  void visit(UnaryOperatorExpression &expr) override {
-    content +=
-        color("UnaryOperator", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        unOp2String(expr.get_operator_kind()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_expression()->accept(*this);
-    depth--;
-  }
-
-  void visit(BinaryOperatorExpression &expr) override {
-    content +=
-        color("BinaryOperator", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        binOp2String(expr.get_operator_kind()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_left_expression()->accept(*this);
-    content += indent();
-    expr.get_right_expression()->accept(*this);
-    depth--;
-  }
-
-  void visit(TernaryExpression &expr) override {
-    content +=
-        color("TernaryExpression", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_condition()->accept(*this);
-    content += indent();
-    expr.get_then()->accept(*this);
-    content += indent();
-    expr.get_else()->accept(*this);
-    depth--;
-  }
-
-  void visit(ArrayAccessExpr &expr) override {
-    content +=
-        color("ArrayAccess", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_array()->accept(*this);
-    content += indent();
-    expr.get_index()->accept(*this);
-    depth--;
-  }
-
-  void visit(FieldAccessExpr &expr) override {
-    content +=
-        color("FieldAccess", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        std::string(expr.get_field()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_struct()->accept(*this);
-    depth--;
-  }
-
-  void visit(PointerAccessExpr &expr) override {
-    content +=
-        color("PointerAccess", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        std::string(expr.get_field()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_struct_pointer()->accept(*this);
-    depth--;
-  }
-
-  void visit(AllocExpression &expr) override {
-    content +=
-        color("AllocExpression", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        std::string(expr.get_type()->toString()) + "\n";
-  }
-
-  void visit(AllocArrayExpression &expr) override {
-    content +=
-        color("AllocArrayExpression", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(expr))),
-              YELLOW) +
-        " " + formatRange(expr.get_location()) + " " +
-        std::string(expr.get_type()->toString()) + "\n";
-
-    depth++;
-    content += indent();
-    expr.get_size()->accept(*this);
-    depth--;
-  }
-
-  void visit(BuiltinTypeAnnotation &type) override {
-    content +=
-        color("BuiltinTypeAnnotation", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(type))),
-              YELLOW) +
-        " " + formatRange(type.get_location()) + " " +
-        builtin2String(type.get_type()) + "\n";
-  }
-
-  void visit(NamedTypeAnnotation &type) override {
-    content +=
-        color("NamedTypeAnnotation", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(type))),
-              YELLOW) +
-        " " + formatRange(type.get_location()) + " " +
-        std::string(type.get_name()) + "\n";
-  }
-
-  void visit(StructTypeAnnotation &type) override {
-    content +=
-        color("StructTypeAnnotation", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(type))),
-              YELLOW) +
-        " " + formatRange(type.get_location()) + " Struct " +
-        std::string(type.get_name()) + "\n";
-  }
-
-  void visit(PointerTypeAnnotation &type) override {
-    content +=
-        color("PointerTypeAnnotation", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(type))),
-              YELLOW) +
-        " " + formatRange(type.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    type.get_type()->accept(*this);
-    depth--;
-  }
-
-  void visit(ArrayTypeAnnotation &type) override {
-    content +=
-        color("ArrayTypeAnnotation", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(type))),
-              YELLOW) +
-        " " + formatRange(type.get_location()) + "\n";
-
-    depth++;
-    content += indent();
-    type.get_type()->accept(*this);
-    depth--;
-  }
-
-  void visit(VariableLValue &val) override {
-    content +=
-        color("VariableLValue", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(val))),
-              YELLOW) +
-        " " + formatRange(val.get_location()) + " " +
-        std::string(val.get_name()) + "\n";
-  }
-
-  void visit(DereferenceLValue &val) override {
-    content +=
-        color("DereferenceLValue", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(val))),
-              YELLOW) +
-        " " + formatRange(val.get_location()) + "\n";
-    depth++;
-    content += indent();
-    val.get_operand()->accept(*this);
-    depth--;
-  }
-
-  void visit(FieldAccessLValue &val) override {
-    content +=
-        color("FieldAccessLValue", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(val))),
-              YELLOW) +
-        " " + formatRange(val.get_location()) + " " +
-        std::string(val.get_field()) + "\n";
-    depth++;
-    content += indent();
-    val.get_base()->accept(*this);
-    depth--;
-  }
-
-  void visit(PointerAccessLValue &val) override {
-    content +=
-        color("PointerAccessLValue", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(val))),
-              YELLOW) +
-        " " + formatRange(val.get_location()) + " " +
-        std::string(val.get_field()) + "\n";
-    depth++;
-    content += indent();
-    val.get_base()->accept(*this);
-    depth--;
-  }
-
-  void visit(ArrayAccessLValue &val) override {
-    content +=
-        color("ArrayAccessLValue", GREEN) + " " +
-        color(std::format("{:#x}",
-                          reinterpret_cast<std::size_t>(std::addressof(val))),
-              YELLOW) +
-        " " + formatRange(val.get_location()) + "\n";
-    depth++;
-    content += indent();
-    val.get_base()->accept(*this);
-    content += indent();
-    val.get_index()->accept(*this);
-    depth--;
-  }
-};
 #endif // !DEFS_AST_H

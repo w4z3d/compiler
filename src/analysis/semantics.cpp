@@ -2,6 +2,8 @@
 #include "spdlog/common.h"
 #include "spdlog/spdlog.h"
 #include "symbol.hpp"
+#include <cstdint>
+#include <sys/types.h>
 
 void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
   for (const auto &declaration : unit.get_declarations()) {
@@ -183,4 +185,13 @@ void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {
 }
 void semantic::SemanticVisitor::visit(DereferenceLValue &val) {
   val.get_operand()->accept(*this);
+}
+
+void semantic::SemanticVisitor::visit(NumericExpr &expr) {
+  const auto value = expr.try_parse<int>();
+  if (!value) {
+    spdlog::error("Integer literal out of bounds {} at {}:{}:{}",
+                  expr.get_value(), expr.get_location().file_name,
+                  expr.get_location().line, expr.get_location().column);
+  }
 }

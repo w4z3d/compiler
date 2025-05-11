@@ -41,6 +41,9 @@ public:
   void visit(ArrayAccessLValue &val) override;
   void visit(PointerAccessLValue &val) override;
   void visit(DereferenceLValue &val) override;
+
+  // Literal checking
+  void visit(NumericExpr &expr) override;
 };
 
 } // namespace semantic
