@@ -664,12 +664,7 @@ StructDeclaration *Parser::parse_struct_decl() {
   }
 }
 
-struct ParserResult {
-  TranslationUnit *unit;
-  std::vector<ParseError> errors;
-};
-
-ParserResult Parser::parse_translation_unit() {
+TranslationUnit *Parser::parse_translation_unit() {
   auto *unit = arena.create<TranslationUnit>(
       SourceLocation{lexer.get_file_name(), 0, 0});
   while (!is_eof()) {
@@ -685,7 +680,5 @@ ParserResult Parser::parse_translation_unit() {
       synchronize();
     }
   }
-  return {
-      unit,
-  };
+  return unit;
 }

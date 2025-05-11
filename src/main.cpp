@@ -1,5 +1,6 @@
 #include "analysis/semantics.hpp"
 #include "defs/ast.hpp"
+#include "defs/ast_printer.hpp"
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
