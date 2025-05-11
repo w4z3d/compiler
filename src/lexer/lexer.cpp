@@ -39,6 +39,7 @@ void Lexer::skip_oneline_comment() {
     get();
 }
 
+// TODO: fix for nested multiline comments...
 void Lexer::skip_multiline_comment() {
   while (true) {
     if (peek() == '\0') {

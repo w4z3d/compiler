@@ -88,20 +88,20 @@ public:
 };
 
 // ==== Types ====
-class Type : public ASTNode {
+class TypeAnnotation : public ASTNode {
 public:
-  explicit Type(SourceLocation loc = {}) : ASTNode(loc) {}
-  virtual std::string toString() const = 0;
+  explicit TypeAnnotation(SourceLocation loc = {}) : ASTNode(loc) {}
+  [[nodiscard]] virtual std::string toString() const = 0;
   void accept(class ASTVisitor &visitor) override = 0;
 };
 
-class BuiltinType : public Type {
+class BuiltinTypeAnnotation : public TypeAnnotation {
 private:
   Builtin type;
 
 public:
-  explicit BuiltinType(Builtin type, SourceLocation loc = {})
-      : Type(loc), type(type) {}
+  explicit BuiltinTypeAnnotation(Builtin type, SourceLocation loc = {})
+      : TypeAnnotation(loc), type(type) {}
   [[nodiscard]] Builtin get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
   [[nodiscard]] std::string toString() const override {
@@ -109,12 +109,12 @@ public:
   }
 };
 
-class NamedType : public Type {
+class NamedTypeAnnotation : public TypeAnnotation {
 private:
   std::string_view name; // typedef name
 public:
-  explicit NamedType(std::string_view name, SourceLocation loc = {})
-      : Type(loc), name(name) {}
+  explicit NamedTypeAnnotation(std::string_view name, SourceLocation loc = {})
+      : TypeAnnotation(loc), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::string(name);
@@ -122,13 +122,13 @@ public:
   void accept(class ASTVisitor &visitor) override;
 };
 
-class StructType : public Type {
+class StructTypeAnnotation : public TypeAnnotation {
 private:
   std::string_view name;
 
 public:
-  explicit StructType(std::string_view name, SourceLocation loc = {})
-      : Type(loc), name(name) {}
+  explicit StructTypeAnnotation(std::string_view name, SourceLocation loc = {})
+      : TypeAnnotation(loc), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::format("struct {}", name);
@@ -136,28 +136,28 @@ public:
   void accept(class ASTVisitor &visitor) override;
 };
 
-class PointerType : public Type {
+class PointerTypeAnnotation : public TypeAnnotation {
 private:
-  Type *type;
+  TypeAnnotation *type;
 
 public:
-  explicit PointerType(Type *type, SourceLocation loc = {})
-      : Type(loc), type(type) {}
-  [[nodiscard]] Type *get_type() const { return type; }
+  explicit PointerTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
+      : TypeAnnotation(loc), type(type) {}
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Pointer to <{}>", type->toString());
   }
   void accept(class ASTVisitor &visitor) override;
 };
 
-class ArrayType : public Type {
+class ArrayTypeAnnotation : public TypeAnnotation {
 private:
-  Type *type;
+  TypeAnnotation *type;
 
 public:
-  explicit ArrayType(Type *type, SourceLocation loc = {})
-      : Type(loc), type(type) {}
-  [[nodiscard]] Type *get_type() const { return type; }
+  explicit ArrayTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
+      : TypeAnnotation(loc), type(type) {}
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Array of <{}>", type->toString());
   }
@@ -200,25 +200,25 @@ public:
 
 class AllocExpression : public Expression {
 private:
-  Type *type;
+  TypeAnnotation *type;
 
 public:
-  explicit AllocExpression(Type *type, SourceLocation loc = {})
+  explicit AllocExpression(TypeAnnotation *type, SourceLocation loc = {})
       : Expression(Expression::Kind::Alloc, "AllocExpr", loc), type(type) {}
-  [[nodiscard]] Type *get_type() const { return type; };
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
 };
 
 class AllocArrayExpression : public Expression {
 private:
-  Type *type;
+  TypeAnnotation *type;
   Expression *size;
 
 public:
-  AllocArrayExpression(Type *type, Expression *size, SourceLocation loc = {})
+  AllocArrayExpression(TypeAnnotation *type, Expression *size, SourceLocation loc = {})
       : Expression(Expression::Kind::Alloc_array, "AllocArrayExpr", loc),
         type(type), size(size) {}
-  [[nodiscard]] Type *get_type() const { return type; };
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; };
   [[nodiscard]] Expression *get_size() const { return size; };
   void accept(class ASTVisitor &visitor) override;
 };
@@ -643,17 +643,17 @@ public:
 
 class VariableDeclarationStatement : public Statement {
 private:
-  Type *type;
+  TypeAnnotation *type;
   std::string_view identifier;
   Expression *initializer;
 
 public:
-  VariableDeclarationStatement(Type *type, std::string_view identifier,
+  VariableDeclarationStatement(TypeAnnotation *type, std::string_view identifier,
                                Expression *init = nullptr,
                                SourceLocation loc = {})
       : Statement(loc), type(type), identifier(identifier), initializer(init) {}
 
-  [[nodiscard]] Type *get_type() const { return type; }
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string_view get_identifier() const { return identifier; }
   [[nodiscard]] Expression *get_initializer() const { return initializer; }
 
@@ -722,13 +722,13 @@ public:
 
 class Typedef : public Declaration {
 private:
-  Type *type;
+  TypeAnnotation *type;
   std::string_view name;
 
 public:
-  Typedef(Type *type, std::string_view name, SourceLocation loc = {})
+  Typedef(TypeAnnotation *type, std::string_view name, SourceLocation loc = {})
       : Declaration(Declaration::Kind::Typedef, name, loc), type(type), name(name) {}
-  [[nodiscard]] Type *get_type() const { return type; }
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -756,25 +756,25 @@ public:
 class ParameterDeclaration : public Declaration {
 private:
   std::string_view name;
-  Type *type;
+  TypeAnnotation *type;
 
 public:
-  ParameterDeclaration(std::string_view name, Type *type,
+  ParameterDeclaration(std::string_view name, TypeAnnotation *type,
                        SourceLocation loc = {})
       : Declaration(Kind::Parameter, name, loc), name(name), type(type) {}
-  [[nodiscard]] Type *get_type() const { return type; }
+  [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   void accept(ASTVisitor &visitor) override;
 };
 
 class FunctionDeclaration : public Declaration {
 private:
   std::string_view name;
-  Type *ret_type;
+  TypeAnnotation *ret_type;
   std::vector<ParameterDeclaration *> parameters;
   CompoundStmt *body{};
 
 public:
-  FunctionDeclaration(std::string_view name, Type *ret_type,
+  FunctionDeclaration(std::string_view name, TypeAnnotation *ret_type,
                       SourceLocation loc = {})
       : Declaration(Kind::Function, name, loc), name(name), ret_type(ret_type) {
   }
@@ -790,7 +790,7 @@ public:
     return parameters;
   }
   [[nodiscard]] CompoundStmt *get_body() const { return body; };
-  [[nodiscard]] Type *get_return_type() const { return ret_type; }
+  [[nodiscard]] TypeAnnotation *get_return_type() const { return ret_type; }
 };
 
 class TranslationUnit : public ASTNode {
@@ -851,12 +851,12 @@ public:
   virtual void visit(AllocArrayExpression &expr) {}
   virtual void visit(TernaryExpression &expr) {}
 
-  virtual void visit(Type &type) {}
-  virtual void visit(BuiltinType &type) {}
-  virtual void visit(NamedType &type) {}
-  virtual void visit(StructType &type) {}
-  virtual void visit(PointerType &type) {}
-  virtual void visit(ArrayType &type) {}
+  virtual void visit(TypeAnnotation &type) {}
+  virtual void visit(BuiltinTypeAnnotation &type) {}
+  virtual void visit(NamedTypeAnnotation &type) {}
+  virtual void visit(StructTypeAnnotation &type) {}
+  virtual void visit(PointerTypeAnnotation &type) {}
+  virtual void visit(ArrayTypeAnnotation &type) {}
 
   virtual void visit(LValue &val) {}
   virtual void visit(VariableLValue &val) {}
@@ -1414,9 +1414,9 @@ public:
     depth--;
   }
 
-  void visit(BuiltinType &type) override {
+  void visit(BuiltinTypeAnnotation &type) override {
     content +=
-        color("BuiltinType", GREEN) + " " +
+        color("BuiltinTypeAnnotation", GREEN) + " " +
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
@@ -1424,9 +1424,9 @@ public:
         builtin2String(type.get_type()) + "\n";
   }
 
-  void visit(NamedType &type) override {
+  void visit(NamedTypeAnnotation &type) override {
     content +=
-        color("NamedType", GREEN) + " " +
+        color("NamedTypeAnnotation", GREEN) + " " +
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
@@ -1434,9 +1434,9 @@ public:
         std::string(type.get_name()) + "\n";
   }
 
-  void visit(StructType &type) override {
+  void visit(StructTypeAnnotation &type) override {
     content +=
-        color("StructType", GREEN) + " " +
+        color("StructTypeAnnotation", GREEN) + " " +
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
@@ -1444,9 +1444,9 @@ public:
         std::string(type.get_name()) + "\n";
   }
 
-  void visit(PointerType &type) override {
+  void visit(PointerTypeAnnotation &type) override {
     content +=
-        color("PointerType", GREEN) + " " +
+        color("PointerTypeAnnotation", GREEN) + " " +
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
@@ -1458,9 +1458,9 @@ public:
     depth--;
   }
 
-  void visit(ArrayType &type) override {
+  void visit(ArrayTypeAnnotation &type) override {
     content +=
-        color("ArrayType", GREEN) + " " +
+        color("ArrayTypeAnnotation", GREEN) + " " +
         color(std::format("{:#x}",
                           reinterpret_cast<std::size_t>(std::addressof(type))),
               YELLOW) +
