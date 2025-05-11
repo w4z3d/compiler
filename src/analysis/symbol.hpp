@@ -11,6 +11,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <utility>
+#include "../alloc/arena.hpp"
 
 class Symbol {
 public:
@@ -71,16 +72,16 @@ private:
   };
 
   std::unordered_map<std::string, Symbol, StringHash, StringEqual> symbols;
-  std::weak_ptr<Scope> parent;
+  Scope *parent;
   std::string scope_name;
 
 public:
   explicit Scope(std::string name = "unnamed",
-                 const std::shared_ptr<Scope> &parent = nullptr)
+                 Scope *parent = nullptr)
       : parent(parent), scope_name(std::move(name)) {}
 
-  [[nodiscard]] std::shared_ptr<Scope> get_parent() const {
-    return parent.lock();
+  [[nodiscard]] Scope *get_parent() const {
+    return parent;
   }
 
   bool define(const Symbol &symbol) {
@@ -91,7 +92,7 @@ public:
     return true;
   }
 
-  std::optional<Symbol> lookup_local(std::string_view name) const {
+  [[nodiscard]] std::optional<Symbol> lookup_local(std::string_view name) const {
     auto it = symbols.find(name);
     if (it != symbols.end()) {
       return it->second;
@@ -100,7 +101,7 @@ public:
     return std::nullopt;
   }
 
-  std::optional<Symbol> lookup(const std::string_view name) const {
+  [[nodiscard]] std::optional<Symbol> lookup(const std::string_view name) const {
     auto symbol = lookup_local(name);
 
     if (symbol) {
@@ -115,23 +116,24 @@ public:
     return std::nullopt;
   }
 
-  std::unordered_map<std::string, Symbol, StringHash, StringEqual>
+  [[nodiscard]] std::unordered_map<std::string, Symbol, StringHash, StringEqual>
   get_scoped_symbols() const {
     return symbols;
   }
 
-  std::string_view get_name() const { return scope_name; }
+  [[nodiscard]] std::string_view get_name() const { return scope_name; }
 };
 
 class SymbolTable {
 private:
-  std::shared_ptr<Scope> current_scope;
+  Scope *current_scope;
+  arena::Arena arena;
 
 public:
-  SymbolTable() { current_scope = std::make_shared<Scope>("top_level"); }
+  explicit SymbolTable() : arena(arena::Arena{}) { current_scope = arena.create<Scope>("top_level"); }
 
-  void enter_scope(std::string name = "anonymous") {
-    auto new_scope = std::make_shared<Scope>(name, current_scope);
+  void enter_scope(const std::string& name = "anonymous") {
+    auto new_scope = arena.create<Scope>(name, current_scope);
     spdlog::debug("Entering scope {} with parent {}", new_scope->get_name(),
                   current_scope->get_name());
     current_scope = new_scope;
@@ -165,7 +167,7 @@ public:
 
 private:
   static std::string dump_scope(std::string &content,
-                                const std::shared_ptr<Scope> &scope,
+                                Scope *scope,
                                 int level) {
     std::string indent(level * 2, ' ');
     content += std::format("Scope: {} \n", scope->get_name());

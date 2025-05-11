@@ -65,11 +65,11 @@ void TernaryExpression::accept(struct ASTVisitor &visitor) {
 
 void TranslationUnit::accept(ASTVisitor &visitor) { visitor.visit(*this); }
 
-void BuiltinType::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void NamedType::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void StructType::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void PointerType::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void ArrayType::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
+void BuiltinTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
+void NamedTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
+void StructTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
+void PointerTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
+void ArrayTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
 
 void VariableLValue::accept(struct ASTVisitor &visitor) {
   visitor.visit(*this);

@@ -126,11 +126,11 @@ private:
   AllocExpression *parse_alloc_expr();
   AllocArrayExpression *parse_alloc_array_expr();
 
-  Type *parse_type();
-  Type *parse_type_tail(Type *type);
-  NamedType *parse_named_type();
-  StructType *parse_struct_type();
-  BuiltinType *parse_builtin_type(token::TokenKind type);
+  TypeAnnotation *parse_type();
+  TypeAnnotation *parse_type_tail(TypeAnnotation *type);
+  NamedTypeAnnotation *parse_named_type();
+  StructTypeAnnotation *parse_struct_type();
+  BuiltinTypeAnnotation *parse_builtin_type(token::TokenKind type);
 
   LValue *parse_lvalue();
   LValue *parse_lvalue_tail(LValue *lvalue);

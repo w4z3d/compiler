@@ -9,7 +9,7 @@
 int main(int argc, char *argv[]) {
 
   spdlog::cfg::load_env_levels();
-
+  spdlog::info("Start");
   const auto file = io::read_file(argv[1]);
   std::cout << file.content << std::endl;
   Lexer lexer{file.name, file.content};
@@ -22,6 +22,7 @@ int main(int argc, char *argv[]) {
 
   semantic::SemanticVisitor semantic_visitor{};
   unit->accept(semantic_visitor);
+  spdlog::info("End");
 
   return 0;
 }

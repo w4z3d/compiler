@@ -96,3 +96,104 @@ void semantic::SemanticVisitor::visit(BinaryOperatorExpression &expr) {
 }
 
 void semantic::SemanticVisitor::visit(FieldAccessLValue &val) {}
+void semantic::SemanticVisitor::visit(Typedef &typedef_) {
+  ASTVisitor::visit(typedef_);
+}
+void semantic::SemanticVisitor::visit(Declaration &decl) {
+  ASTVisitor::visit(decl);
+}
+void semantic::SemanticVisitor::visit(ParameterDeclaration &decl) {
+  ASTVisitor::visit(decl);
+}
+void semantic::SemanticVisitor::visit(StructDeclaration &decl) {
+  ASTVisitor::visit(decl);
+}
+void semantic::SemanticVisitor::visit(Statement &stmt) {
+  ASTVisitor::visit(stmt);
+}
+void semantic::SemanticVisitor::visit(AssertStmt &stmt) {
+  ASTVisitor::visit(stmt);
+}
+void semantic::SemanticVisitor::visit(UnaryMutationStatement &stmt) {
+  ASTVisitor::visit(stmt);
+}
+void semantic::SemanticVisitor::visit(ExpressionStatement &stmt) {
+  stmt.get_expression()->accept(*this);
+}
+void semantic::SemanticVisitor::visit(ForStatement &stmt) {
+  ASTVisitor::visit(stmt);
+}
+void semantic::SemanticVisitor::visit(WhileStatement &stmt) {
+  ASTVisitor::visit(stmt);
+}
+void semantic::SemanticVisitor::visit(ErrorStatement &stmt) {
+  ASTVisitor::visit(stmt);
+}
+void semantic::SemanticVisitor::visit(Expression &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(NumericExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(StringLiteralExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(CharLiteralExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(BoolConstExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(NullExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(ParenthesisExpression &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(UnaryOperatorExpression &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(ArrayAccessExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(PointerAccessExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(FieldAccessExpr &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(AllocExpression &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(AllocArrayExpression &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(TernaryExpression &expr) {
+  ASTVisitor::visit(expr);
+}
+void semantic::SemanticVisitor::visit(TypeAnnotation &type) { ASTVisitor::visit(type); }
+void semantic::SemanticVisitor::visit(BuiltinTypeAnnotation &type) {
+  ASTVisitor::visit(type);
+}
+void semantic::SemanticVisitor::visit(NamedTypeAnnotation &type) {
+  ASTVisitor::visit(type);
+}
+void semantic::SemanticVisitor::visit(StructTypeAnnotation &type) {
+  ASTVisitor::visit(type);
+}
+void semantic::SemanticVisitor::visit(PointerTypeAnnotation &type) {
+  ASTVisitor::visit(type);
+}
+void semantic::SemanticVisitor::visit(ArrayTypeAnnotation &type) {
+  ASTVisitor::visit(type);
+}
+void semantic::SemanticVisitor::visit(LValue &val) { ASTVisitor::visit(val); }
+void semantic::SemanticVisitor::visit(ArrayAccessLValue &val) {
+  ASTVisitor::visit(val);
+}
+void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {
+  ASTVisitor::visit(val);
+}
+void semantic::SemanticVisitor::visit(DereferenceLValue &val) {
+  ASTVisitor::visit(val);
+}
