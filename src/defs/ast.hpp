@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -72,11 +73,18 @@ Builtin builtinFromToken(token::TokenKind token);
 
 struct SourceLocation {
   std::string_view file_name;
-  int line;
-  int column;
+  std::tuple<int, int> begin;
+  std::tuple<int, int> end;
+  SourceLocation(std::string_view file_name = "",
+                 std::tuple<int, int> begin = {0, 0},
+                 std::tuple<int, int> end = {0, 0})
+      : file_name(file_name), begin(begin), end(end) {}
 
-  SourceLocation(std::string_view file_name = "", int line = 0, int column = 0)
-      : file_name(file_name), line(line), column(column) {}
+public:
+  [[nodiscard]] int start_line() const { return std::get<0>(begin); }
+  [[nodiscard]] int end_line() const { return std::get<0>(end); }
+  [[nodiscard]] int start_col() const { return std::get<1>(begin); }
+  [[nodiscard]] int end_col() const { return std::get<1>(end); }
 };
 
 class ASTNode {
@@ -84,10 +92,14 @@ protected:
   SourceLocation location;
 
 public:
-  explicit ASTNode(SourceLocation loc = {}) : location(loc) {}
+  explicit ASTNode(SourceLocation loc = {}) : location(std::move(loc)) {}
   virtual ~ASTNode() = default;
 
   [[nodiscard]] const SourceLocation &get_location() const { return location; }
+  void set_source_location(std::string_view file, std::tuple<int, int> begin,
+                           std::tuple<int, int> end) {
+    this->location = SourceLocation{file, begin, end};
+  }
 
   virtual void accept(class ASTVisitor &visitor) = 0;
 };
@@ -305,7 +317,7 @@ public:
     auto [ptr, ec] =
         std::from_chars(value.data(), value.data() + value.size(), result);
 
-    spdlog::info("String repr: {} errc: {}", value, static_cast<int>(ec));
+    // spdlog::info("String repr: {} errc: {}", value, static_cast<int>(ec));
     if (ec == std::errc()) {
       return result;
     }

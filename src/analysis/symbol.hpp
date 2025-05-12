@@ -27,7 +27,7 @@ private:
 
 public:
   explicit Symbol(std::string_view name, SourceLocation loc, Kind kind)
-      : name(name), location(loc), kind(kind) {}
+      : name(name), location(std::move(loc)), kind(kind) {}
 
   [[nodiscard]] const std::string &get_name() const { return name; }
 
@@ -38,8 +38,10 @@ public:
   [[nodiscard]] Kind get_kind() const { return kind; }
 
   [[nodiscard]] std::string to_string() const {
-    return std::format("[{}, <{}:{}:{}>]", name, location.file_name,
-                       location.line, location.column);
+    return std::format("[{}, <{}:{}:{} - {}:{}:{}>]", name, location.file_name,
+                       std::get<0>(location.begin), std::get<1>(location.begin),
+                       location.file_name, std::get<0>(location.end),
+                       std::get<1>(location.end));
   }
 };
 

@@ -4,30 +4,34 @@
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
-#include "report/error_report.hpp"
+#include "report/report_builder.hpp"
 #include "spdlog/cfg/env.h"
 #include <iostream>
+#include <memory>
 
 int main(int argc, char *argv[]) {
 
   spdlog::cfg::load_env_levels();
-  spdlog::info("Start");
+  // spdlog::info("Start");
   const auto file = io::read_file(argv[1]);
-  std::cout << file.content << std::endl;
+  // std::cout << file.content << std::endl;
 
-  ReportBuilder report_builder{};
-
+  const auto diagnostics = std::make_shared<DiagnosticEmitter>();
+  const auto source_manager =
+      std::make_shared<SourceManager>(file.content, file.name);
   Lexer lexer{file.name, file.content};
-  Parser parser{lexer};
+  Parser parser{lexer, diagnostics, source_manager};
 
-  ClangStylePrintVisitor visitor{};
+  // ClangStylePrintVisitor visitor{};
   const auto unit{parser.parse_translation_unit()};
-  unit->accept(visitor);
-  std::cout << visitor.get_content() << std::endl;
+  // unit->accept(visitor);
+  // std::cout << visitor.get_content() << std::endl;
 
-  semantic::SemanticVisitor semantic_visitor{};
+  semantic::SemanticVisitor semantic_visitor{diagnostics, source_manager};
   unit->accept(semantic_visitor);
-  spdlog::info("End");
+
+  diagnostics->print_all();
+  // spdlog::info("End");
 
   return 0;
 }

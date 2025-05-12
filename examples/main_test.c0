@@ -9,8 +9,7 @@ int main (Test test, Hallo** doppelPanzer) {
 string kaka(Anadrol abc) {
     if ( 1 > 2) {
         int grrr = hahahaj;
-        return grrr;
+        grrr()()();
     }
     return grrr;
-    halds(asdf);
 }

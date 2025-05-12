@@ -474,8 +474,9 @@ void ClangStylePrintVisitor::visit(FunctionDeclaration &decl) {
                         reinterpret_cast<std::size_t>(std::addressof(decl))),
             YELLOW) +
       " " + formatRange(decl.get_location()) + " " +
-      color(std::format("line:{}", decl.get_location().line), CYAN) + " " +
-      color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
+      color(std::format("line:{}", std::get<0>(decl.get_location().begin)),
+            CYAN) +
+      " " + color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
       decl.get_return_type()->toString() + " (";
 
   // Parameter types list
@@ -510,8 +511,9 @@ void ClangStylePrintVisitor::visit(ParameterDeclaration &decl) {
                         reinterpret_cast<std::size_t>(std::addressof(decl))),
             YELLOW) +
       " " + formatRange(decl.get_location()) + " " +
-      color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
-      color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
+      color(std::format("col:{}", std::get<1>(decl.get_location().begin)),
+            CYAN) +
+      " " + color(std::string(decl.get_name()), MAGENTA) + " " + "'" +
       decl.get_type()->toString() + "'\n";
 }
 
@@ -522,8 +524,9 @@ void ClangStylePrintVisitor::visit(StructDeclaration &decl) {
                         reinterpret_cast<std::size_t>(std::addressof(decl))),
             YELLOW) +
       " " + formatRange(decl.get_location()) + " " +
-      color(std::format("col:{}", decl.get_location().column), CYAN) + " " +
-      color(std::string(decl.get_name()), MAGENTA) + "\n";
+      color(std::format("col:{}", std::get<1>(decl.get_location().begin)),
+            CYAN) +
+      " " + color(std::string(decl.get_name()), MAGENTA) + "\n";
   depth++;
   if (const auto &fields = decl.get_fields()) {
     for (const auto &statement : *fields) {

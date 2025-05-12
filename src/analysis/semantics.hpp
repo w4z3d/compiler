@@ -1,15 +1,31 @@
 #ifndef ANALYSIS_SEMANTICS_H
 #define ANALYSIS_SEMANTICS_H
 
+#include <utility>
+
 #include "../defs/ast.hpp"
+#include "../report/report_builder.hpp"
 #include "symbol.hpp"
 namespace semantic {
+
+#define L1
 
 class SemanticVisitor : public ASTVisitor {
 private:
   SymbolTable symbol_table{};
+  std::shared_ptr<DiagnosticEmitter> diagnostics;
+  std::shared_ptr<SourceManager> source_manager;
+
+#ifdef L1
+  bool has_return_statement = false;
+#endif
 
 public:
+  explicit SemanticVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
+                           std::shared_ptr<SourceManager> source_manager)
+      : diagnostics(std::move(diagnostics)),
+        source_manager(std::move(source_manager)) {}
+
   void visit(TranslationUnit &unit) override;
   void visit(CompoundStmt &stmt) override;
   void visit(FunctionDeclaration &decl) override;
