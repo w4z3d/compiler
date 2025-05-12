@@ -6,6 +6,7 @@
 #include "../defs/ast.hpp"
 #include "../report/report_builder.hpp"
 #include "symbol.hpp"
+
 namespace semantic {
 
 #define L1

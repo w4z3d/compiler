@@ -7,6 +7,7 @@
 #include <string_view>
 #include <unordered_map>
 
+// TODO: maybe add function type (-> return type + list of param types)
 class Type {
 public:
   enum class Kind { Builtin, Pointer, Array, Struct, Named };

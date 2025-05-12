@@ -2,6 +2,7 @@
 #include "defs/ast.hpp"
 #include "defs/ast_printer.hpp"
 #include "io/io.hpp"
+#include "ir/ir_builder.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
@@ -30,8 +31,15 @@ int main(int argc, char *argv[]) {
   semantic::SemanticVisitor semantic_visitor{diagnostics, source_manager};
   unit->accept(semantic_visitor);
 
+  IntermediateRepresentation representation{};
+  IRBuilder builder{representation, diagnostics, source_manager};
+  unit->accept(builder);
+
+  std::cout << representation.to_string() << std::endl;
+
+
   diagnostics->print_all();
   // spdlog::info("End");
-
+  system("pause");
   return 0;
 }

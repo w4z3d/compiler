@@ -1,15 +1,6 @@
-string kaka(Anadrol hallo);
 
-int main (Test test, Hallo** doppelPanzer) {
-
-  kaka();
-  return -4294967290;
-}
-
-string kaka(Anadrol abc) {
-    if ( 1 > 2) {
-        int grrr = hahahaj;
-        grrr()()();
-    }
-    return grrr;
+int main () {
+    int x = 100;
+    int y = 200;
+    return a;
 }
