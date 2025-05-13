@@ -6,7 +6,11 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
+#include "ast.hpp"
+
+namespace type {
 
 class Type {
 public:
@@ -73,9 +77,12 @@ public:
   std::vector<std::pair<std::string, const Type *>> fields;
   std::string name;
 
-  StructType(std::string name,
-             std::vector<std::pair<std::string, const Type *>> fields)
-      : Type(Kind::Struct), fields(std::move(fields)), name(std::move(name)) {}
+  explicit StructType(std::string name)
+      : Type(Kind::Struct), name(std::move(name)) {}
+
+  void set_fields(std::vector<std::pair<std::string, const Type *>> f) {
+    fields = std::move(f);
+  }
 
   [[nodiscard]] bool equals(const Type &other) const override {
     return other.kind == Kind::Struct &&
@@ -86,11 +93,14 @@ public:
 class NamedType : public Type {
 public:
   std::string name;
-  Type *type;
+  Type *type{};
 
-  explicit NamedType(std::string name, Type *type)
-      : Type(Kind::Named), name(std::move(name)), type(type) {}
+  explicit NamedType(std::string name)
+      : Type(Kind::Named), name(std::move(name)) {}
 
+  void set_type(Type *t) {
+    type = t;
+  }
   [[nodiscard]] bool equals(const Type &other) const override {
     return other.kind == Kind::Named &&
            name == dynamic_cast<const NamedType &>(other).name;
@@ -114,5 +124,74 @@ public:
     return name == dynamic_cast<const FunctionType &>(other).name;
   }
 };
+
+static std::shared_ptr<Type> from_type(const TypeAnnotation *annotation) {
+  if (auto builtin = dynamic_cast<const BuiltinTypeAnnotation *>(annotation)) {
+    return from_type(builtin);
+  } else if (auto struct_ =
+                 dynamic_cast<const StructTypeAnnotation *>(annotation)) {
+    return from_type(struct_);
+  } else if (auto named =
+                 dynamic_cast<const NamedTypeAnnotation *>(annotation)) {
+    return from_type(named);
+  } else if (auto pointer =
+                 dynamic_cast<const PointerTypeAnnotation *>(annotation)) {
+    return from_type(pointer);
+  } else if (auto array =
+                 dynamic_cast<const ArrayTypeAnnotation *>(annotation)) {
+    return from_type(array);
+  } else {
+    throw std::runtime_error("Unknown type annotation");
+  }
+}
+static std::shared_ptr<BuiltinType>
+from_type(const BuiltinTypeAnnotation *type_annotation) {
+  switch (type_annotation->get_type()) {
+  case Builtin::Int:
+    return std::make_shared<BuiltinType>(INT_T);
+  case Builtin::Bool:
+    return std::make_shared<BuiltinType>(BOOL_T);
+  case Builtin::String:
+    return std::make_shared<BuiltinType>(STRING_T);
+  case Builtin::Char:
+    return std::make_shared<BuiltinType>(CHAR_T);
+  case Builtin::Void:
+    return std::make_shared<BuiltinType>(VOID_T);
+  case Builtin::Unknown:
+    throw std::runtime_error("gg");
+  }
+}
+static std::shared_ptr<StructType>
+from_type(const StructTypeAnnotation *type_annotation) {
+  return std::make_shared<StructType>(
+      StructType{type_annotation->get_name().data()});
+}
+static std::shared_ptr<NamedType>
+from_type(const NamedTypeAnnotation *type_annotation) {
+  return std::make_shared<NamedType>(
+      NamedType{type_annotation->get_name().data()});
+}
+static std::shared_ptr<ArrayType>
+from_type(const ArrayTypeAnnotation *type_annotation) {
+  return std::make_shared<ArrayType>(
+      ArrayType{from_type(type_annotation->get_type()).get()});
+}
+static std::shared_ptr<PointerType>
+from_type(const PointerTypeAnnotation *type_annotation) {
+  return std::make_shared<PointerType>(
+      PointerType{from_type(type_annotation->get_type()).get()});
+}
+static std::shared_ptr<FunctionType>
+from_type(const FunctionDeclaration *func_decl) {
+  std::vector<const Type *> params{};
+  for (const auto &item : func_decl->get_parameter_declarations()) {
+    params.push_back(from_type(item->get_type()).get());
+  }
+  return std::make_shared<FunctionType>(
+      FunctionType{func_decl->get_name().data(),
+                   from_type(func_decl->get_return_type()).get(), params});
+}
+
+} // namespace type
 
 #endif // DEFS_TYPE_H

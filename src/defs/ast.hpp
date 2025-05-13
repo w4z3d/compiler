@@ -107,7 +107,7 @@ public:
 // ==== Types ====
 class TypeAnnotation : public ASTNode {
 public:
-  explicit TypeAnnotation(SourceLocation loc = {}) : ASTNode(loc) {}
+  explicit TypeAnnotation(SourceLocation loc = {}) : ASTNode(std::move(loc)) {}
   [[nodiscard]] virtual std::string toString() const = 0;
   void accept(class ASTVisitor &visitor) override = 0;
 };
@@ -118,7 +118,7 @@ private:
 
 public:
   explicit BuiltinTypeAnnotation(Builtin type, SourceLocation loc = {})
-      : TypeAnnotation(loc), type(type) {}
+      : TypeAnnotation(std::move(loc)), type(type) {}
   [[nodiscard]] Builtin get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
   [[nodiscard]] std::string toString() const override {
@@ -131,7 +131,7 @@ private:
   std::string_view name; // typedef name
 public:
   explicit NamedTypeAnnotation(std::string_view name, SourceLocation loc = {})
-      : TypeAnnotation(loc), name(name) {}
+      : TypeAnnotation(std::move(loc)), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::string(name);
@@ -145,7 +145,7 @@ private:
 
 public:
   explicit StructTypeAnnotation(std::string_view name, SourceLocation loc = {})
-      : TypeAnnotation(loc), name(name) {}
+      : TypeAnnotation(std::move(loc)), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::format("struct {}", name);
@@ -159,7 +159,7 @@ private:
 
 public:
   explicit PointerTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
-      : TypeAnnotation(loc), type(type) {}
+      : TypeAnnotation(std::move(loc)), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Pointer to <{}>", type->toString());
@@ -173,7 +173,7 @@ private:
 
 public:
   explicit ArrayTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
-      : TypeAnnotation(loc), type(type) {}
+      : TypeAnnotation(std::move(loc)), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Array of <{}>", type->toString());

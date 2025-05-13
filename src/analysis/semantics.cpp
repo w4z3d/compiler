@@ -1,6 +1,5 @@
 #include "semantics.hpp"
-#include "symbol.hpp"
-#include <sys/types.h>
+
 
 void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
   for (const auto &declaration : unit.get_declarations()) {
