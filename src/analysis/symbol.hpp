@@ -2,6 +2,7 @@
 #define ANALYSIS_SYMBOL_H
 
 #include "../alloc/arena.hpp"
+#include "../defs/source_location.hpp"
 #include "spdlog/spdlog.h"
 #include <format>
 #include <optional>
@@ -15,6 +16,7 @@ public:
   enum class Kind { Variable, Function, Struct };
 
 private:
+  size_t id;
   std::string name;
   Kind kind;
   bool initialized = false;
@@ -34,8 +36,16 @@ public:
 
   [[nodiscard]] Kind get_kind() const { return kind; }
 
+  size_t get_id() const {
+    return id;
+  }
+
+  void set_id(size_t id_) {
+    id = id_;
+  }
+
   [[nodiscard]] std::string to_string() const {
-    return std::format("[{}, <{}:{}:{} - {}:{}:{}>]", name, location.file_name,
+    return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id, location.file_name,
                        std::get<0>(location.begin), std::get<1>(location.begin),
                        location.file_name, std::get<0>(location.end),
                        std::get<1>(location.end));
@@ -132,6 +142,7 @@ class SymbolTable {
 private:
   Scope *current_scope;
   arena::Arena arena;
+  size_t id_counter = 0;
 
 public:
   explicit SymbolTable() : arena(arena::Arena{}) {
@@ -160,7 +171,13 @@ public:
     return false;
   }
 
-  bool define(const Symbol &symbol) { return current_scope->define(symbol); }
+  bool define(Symbol &symbol) {
+    bool v = current_scope->define(symbol);
+    if (v) {
+      symbol.set_id(id_counter++);
+    }
+    return v;
+  }
 
   [[nodiscard]] std::optional<Symbol> lookup(std::string_view name) const {
     return current_scope->lookup(name);

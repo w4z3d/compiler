@@ -16,6 +16,7 @@ private:
   std::size_t temp_counter = 0;
   std::size_t block_counter = 0;
   std::stack<Var> temp_var_stack{};
+  std::unordered_map<size_t, Var> symbol_to_var{};
   arena::Arena arena;
 
 public:

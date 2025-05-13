@@ -29,6 +29,7 @@ void IRBuilder::visit(VariableDeclarationStatement &stmt) {
   const auto temp = gen_temp();
   current_block->add_instruction(
       IRInstruction{Opcode::STORE, {Operand{result}}, temp});
+  symbol_to_var.emplace(stmt.get_symbol()->get_id(), temp);
 }
 void IRBuilder::visit(UnaryMutationStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(AssignmentStatement &stmt) { ASTVisitor::visit(stmt); }

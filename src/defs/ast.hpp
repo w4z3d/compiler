@@ -1,6 +1,7 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
+#include "../analysis/symbol.hpp"
 #include "source_location.hpp"
 #include "token.hpp"
 #include <charconv>
@@ -382,6 +383,7 @@ public:
 class VarExpr : public Expression {
 private:
   std::string_view variable_name;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   explicit VarExpr(std::string_view name, SourceLocation loc = {})
@@ -389,6 +391,12 @@ public:
   }
   [[nodiscard]] std::string_view get_variable_name() const {
     return variable_name;
+  }
+  void set_symbol(std::shared_ptr<Symbol> sym) {
+    resolved_symbol = std::move(sym);
+  }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
   }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -474,12 +482,19 @@ public:
 class VariableLValue : public LValue {
 private:
   std::string_view name;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   explicit VariableLValue(std::string_view name, SourceLocation loc = {})
       : LValue(loc), name(name) {}
 
   [[nodiscard]] std::string_view get_name() const { return name; }
+  void set_symbol(std::shared_ptr<Symbol> sym) {
+    resolved_symbol = std::move(sym);
+  }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -667,6 +682,7 @@ private:
   TypeAnnotation *type;
   std::string_view identifier;
   Expression *initializer;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   VariableDeclarationStatement(TypeAnnotation *type,
@@ -678,6 +694,12 @@ public:
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string_view get_identifier() const { return identifier; }
   [[nodiscard]] Expression *get_initializer() const { return initializer; }
+  void set_symbol(const std::shared_ptr<Symbol>& sym) {
+    resolved_symbol = sym;
+  }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
+  }
 
   void accept(ASTVisitor &visitor) override;
 };

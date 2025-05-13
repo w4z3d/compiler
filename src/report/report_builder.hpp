@@ -2,6 +2,7 @@
 #define REPORT_ERROR_REPORT_H
 // SourceManager class for accessing source code
 #include "../defs/ast.hpp"
+#include <algorithm>
 #include <cstddef>
 #include <iostream>
 #include <optional>
