@@ -1,6 +1,7 @@
 
 int main () {
     int x = 100;
-    int y = 200;
+    int a = (x + 100) * -10;
+    x += 10;
     return a;
 }

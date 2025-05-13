@@ -5,6 +5,7 @@
 #include "../defs/source_location.hpp"
 #include "spdlog/spdlog.h"
 #include <format>
+#include <iostream>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -17,7 +18,7 @@ public:
 
 private:
   size_t id;
-  std::string name;
+  std::string_view name;
   Kind kind;
   bool initialized = false;
   bool constant = false;
@@ -25,10 +26,10 @@ private:
   SourceLocation location;
 
 public:
-  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind)
-      : name(name), location(std::move(loc)), kind(kind) {}
+  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind, size_t id)
+      : name(name), location(std::move(loc)), kind(kind), id(id) {}
 
-  [[nodiscard]] const std::string &get_name() const { return name; }
+  [[nodiscard]] std::string_view get_name() const { return name; }
 
   [[nodiscard]] const SourceLocation &get_source_location() const {
     return location;
@@ -36,7 +37,7 @@ public:
 
   [[nodiscard]] Kind get_kind() const { return kind; }
 
-  size_t get_id() const {
+  [[nodiscard]] size_t get_id() const {
     return id;
   }
 
@@ -54,20 +55,20 @@ public:
 
 class VariableSymbol : public Symbol {
 public:
-  explicit VariableSymbol(std::string_view name, SourceLocation loc)
-      : Symbol(name, loc, Kind::Variable) {}
+  explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id)
+      : Symbol(name, loc, Kind::Variable, id) {}
 };
 
 class FunctionSymbol : public Symbol {
 public:
-  explicit FunctionSymbol(std::string_view name, SourceLocation loc)
-      : Symbol(name, loc, Kind::Function) {}
+  explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id)
+      : Symbol(name, loc, Kind::Function, id) {}
 };
 
 class StructSymbol : public Symbol {
 public:
-  explicit StructSymbol(std::string_view name, SourceLocation loc)
-      : Symbol(name, loc, Kind::Struct) {}
+  explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id)
+      : Symbol(name, loc, Kind::Struct, id) {}
 };
 
 class Scope {
@@ -172,11 +173,11 @@ public:
   }
 
   bool define(Symbol &symbol) {
-    bool v = current_scope->define(symbol);
-    if (v) {
-      symbol.set_id(id_counter++);
-    }
-    return v;
+    return current_scope->define(symbol);
+  }
+
+  size_t next_id() {
+    return id_counter++;
   }
 
   [[nodiscard]] std::optional<Symbol> lookup(std::string_view name) const {
