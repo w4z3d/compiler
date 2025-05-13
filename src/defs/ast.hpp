@@ -1,11 +1,9 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
-#include "spdlog/spdlog.h"
+#include "source_location.hpp"
 #include "token.hpp"
 #include <charconv>
-#include <cstdint>
-#include <execution>
 #include <format>
 #include <optional>
 #include <string>
@@ -70,22 +68,6 @@ int precedenceFromAssmtOp(AssignmentOperator assmtOp);
 
 std::string builtin2String(Builtin type);
 Builtin builtinFromToken(token::TokenKind token);
-
-struct SourceLocation {
-  std::string_view file_name;
-  std::tuple<int, int> begin;
-  std::tuple<int, int> end;
-  SourceLocation(std::string_view file_name = "",
-                 std::tuple<int, int> begin = {0, 0},
-                 std::tuple<int, int> end = {0, 0})
-      : file_name(file_name), begin(begin), end(end) {}
-
-public:
-  [[nodiscard]] int start_line() const { return std::get<0>(begin); }
-  [[nodiscard]] int end_line() const { return std::get<0>(end); }
-  [[nodiscard]] int start_col() const { return std::get<1>(begin); }
-  [[nodiscard]] int end_col() const { return std::get<1>(end); }
-};
 
 class ASTNode {
 protected:

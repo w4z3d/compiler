@@ -2,11 +2,8 @@
 #define ANALYSIS_SYMBOL_H
 
 #include "../alloc/arena.hpp"
-#include "../defs/ast.hpp"
 #include "spdlog/spdlog.h"
 #include <format>
-#include <iostream>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>

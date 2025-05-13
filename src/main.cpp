@@ -37,7 +37,6 @@ int main(int argc, char *argv[]) {
 
   std::cout << representation.to_string() << std::endl;
 
-
   diagnostics->print_all();
   // spdlog::info("End");
   system("pause");
