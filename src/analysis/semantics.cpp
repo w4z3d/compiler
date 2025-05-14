@@ -48,23 +48,41 @@ void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
 }
 
 void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
-  stmt.get_lvalue()->accept(*this);
+  if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
+    const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
+    auto lookup = symbol_table.lookup(var_l_val->get_name());
+    if (!lookup) {
+      diagnostics->emit_error(
+          var_l_val->get_location(),
+          std::format("Unresolved reference {}", var_l_val->get_name()));
+      diagnostics->add_source_context(
+          source_manager->get_line(var_l_val->get_location().start_line()));
+    }
+    if (!lookup->get().is_initialized() &&
+        stmt.get_op() != AssignmentOperator::Equals) {
+      diagnostics->emit_error(
+          var_l_val->get_location(),
+          std::format("Referencing uninitialized variable {} ",
+                      var_l_val->get_name()));
+      diagnostics->add_source_context(
+          source_manager->get_line(var_l_val->get_location().start_line()));
+      diagnostics->suggest_fix(
+          std::format("Try initializing {}", lookup->get().get_name()));
+
+      diagnostics->emit_note(
+          lookup->get().get_source_location(),
+          std::format("Variable {} declared here", lookup->get().get_name()));
+      diagnostics->add_source_context(
+          source_manager->get_snippet(lookup->get().get_source_location()));
+    } else {
+      lookup->get().set_initialized(true);
+      var_l_val->set_symbol(std::make_shared<Symbol>(lookup.value()));
+    }
+  }
   stmt.get_expr()->accept(*this);
 }
 
-void semantic::SemanticVisitor::visit(VariableLValue &val) {
-  auto lookup = symbol_table.lookup(val.get_name());
-  if (!lookup) {
-    diagnostics->emit_error(
-        val.get_location(),
-        std::format("Unresolved reference {}", val.get_name()));
-    diagnostics->add_source_context(
-        source_manager->get_line(val.get_location().start_line()));
-  } else {
-    lookup->set_initialized(true);
-    val.set_symbol(std::make_shared<Symbol>(lookup.value()));
-  }
-}
+void semantic::SemanticVisitor::visit(VariableLValue &val) {}
 
 void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
   bool initialized = false;
@@ -81,10 +99,10 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
         std::format("Redefinition of variable {} ", stmt.get_identifier()));
     diagnostics->add_source_context(
         source_manager->get_line(stmt.get_location().start_line()));
-    diagnostics->emit_note(previous_def->get_source_location(),
+    diagnostics->emit_note(previous_def->get().get_source_location(),
                            "Previously defined here:");
     diagnostics->add_source_context(source_manager->get_line(
-        previous_def->get_source_location().start_line()));
+        previous_def->get().get_source_location().start_line()));
   } else {
     stmt.set_symbol(std::make_shared<Symbol>(vs));
   }
@@ -98,20 +116,21 @@ void semantic::SemanticVisitor::visit(VarExpr &expr) {
         std::format("Unresolved reference {}", expr.get_variable_name()));
     diagnostics->add_source_context(
         source_manager->get_line(expr.get_location().start_line()));
-  } else if (!lookup->is_initialized()) {
-    diagnostics->emit_error(expr.get_location(),
-                            std::format("Referencing uninitialized variable {}",
-                                        expr.get_variable_name()));
+  } else if (!lookup->get().is_initialized()) {
+    diagnostics->emit_error(
+        expr.get_location(),
+        std::format("Referencing uninitialized variable {} ",
+                    expr.get_variable_name()));
     diagnostics->add_source_context(
         source_manager->get_line(expr.get_location().start_line()));
     diagnostics->suggest_fix(
-        std::format("Try initializing {}", lookup->get_name()));
+        std::format("Try initializing {}", lookup->get().get_name()));
 
     diagnostics->emit_note(
-        lookup->get_source_location(),
-        std::format("Variable {} declared here", lookup->get_name()));
+        lookup->get().get_source_location(),
+        std::format("Variable {} declared here", lookup->get().get_name()));
     diagnostics->add_source_context(
-        source_manager->get_snippet(lookup->get_source_location()));
+        source_manager->get_snippet(lookup->get().get_source_location()));
   } else {
     expr.set_symbol(std::make_shared<Symbol>(lookup.value()));
   }

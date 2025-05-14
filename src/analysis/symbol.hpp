@@ -5,6 +5,7 @@
 #include "../defs/source_location.hpp"
 #include "spdlog/spdlog.h"
 #include <format>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -44,7 +45,7 @@ public:
 
   [[nodiscard]] bool is_initialized() const { return initialized; }
 
-  void set_initialized(bool initialized) { initialized = initialized; }
+  void set_initialized(bool init) { initialized = init; }
 
   [[nodiscard]] std::string to_string() const {
     return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id,
@@ -111,18 +112,18 @@ public:
     return true;
   }
 
-  [[nodiscard]] std::optional<Symbol>
-  lookup_local(std::string_view name) const {
+  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
+  lookup_local(std::string_view name) {
     auto it = symbols.find(name);
     if (it != symbols.end()) {
-      return it->second;
+      return std::reference_wrapper<Symbol>(it->second);
     }
 
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<Symbol>
-  lookup(const std::string_view name) const {
+  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
+  lookup(const std::string_view name) {
     auto symbol = lookup_local(name);
 
     if (symbol) {
@@ -182,7 +183,8 @@ public:
 
   size_t next_id() { return id_counter++; }
 
-  [[nodiscard]] std::optional<Symbol> lookup(std::string_view name) const {
+  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
+  lookup(std::string_view name) {
     return current_scope->lookup(name);
   }
 

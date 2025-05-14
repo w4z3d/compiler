@@ -1,10 +1,10 @@
 
 int main () {
-    int x = 100;
-    int a = (x + 100) * -10;
-    (x) += 10;
-    int z;
-    z = 100;
-    return z;
+    int ich_hab_bedeutung;
+    ich_hab_bedeutung = 200;
+    int hallo = 100;
+    int nee = 200;
+    int x = 200;
+    return ich_hab_bedeutung;
 }
 

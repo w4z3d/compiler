@@ -475,8 +475,23 @@ public:
 // ==== LValues ====
 class LValue : public ASTNode {
 public:
-  explicit LValue(SourceLocation loc = {}) : ASTNode(loc) {}
+  enum class Kind {
+    Variable,
+    Pointer,
+    Field,
+    Array,
+    Dereference,
+  };
+
+private:
+  Kind kind;
+
+public:
+  explicit LValue(Kind kind, SourceLocation loc = {})
+      : ASTNode(loc), kind(kind) {}
   void accept(class ASTVisitor &visitor) override = 0;
+
+  [[nodiscard]] Kind get_kind() const { return kind; }
 };
 
 class VariableLValue : public LValue {
@@ -486,7 +501,7 @@ private:
 
 public:
   explicit VariableLValue(std::string_view name, SourceLocation loc = {})
-      : LValue(loc), name(name) {}
+      : LValue(Kind::Variable, loc), name(name) {}
 
   [[nodiscard]] std::string_view get_name() const { return name; }
   void set_symbol(std::shared_ptr<Symbol> sym) {
@@ -504,7 +519,7 @@ private:
 
 public:
   explicit DereferenceLValue(LValue *operand, SourceLocation loc = {})
-      : LValue(loc), operand(operand) {}
+      : LValue(Kind::Dereference, loc), operand(operand) {}
 
   [[nodiscard]] LValue *get_operand() const { return operand; }
   void accept(class ASTVisitor &visitor) override;
@@ -518,7 +533,7 @@ private:
 public:
   FieldAccessLValue(LValue *base, std::string_view field,
                     SourceLocation loc = {})
-      : LValue(loc), base(base), field(field) {}
+      : LValue(Kind::Field, loc), base(base), field(field) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
   [[nodiscard]] std::string_view get_field() const { return field; }
@@ -533,7 +548,7 @@ private:
 public:
   PointerAccessLValue(LValue *base, std::string_view field,
                       SourceLocation loc = {})
-      : LValue(loc), base(base), field(field) {}
+      : LValue(Kind::Pointer, loc), base(base), field(field) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
   [[nodiscard]] std::string_view get_field() const { return field; }
@@ -547,7 +562,7 @@ private:
 
 public:
   ArrayAccessLValue(LValue *base, Expression *index, SourceLocation loc = {})
-      : LValue(loc), base(base), index(index) {}
+      : LValue(Kind::Array, loc), base(base), index(index) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
   [[nodiscard]] Expression *get_index() const { return index; }
@@ -694,9 +709,7 @@ public:
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string_view get_identifier() const { return identifier; }
   [[nodiscard]] Expression *get_initializer() const { return initializer; }
-  void set_symbol(const std::shared_ptr<Symbol>& sym) {
-    resolved_symbol = sym;
-  }
+  void set_symbol(const std::shared_ptr<Symbol> &sym) { resolved_symbol = sym; }
   [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
     return resolved_symbol;
   }
