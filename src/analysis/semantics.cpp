@@ -1,6 +1,5 @@
 #include "semantics.hpp"
 
-
 void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
   for (const auto &declaration : unit.get_declarations()) {
     declaration->accept(*this);
@@ -8,7 +7,8 @@ void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
 }
 
 void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
-  auto fs = FunctionSymbol{decl.get_name(), decl.get_location(), symbol_table.next_id()};
+  auto fs = FunctionSymbol{decl.get_name(), decl.get_location(),
+                           symbol_table.next_id()};
   symbol_table.define(fs);
 
   // Enter scope and handle statements
@@ -16,7 +16,8 @@ void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
 
   // Add parameter symbols
   for (const auto &param : decl.get_parameter_declarations()) {
-    auto vs = VariableSymbol{param->get_name(), param->get_location(), symbol_table.next_id()};
+    auto vs = VariableSymbol{param->get_name(), param->get_location(),
+                             symbol_table.next_id(), true};
     symbol_table.define(vs);
   }
 
@@ -64,8 +65,13 @@ void semantic::SemanticVisitor::visit(VariableLValue &val) {
 }
 
 void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
-  stmt.get_initializer()->accept(*this);
-  auto vs = VariableSymbol{stmt.get_identifier(), stmt.get_location(), symbol_table.next_id()};
+  bool initialized = false;
+  if (stmt.get_initializer()) {
+    stmt.get_initializer()->accept(*this);
+    initialized = true;
+  }
+  auto vs = VariableSymbol{stmt.get_identifier(), stmt.get_location(),
+                           symbol_table.next_id(), initialized};
   if (!symbol_table.define(vs)) {
     const auto previous_def = symbol_table.lookup(stmt.get_identifier());
     diagnostics->emit_error(
@@ -84,7 +90,7 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
 
 void semantic::SemanticVisitor::visit(VarExpr &expr) {
   const auto lookup = symbol_table.lookup(expr.get_variable_name());
-  if (!lookup) {
+  if (!lookup || !lookup->is_initialized()) {
     diagnostics->emit_error(
         expr.get_location(),
         std::format("Unresolved reference {}", expr.get_variable_name()));
@@ -143,7 +149,8 @@ void semantic::SemanticVisitor::visit(Typedef &typedef_) {
   ASTVisitor::visit(typedef_);
 }
 void semantic::SemanticVisitor::visit(StructDeclaration &decl) {
-  auto ss = StructSymbol{decl.get_name(), decl.get_location(), symbol_table.next_id()};
+  auto ss = StructSymbol{decl.get_name(), decl.get_location(),
+                         symbol_table.next_id()};
   symbol_table.define(ss);
 }
 void semantic::SemanticVisitor::visit(AssertStmt &stmt) {

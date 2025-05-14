@@ -20,14 +20,15 @@ private:
   size_t id;
   std::string_view name;
   Kind kind;
-  bool initialized = false;
-  bool constant = false;
+  bool initialized;
 
   SourceLocation location;
 
 public:
-  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind, size_t id)
-      : name(name), location(std::move(loc)), kind(kind), id(id) {}
+  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind,
+                  size_t id, bool initialized)
+      : name(name), location(std::move(loc)), kind(kind), id(id),
+        initialized(initialized) {}
 
   [[nodiscard]] std::string_view get_name() const { return name; }
 
@@ -37,38 +38,41 @@ public:
 
   [[nodiscard]] Kind get_kind() const { return kind; }
 
-  [[nodiscard]] size_t get_id() const {
-    return id;
-  }
+  [[nodiscard]] size_t get_id() const { return id; }
 
-  void set_id(size_t id_) {
-    id = id_;
-  }
+  void set_id(size_t id_) { id = id_; }
+
+  [[nodiscard]] bool is_initialized() const { return initialized; }
 
   [[nodiscard]] std::string to_string() const {
-    return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id, location.file_name,
-                       std::get<0>(location.begin), std::get<1>(location.begin),
-                       location.file_name, std::get<0>(location.end),
-                       std::get<1>(location.end));
+    return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id,
+                       location.file_name, std::get<0>(location.begin),
+                       std::get<1>(location.begin), location.file_name,
+                       std::get<0>(location.end), std::get<1>(location.end));
   }
 };
 
 class VariableSymbol : public Symbol {
+  bool initialized = false;
+
 public:
-  explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id)
-      : Symbol(name, loc, Kind::Variable, id) {}
+  explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id,
+                          bool initialized)
+      : Symbol(name, loc, Kind::Variable, id, initialized) {}
 };
 
 class FunctionSymbol : public Symbol {
 public:
-  explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id)
-      : Symbol(name, loc, Kind::Function, id) {}
+  explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id,
+                          bool initialized)
+      : Symbol(name, loc, Kind::Function, id, initialized) {}
 };
 
 class StructSymbol : public Symbol {
 public:
-  explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id)
-      : Symbol(name, loc, Kind::Struct, id) {}
+  explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id,
+                        bool initialized)
+      : Symbol(name, loc, Kind::Struct, id, initialized) {}
 };
 
 class Scope {
@@ -172,13 +176,9 @@ public:
     return false;
   }
 
-  bool define(const Symbol &symbol) {
-    return current_scope->define(symbol);
-  }
+  bool define(const Symbol &symbol) { return current_scope->define(symbol); }
 
-  size_t next_id() {
-    return id_counter++;
-  }
+  size_t next_id() { return id_counter++; }
 
   [[nodiscard]] std::optional<Symbol> lookup(std::string_view name) const {
     return current_scope->lookup(name);
