@@ -18,13 +18,13 @@ struct Var {
 
 public:
   [[nodiscard]] std::string to_string() const {
-    return std::format("var_{}", numeral);
+    return std::format("var{}", numeral);
   }
 };
 
 struct grr {
   std::string operator()(Var v) const { return v.to_string(); }
-  std::string operator()(uint32_t v) const { return std::format("i_{}", v); }
+  std::string operator()(uint32_t v) const { return std::format("i{}", v); }
 };
 
 struct Operand {

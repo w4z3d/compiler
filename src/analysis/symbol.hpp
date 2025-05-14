@@ -172,7 +172,7 @@ public:
     return false;
   }
 
-  bool define(Symbol &symbol) {
+  bool define(const Symbol &symbol) {
     return current_scope->define(symbol);
   }
 

@@ -32,23 +32,30 @@ void IRBuilder::visit(ReturnStmt &stmt) {
 void IRBuilder::visit(AssertStmt &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(VariableDeclarationStatement &stmt) {
   stmt.get_initializer()->accept(*this);
-  symbol_to_var.emplace(stmt.get_symbol()->get_id(), temp_var_stack.top());
+  auto var = gen_temp();
+  symbol_to_var.emplace(stmt.get_symbol()->get_id(), var);/*/*/
+  auto init = temp_var_stack.top();
+  temp_var_stack.pop();
+  current_block->add_instruction(
+      IRInstruction{Opcode::STORE, {Operand{init}}, var});
 }
 void IRBuilder::visit(UnaryMutationStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(AssignmentStatement &stmt) {
   stmt.get_expr()->accept(*this);
-  stmt.get_lvalue()->accept(*this);
-  auto to = temp_var_stack.top();
+  stmt.get_lvalue()->accept(*this); // has to be after expr -> changes mapping
+  auto new_var = temp_var_stack.top();  // new var for lvalue
   temp_var_stack.pop();
-  auto from = temp_var_stack.top();
+  auto old_var = temp_var_stack.top();  // old var of lvalue
+  temp_var_stack.pop();
+  auto from = temp_var_stack.top();     // var of expr result
   temp_var_stack.pop();
   if (stmt.get_op() == AssignmentOperator::Equals) {
     current_block->add_instruction(
-        IRInstruction{Opcode::STORE, {Operand{from}}, to});
+        IRInstruction{Opcode::STORE, {Operand{from}}, new_var});
   } else {
     auto op = from_assmt_op(stmt.get_op());
     current_block->add_instruction(
-        IRInstruction{op, {Operand{from}, Operand{to}}, to});
+        IRInstruction{op, {Operand{from}, Operand{old_var}}, new_var});
   }
 }
 void IRBuilder::visit(ExpressionStatement &stmt) { ASTVisitor::visit(stmt); }
@@ -121,6 +128,9 @@ void IRBuilder::visit(VariableLValue &val) {
     throw std::runtime_error("namensanalyse verkackt...");
   }
   temp_var_stack.push(var->second);
+  auto newvar = gen_temp();
+  symbol_to_var.insert_or_assign(val.get_symbol()->get_id(), newvar);
+  temp_var_stack.push(newvar);
 }
 void IRBuilder::visit(ArrayAccessLValue &val) { ASTVisitor::visit(val); }
 void IRBuilder::visit(PointerAccessLValue &val) { ASTVisitor::visit(val); }
