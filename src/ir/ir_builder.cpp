@@ -29,6 +29,8 @@ void IRBuilder::visit(ReturnStmt &stmt) {
 }
 void IRBuilder::visit(AssertStmt &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(VariableDeclarationStatement &stmt) {
+  if (stmt.get_initializer() == nullptr)
+    return;
   stmt.get_initializer()->accept(*this);
   auto var = gen_temp();
   symbol_to_var.emplace(stmt.get_symbol()->get_id(), var); /*/*/
@@ -122,11 +124,12 @@ void IRBuilder::visit(ArrayTypeAnnotation &type) { ASTVisitor::visit(type); }
 void IRBuilder::visit(LValue &val) { ASTVisitor::visit(val); }
 void IRBuilder::visit(VariableLValue &val) {
   auto var = symbol_to_var.find(val.get_symbol()->get_id());
-  if (var == symbol_to_var.end()) {
-    throw std::runtime_error("namensanalyse verkackt...");
-  }
-  temp_var_stack.push(var->second);
   auto newvar = gen_temp();
+  if (var == symbol_to_var.end()) {
+    temp_var_stack.push(newvar);
+  } else {
+    temp_var_stack.push(var->second);
+  }
   symbol_to_var.insert_or_assign(val.get_symbol()->get_id(), newvar);
   temp_var_stack.push(newvar);
 }
