@@ -18,13 +18,13 @@ struct Var {
 
 public:
   [[nodiscard]] std::string to_string() const {
-    return std::format("var{}", numeral);
+    return std::format("t{}", numeral);
   }
 };
 
 struct grr {
   std::string operator()(Var v) const { return v.to_string(); }
-  std::string operator()(uint32_t v) const { return std::format("i{}", v); }
+  std::string operator()(uint32_t v) const { return std::format("{}", v); }
 };
 
 struct Operand {
@@ -183,8 +183,9 @@ public:
   }
   [[nodiscard]] const std::optional<Var> &get_result() const { return result; }
   [[nodiscard]] std::string to_string() const {
-    std::string x = std::format("{} <- {}", (result.has_value() ? result.value().to_string() : "/"),
-                                opcode_to_string(opcode));
+    std::string x = std::format(
+        "{} <- {}", (result.has_value() ? result.value().to_string() : "/"),
+        opcode_to_string(opcode));
     for (const auto &item : operands) {
       x += std::format(" {}", std::visit(grr(), item.value));
     }

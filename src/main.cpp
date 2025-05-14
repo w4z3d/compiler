@@ -28,16 +28,28 @@ int main(int argc, char *argv[]) {
   // unit->accept(visitor);
   // std::cout << visitor.get_content() << std::endl;
 
+  if (diagnostics->has_errors()) {
+    diagnostics->print_all();
+    return -1;
+  }
+
   semantic::SemanticVisitor semantic_visitor{diagnostics, source_manager};
   unit->accept(semantic_visitor);
 
+  if (diagnostics->has_errors()) {
+    diagnostics->print_all();
+    return -1;
+  }
   IntermediateRepresentation representation{};
   IRBuilder builder{representation, diagnostics, source_manager};
   unit->accept(builder);
 
   std::cout << representation.to_string() << std::endl;
 
-  diagnostics->print_all();
+  if (diagnostics->has_errors()) {
+    diagnostics->print_all();
+    return -1;
+  }
   // spdlog::info("End");
   system("pause");
   return 0;
