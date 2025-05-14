@@ -19,21 +19,19 @@ void IRBuilder::visit(CompoundStmt &stmt) {
 }
 void IRBuilder::visit(ReturnStmt &stmt) {
   if (stmt.get_expression() == nullptr) {
-    current_block->add_instruction(
-        IRInstruction{Opcode::RET, {}});
+    current_block->add_instruction(IRInstruction{Opcode::RET, {}});
   } else {
     stmt.get_expression()->accept(*this);
     auto var = temp_var_stack.top();
     temp_var_stack.pop();
-    current_block->add_instruction(
-        IRInstruction{Opcode::RET, {Operand{var}}});
+    current_block->add_instruction(IRInstruction{Opcode::RET, {Operand{var}}});
   }
 }
 void IRBuilder::visit(AssertStmt &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(VariableDeclarationStatement &stmt) {
   stmt.get_initializer()->accept(*this);
   auto var = gen_temp();
-  symbol_to_var.emplace(stmt.get_symbol()->get_id(), var);/*/*/
+  symbol_to_var.emplace(stmt.get_symbol()->get_id(), var); /*/*/
   auto init = temp_var_stack.top();
   temp_var_stack.pop();
   current_block->add_instruction(
@@ -43,11 +41,11 @@ void IRBuilder::visit(UnaryMutationStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(AssignmentStatement &stmt) {
   stmt.get_expr()->accept(*this);
   stmt.get_lvalue()->accept(*this); // has to be after expr -> changes mapping
-  auto new_var = temp_var_stack.top();  // new var for lvalue
+  auto new_var = temp_var_stack.top(); // new var for lvalue
   temp_var_stack.pop();
-  auto old_var = temp_var_stack.top();  // old var of lvalue
+  auto old_var = temp_var_stack.top(); // old var of lvalue
   temp_var_stack.pop();
-  auto from = temp_var_stack.top();     // var of expr result
+  auto from = temp_var_stack.top(); // var of expr result
   temp_var_stack.pop();
   if (stmt.get_op() == AssignmentOperator::Equals) {
     current_block->add_instruction(
@@ -78,7 +76,7 @@ void IRBuilder::visit(BoolConstExpr &expr) { ASTVisitor::visit(expr); }
 void IRBuilder::visit(NullExpr &expr) { ASTVisitor::visit(expr); }
 void IRBuilder::visit(VarExpr &expr) {
   auto it = symbol_to_var.find(expr.get_symbol()->get_id());
-  if ( it == symbol_to_var.end()) {
+  if (it == symbol_to_var.end()) {
     throw std::runtime_error("Da hat jmd Namensanalyse verkackt...");
   }
   temp_var_stack.push(it->second);

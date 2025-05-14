@@ -3,8 +3,8 @@ int main () {
     int x = 100;
     int a = (x + 100) * -10;
     (x) += 10;
-    int z ;
-    int x = 100;
-    return y;
+    int z;
+    z = 100;
+    return z;
 }
 

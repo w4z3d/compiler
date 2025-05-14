@@ -44,6 +44,8 @@ public:
 
   [[nodiscard]] bool is_initialized() const { return initialized; }
 
+  void set_initialized(bool initialized) { initialized = initialized; }
+
   [[nodiscard]] std::string to_string() const {
     return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id,
                        location.file_name, std::get<0>(location.begin),
