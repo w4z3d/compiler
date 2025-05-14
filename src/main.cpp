@@ -1,3 +1,4 @@
+#include "analysis/liveness.hpp"
 #include "analysis/semantics.hpp"
 #include "defs/ast.hpp"
 #include "defs/ast_printer.hpp"
@@ -30,6 +31,7 @@ int main(int argc, char *argv[]) {
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
+    system("pause");
     return -1;
   }
 
@@ -38,6 +40,7 @@ int main(int argc, char *argv[]) {
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
+    system("pause");
     return -1;
   }
   IntermediateRepresentation representation{};
@@ -48,8 +51,14 @@ int main(int argc, char *argv[]) {
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
+    system("pause");
     return -1;
   }
+
+  Liveness liveness{representation};
+  liveness.analyse();
+  std::cout << liveness.to_string_block_to_live() << std::endl;
+
   // spdlog::info("End");
   system("pause");
   return 0;

@@ -20,7 +20,19 @@ public:
   [[nodiscard]] std::string to_string() const {
     return std::format("t{}", numeral);
   }
+  bool operator==(const Var& other) const {
+    return numeral == other.numeral;
+  }
 };
+
+namespace std {
+template <>
+struct hash<Var> {
+  std::size_t operator()(const Var& s) const noexcept {
+    return std::hash<size_t>{}(s.numeral);
+  }
+};
+}
 
 struct grr {
   std::string operator()(Var v) const { return v.to_string(); }
@@ -170,18 +182,27 @@ class IRInstruction {
 private:
   const Opcode opcode;
   const std::vector<Operand> operands;
-  const std::optional<Var> result;
+  const std::optional<Var> result;  // aka defined var
+  std::unordered_set<Var> use{};    // used vars
 
 public:
   IRInstruction(const Opcode op, const std::vector<Operand> &ops,
                 std::optional<Var> result = std::nullopt)
-      : opcode(op), operands(ops), result(result) {}
+      : opcode(op), operands(ops), result(result) {
+    // set used vars
+    for (const auto& v : ops) {
+      if (const Var* s = std::get_if<Var>(&v.value)) {
+        use.insert(*s);
+      }
+    }
+  }
 
   [[nodiscard]] Opcode get_opcode() const { return opcode; }
   [[nodiscard]] const std::vector<Operand> &get_operands() const {
     return operands;
   }
   [[nodiscard]] const std::optional<Var> &get_result() const { return result; }
+  [[nodiscard]] const std::unordered_set<Var> &get_used() const { return use; }
   [[nodiscard]] std::string to_string() const {
     std::string x = std::format(
         "{} <- {}", (result.has_value() ? result.value().to_string() : "/"),

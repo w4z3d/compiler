@@ -1,10 +1,8 @@
 
 int main () {
-    int ich_hab_bedeutung;
-    ich_hab_bedeutung = 200;
-    int hallo = 100;
-    int nee = 200;
-    int x = 200;
+    int ich_hab_bedeutung = -1;
+    int x = 0;
+    x += 200;
     return ich_hab_bedeutung;
 }
 

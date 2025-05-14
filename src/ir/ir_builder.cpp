@@ -42,20 +42,28 @@ void IRBuilder::visit(VariableDeclarationStatement &stmt) {
 void IRBuilder::visit(UnaryMutationStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(AssignmentStatement &stmt) {
   stmt.get_expr()->accept(*this);
-  stmt.get_lvalue()->accept(*this); // has to be after expr -> changes mapping
-  auto new_var = temp_var_stack.top(); // new var for lvalue
-  temp_var_stack.pop();
-  auto old_var = temp_var_stack.top(); // old var of lvalue
-  temp_var_stack.pop();
   auto from = temp_var_stack.top(); // var of expr result
   temp_var_stack.pop();
-  if (stmt.get_op() == AssignmentOperator::Equals) {
-    current_block->add_instruction(
-        IRInstruction{Opcode::STORE, {Operand{from}}, new_var});
+  if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
+    const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
+    const auto new_var = gen_temp();
+    if (stmt.get_op() == AssignmentOperator::Equals) {
+      symbol_to_var.insert_or_assign(var_l_val->get_symbol()->get_id(), new_var);
+      current_block->add_instruction(
+          IRInstruction{Opcode::STORE, {Operand{from}}, new_var});
+    } else {
+      auto op = from_assmt_op(stmt.get_op());
+      const auto var_it = symbol_to_var.find(var_l_val->get_symbol()->get_id());
+      if (var_it == symbol_to_var.end()) {
+        throw std::runtime_error("namensanalyse goes brrrrr. Variable ist nicht init, wird aber verwendet...");
+      } else {
+        auto old_var = var_it->second;
+        current_block->add_instruction(
+            IRInstruction{op, {Operand{from}, Operand{old_var}}, new_var});
+      }
+    }
   } else {
-    auto op = from_assmt_op(stmt.get_op());
-    current_block->add_instruction(
-        IRInstruction{op, {Operand{from}, Operand{old_var}}, new_var});
+    throw std::runtime_error("Was auch immer du gemacht hast, bei L1 geht das noch nicht.");
   }
 }
 void IRBuilder::visit(ExpressionStatement &stmt) { ASTVisitor::visit(stmt); }
@@ -122,17 +130,7 @@ void IRBuilder::visit(StructTypeAnnotation &type) { ASTVisitor::visit(type); }
 void IRBuilder::visit(PointerTypeAnnotation &type) { ASTVisitor::visit(type); }
 void IRBuilder::visit(ArrayTypeAnnotation &type) { ASTVisitor::visit(type); }
 void IRBuilder::visit(LValue &val) { ASTVisitor::visit(val); }
-void IRBuilder::visit(VariableLValue &val) {
-  auto var = symbol_to_var.find(val.get_symbol()->get_id());
-  auto newvar = gen_temp();
-  if (var == symbol_to_var.end()) {
-    temp_var_stack.push(newvar);
-  } else {
-    temp_var_stack.push(var->second);
-  }
-  symbol_to_var.insert_or_assign(val.get_symbol()->get_id(), newvar);
-  temp_var_stack.push(newvar);
-}
+void IRBuilder::visit(VariableLValue &val) { ASTVisitor::visit(val); }
 void IRBuilder::visit(ArrayAccessLValue &val) { ASTVisitor::visit(val); }
 void IRBuilder::visit(PointerAccessLValue &val) { ASTVisitor::visit(val); }
 void IRBuilder::visit(FieldAccessLValue &val) { ASTVisitor::visit(val); }
