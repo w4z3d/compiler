@@ -16,25 +16,25 @@ public:
   explicit BasicBlock(std::size_t block_id)
       : block_id(block_id), successor_false(std::nullopt),
         successor_true(std::nullopt) {}
-  [[nodiscard]] const std::vector<IRInstruction> &getInstructions() const {
+  [[nodiscard]] const std::vector<IRInstruction> &get_instructions() const {
     return instructions;
   }
   void add_instruction(const IRInstruction &instruction) {
     instructions.push_back(instruction);
   }
-  [[nodiscard]] const std::optional<BasicBlock *> &getSuccessorTrue() const {
+  [[nodiscard]] const std::optional<BasicBlock *> &get_successor_true() const {
     return successor_true;
   }
-  void setSuccessorTrue(const std::optional<BasicBlock *> &successorTrue) {
+  void set_successor_true(const std::optional<BasicBlock *> &successorTrue) {
     successor_true = successorTrue;
   }
-  [[nodiscard]] const std::optional<BasicBlock *> &getSuccessorFalse() const {
+  [[nodiscard]] const std::optional<BasicBlock *> &get_successor_false() const {
     return successor_false;
   }
-  void setSuccessorFalse(const std::optional<BasicBlock *> &successorFalse) {
+  void set_successor_false(const std::optional<BasicBlock *> &successorFalse) {
     successor_false = successorFalse;
   }
-  [[nodiscard]] size_t getBlockId() const { return block_id; }
+  [[nodiscard]] size_t get_id() const { return block_id; }
 
   [[nodiscard]] std::string to_string() const {
     std::stringstream out{};
@@ -53,6 +53,10 @@ public:
       out << successor_true.value()->block_id << std::endl;
     }
     return out.str();
+  }
+
+  std::vector<IRInstruction> &get_instructions() {
+    return instructions;
   }
 };
 
@@ -87,6 +91,10 @@ public:
     }
 
     return stream.str();
+  }
+
+  [[nodiscard]] std::vector<CFG> &get_cfgs() {
+    return cfgs;
   }
 };
 
