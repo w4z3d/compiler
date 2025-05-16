@@ -1,11 +1,10 @@
 #ifndef DEFS_AST_H
 #define DEFS_AST_H
 
-#include "spdlog/spdlog.h"
+#include "../analysis/symbol.hpp"
+#include "source_location.hpp"
 #include "token.hpp"
 #include <charconv>
-#include <cstdint>
-#include <execution>
 #include <format>
 #include <optional>
 #include <string>
@@ -71,22 +70,6 @@ int precedenceFromAssmtOp(AssignmentOperator assmtOp);
 std::string builtin2String(Builtin type);
 Builtin builtinFromToken(token::TokenKind token);
 
-struct SourceLocation {
-  std::string_view file_name;
-  std::tuple<int, int> begin;
-  std::tuple<int, int> end;
-  SourceLocation(std::string_view file_name = "",
-                 std::tuple<int, int> begin = {0, 0},
-                 std::tuple<int, int> end = {0, 0})
-      : file_name(file_name), begin(begin), end(end) {}
-
-public:
-  [[nodiscard]] int start_line() const { return std::get<0>(begin); }
-  [[nodiscard]] int end_line() const { return std::get<0>(end); }
-  [[nodiscard]] int start_col() const { return std::get<1>(begin); }
-  [[nodiscard]] int end_col() const { return std::get<1>(end); }
-};
-
 class ASTNode {
 protected:
   SourceLocation location;
@@ -107,7 +90,7 @@ public:
 // ==== Types ====
 class TypeAnnotation : public ASTNode {
 public:
-  explicit TypeAnnotation(SourceLocation loc = {}) : ASTNode(loc) {}
+  explicit TypeAnnotation(SourceLocation loc = {}) : ASTNode(std::move(loc)) {}
   [[nodiscard]] virtual std::string toString() const = 0;
   void accept(class ASTVisitor &visitor) override = 0;
 };
@@ -118,7 +101,7 @@ private:
 
 public:
   explicit BuiltinTypeAnnotation(Builtin type, SourceLocation loc = {})
-      : TypeAnnotation(loc), type(type) {}
+      : TypeAnnotation(std::move(loc)), type(type) {}
   [[nodiscard]] Builtin get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
   [[nodiscard]] std::string toString() const override {
@@ -131,7 +114,7 @@ private:
   std::string_view name; // typedef name
 public:
   explicit NamedTypeAnnotation(std::string_view name, SourceLocation loc = {})
-      : TypeAnnotation(loc), name(name) {}
+      : TypeAnnotation(std::move(loc)), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::string(name);
@@ -145,7 +128,7 @@ private:
 
 public:
   explicit StructTypeAnnotation(std::string_view name, SourceLocation loc = {})
-      : TypeAnnotation(loc), name(name) {}
+      : TypeAnnotation(std::move(loc)), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::format("struct {}", name);
@@ -159,7 +142,7 @@ private:
 
 public:
   explicit PointerTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
-      : TypeAnnotation(loc), type(type) {}
+      : TypeAnnotation(std::move(loc)), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Pointer to <{}>", type->toString());
@@ -173,7 +156,7 @@ private:
 
 public:
   explicit ArrayTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
-      : TypeAnnotation(loc), type(type) {}
+      : TypeAnnotation(std::move(loc)), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Array of <{}>", type->toString());
@@ -400,6 +383,7 @@ public:
 class VarExpr : public Expression {
 private:
   std::string_view variable_name;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   explicit VarExpr(std::string_view name, SourceLocation loc = {})
@@ -407,6 +391,12 @@ public:
   }
   [[nodiscard]] std::string_view get_variable_name() const {
     return variable_name;
+  }
+  void set_symbol(std::shared_ptr<Symbol> sym) {
+    resolved_symbol = std::move(sym);
+  }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
   }
   void accept(class ASTVisitor &visitor) override;
 };
@@ -485,19 +475,41 @@ public:
 // ==== LValues ====
 class LValue : public ASTNode {
 public:
-  explicit LValue(SourceLocation loc = {}) : ASTNode(loc) {}
+  enum class Kind {
+    Variable,
+    Pointer,
+    Field,
+    Array,
+    Dereference,
+  };
+
+private:
+  Kind kind;
+
+public:
+  explicit LValue(Kind kind, SourceLocation loc = {})
+      : ASTNode(loc), kind(kind) {}
   void accept(class ASTVisitor &visitor) override = 0;
+
+  [[nodiscard]] Kind get_kind() const { return kind; }
 };
 
 class VariableLValue : public LValue {
 private:
   std::string_view name;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   explicit VariableLValue(std::string_view name, SourceLocation loc = {})
-      : LValue(loc), name(name) {}
+      : LValue(Kind::Variable, loc), name(name) {}
 
   [[nodiscard]] std::string_view get_name() const { return name; }
+  void set_symbol(std::shared_ptr<Symbol> sym) {
+    resolved_symbol = std::move(sym);
+  }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -507,7 +519,7 @@ private:
 
 public:
   explicit DereferenceLValue(LValue *operand, SourceLocation loc = {})
-      : LValue(loc), operand(operand) {}
+      : LValue(Kind::Dereference, loc), operand(operand) {}
 
   [[nodiscard]] LValue *get_operand() const { return operand; }
   void accept(class ASTVisitor &visitor) override;
@@ -521,7 +533,7 @@ private:
 public:
   FieldAccessLValue(LValue *base, std::string_view field,
                     SourceLocation loc = {})
-      : LValue(loc), base(base), field(field) {}
+      : LValue(Kind::Field, loc), base(base), field(field) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
   [[nodiscard]] std::string_view get_field() const { return field; }
@@ -536,7 +548,7 @@ private:
 public:
   PointerAccessLValue(LValue *base, std::string_view field,
                       SourceLocation loc = {})
-      : LValue(loc), base(base), field(field) {}
+      : LValue(Kind::Pointer, loc), base(base), field(field) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
   [[nodiscard]] std::string_view get_field() const { return field; }
@@ -550,7 +562,7 @@ private:
 
 public:
   ArrayAccessLValue(LValue *base, Expression *index, SourceLocation loc = {})
-      : LValue(loc), base(base), index(index) {}
+      : LValue(Kind::Array, loc), base(base), index(index) {}
 
   [[nodiscard]] LValue *get_base() const { return base; }
   [[nodiscard]] Expression *get_index() const { return index; }
@@ -685,6 +697,7 @@ private:
   TypeAnnotation *type;
   std::string_view identifier;
   Expression *initializer;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   VariableDeclarationStatement(TypeAnnotation *type,
@@ -696,6 +709,10 @@ public:
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string_view get_identifier() const { return identifier; }
   [[nodiscard]] Expression *get_initializer() const { return initializer; }
+  void set_symbol(const std::shared_ptr<Symbol> &sym) { resolved_symbol = sym; }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
+  }
 
   void accept(ASTVisitor &visitor) override;
 };

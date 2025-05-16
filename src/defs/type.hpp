@@ -6,13 +6,19 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
+#include <vector>
+#include "ast.hpp"
+
+namespace type {
 
 class Type {
 public:
-  enum class Kind { Builtin, Pointer, Array, Struct, Named };
+  enum class Kind { Builtin, Pointer, Array, Struct, Named, Function };
   constexpr explicit Type(Kind kind) : kind(kind) {}
   Kind kind;
   virtual ~Type() = default;
+  [[nodiscard]] virtual bool equals(const Type &other) const = 0;
 };
 
 class BuiltinType : public Type {
@@ -26,13 +32,17 @@ public:
   constexpr explicit BuiltinType(BuiltinKind k)
       : Type(Kind::Builtin), builtinKind(k) {}
   [[nodiscard]] BuiltinKind get_kind() const { return builtinKind; }
+  [[nodiscard]] bool equals(const Type &other) const override {
+    return other.kind == Kind::Builtin &&
+           builtinKind == dynamic_cast<const BuiltinType &>(other).builtinKind;
+  }
 };
 
-constexpr BuiltinType INT{BuiltinType::BuiltinKind::Int};
-constexpr BuiltinType BOOL{BuiltinType::BuiltinKind::Bool};
-constexpr BuiltinType CHAR{BuiltinType::BuiltinKind::Char};
-constexpr BuiltinType STRING{BuiltinType::BuiltinKind::String};
-constexpr BuiltinType VOID{BuiltinType::BuiltinKind::Void};
+constexpr BuiltinType INT_T{BuiltinType::BuiltinKind::Int};
+constexpr BuiltinType BOOL_T{BuiltinType::BuiltinKind::Bool};
+constexpr BuiltinType CHAR_T{BuiltinType::BuiltinKind::Char};
+constexpr BuiltinType STRING_T{BuiltinType::BuiltinKind::String};
+constexpr BuiltinType VOID_T{BuiltinType::BuiltinKind::Void};
 
 class PointerType : public Type {
 public:
@@ -40,158 +50,148 @@ public:
 
   explicit PointerType(const Type *to) : Type(Kind::Pointer), to(to) {}
 
-  [[nodiscard]] bool equals(const Type &other) const {
+  [[nodiscard]] bool equals(const Type &other) const override {
     return other.kind == Kind::Pointer &&
-           to == dynamic_cast<const PointerType &>(other).to;
+           to->equals(*dynamic_cast<const PointerType &>(other).to);
   }
 };
 
 class ArrayType : public Type {
 public:
   const Type *elementType;
-  size_t length;
+  size_t length = 0;
 
-  ArrayType(const Type *elem, size_t len)
-      : Type(Kind::Array), elementType(elem), length(len) {
-    throw std::runtime_error("Not implemented yet");
-  }
+  explicit ArrayType(const Type *elem) : Type(Kind::Array), elementType(elem) {}
 
-  bool operator==(const ArrayType &other) const {
-    return elementType == other.elementType && length == other.length;
+  [[nodiscard]] bool equals(const Type &other) const override {
+    return other.kind == Kind::Array &&
+           elementType->equals(
+               *dynamic_cast<const ArrayType &>(other).elementType);
   }
+  void set_len(size_t len) { length = len; }
+  [[nodiscard]] size_t get_len() const { return length; }
 };
 
 class StructType : public Type {
 public:
-  // das ist nicht so optimal ig
   std::vector<std::pair<std::string, const Type *>> fields;
+  std::string name;
 
-  explicit StructType(std::vector<std::pair<std::string, const Type *>> fields)
-      : Type(Kind::Struct), fields(std::move(fields)) {
-    throw std::runtime_error("Not implemented yet");
+  explicit StructType(std::string name)
+      : Type(Kind::Struct), name(std::move(name)) {}
+
+  void set_fields(std::vector<std::pair<std::string, const Type *>> f) {
+    fields = std::move(f);
   }
 
-  bool operator==(const StructType &other) const { return false; }
+  [[nodiscard]] bool equals(const Type &other) const override {
+    return other.kind == Kind::Struct &&
+           name == dynamic_cast<const StructType &>(other).name;
+  }
 };
 
 class NamedType : public Type {
 public:
   std::string name;
+  Type *type{};
 
   explicit NamedType(std::string name)
-      : Type(Kind::Named), name(std::move(name)) {
-    throw std::runtime_error("Not implemented yet");
+      : Type(Kind::Named), name(std::move(name)) {}
+
+  void set_type(Type *t) {
+    type = t;
   }
-
-  bool operator==(const NamedType &other) const { return false; }
-};
-
-struct ArrayKey {
-  const Type *element;
-  size_t length;
-
-  bool operator==(const ArrayKey &other) const {
-    return element == other.element && length == other.length;
+  [[nodiscard]] bool equals(const Type &other) const override {
+    return other.kind == Kind::Named &&
+           name == dynamic_cast<const NamedType &>(other).name;
   }
 };
 
-struct StructKey {
-  std::vector<std::pair<std::string, const Type *>> fields;
-
-  bool operator==(const StructKey &other) const {
-    return fields == other.fields;
-  }
-};
-
-struct NamedKey {
+class FunctionType : public Type {
+public:
   std::string name;
+  const Type *returnType;
+  std::vector<const Type *> paramTypes;
 
-  bool operator==(const NamedKey &other) const { return name == other.name; }
-};
+  FunctionType(std::string name, const Type *returnType,
+               std::vector<const Type *> paramTypes)
+      : Type(Kind::Function), name(std::move(name)), returnType(returnType),
+        paramTypes(std::move(paramTypes)) {}
 
-namespace std {
-template <> struct hash<ArrayKey> {
-  size_t operator()(const ArrayKey &key) const {
-    return hash<const Type *>()(key.element) ^ hash<size_t>()(key.length);
+  [[nodiscard]] bool equals(const Type &other) const override {
+    if (other.kind != Kind::Function)
+      return false;
+    return name == dynamic_cast<const FunctionType &>(other).name;
   }
 };
 
-template <> struct hash<StructKey> {
-  size_t operator()(const StructKey &key) const {
-    size_t h = 0;
-    for (const auto &[name, type] : key.fields) {
-      h ^= hash<std::string>()(name) ^ hash<const Type *>()(type);
-    }
-    return h;
+static std::shared_ptr<Type> from_type(const TypeAnnotation *annotation) {
+  if (auto builtin = dynamic_cast<const BuiltinTypeAnnotation *>(annotation)) {
+    return from_type(builtin);
+  } else if (auto struct_ =
+                 dynamic_cast<const StructTypeAnnotation *>(annotation)) {
+    return from_type(struct_);
+  } else if (auto named =
+                 dynamic_cast<const NamedTypeAnnotation *>(annotation)) {
+    return from_type(named);
+  } else if (auto pointer =
+                 dynamic_cast<const PointerTypeAnnotation *>(annotation)) {
+    return from_type(pointer);
+  } else if (auto array =
+                 dynamic_cast<const ArrayTypeAnnotation *>(annotation)) {
+    return from_type(array);
+  } else {
+    throw std::runtime_error("Unknown type annotation");
   }
-};
-
-template <> struct hash<NamedKey> {
-  size_t operator()(const NamedKey &key) const {
-    return hash<std::string>()(key.name);
+}
+static std::shared_ptr<BuiltinType>
+from_type(const BuiltinTypeAnnotation *type_annotation) {
+  switch (type_annotation->get_type()) {
+  case Builtin::Int:
+    return std::make_shared<BuiltinType>(INT_T);
+  case Builtin::Bool:
+    return std::make_shared<BuiltinType>(BOOL_T);
+  case Builtin::String:
+    return std::make_shared<BuiltinType>(STRING_T);
+  case Builtin::Char:
+    return std::make_shared<BuiltinType>(CHAR_T);
+  case Builtin::Void:
+    return std::make_shared<BuiltinType>(VOID_T);
+  case Builtin::Unknown:
+    throw std::runtime_error("gg");
   }
-};
-
-template <> struct hash<PointerType> {
-  size_t operator()(const PointerType &key) const {
-    return hash<const Type *>()(key.to);
+}
+static std::shared_ptr<StructType>
+from_type(const StructTypeAnnotation *type_annotation) {
+  return std::make_shared<StructType>(
+      StructType{type_annotation->get_name().data()});
+}
+static std::shared_ptr<NamedType>
+from_type(const NamedTypeAnnotation *type_annotation) {
+  return std::make_shared<NamedType>(
+      NamedType{type_annotation->get_name().data()});
+}
+static std::shared_ptr<ArrayType>
+from_type(const ArrayTypeAnnotation *type_annotation) {
+  return std::make_shared<ArrayType>(
+      ArrayType{from_type(type_annotation->get_type()).get()});
+}
+static std::shared_ptr<PointerType>
+from_type(const PointerTypeAnnotation *type_annotation) {
+  return std::make_shared<PointerType>(
+      PointerType{from_type(type_annotation->get_type()).get()});
+}
+static std::shared_ptr<FunctionType>
+from_type(const FunctionDeclaration *func_decl) {
+  std::vector<const Type *> params{};
+  for (const auto &item : func_decl->get_parameter_declarations()) {
+    params.push_back(from_type(item->get_type()).get());
   }
-};
+  return std::make_shared<FunctionType>(
+      FunctionType{func_decl->get_name().data(),
+                   from_type(func_decl->get_return_type()).get(), params});
 }
 
-
-
-
-class TypeInterner {
-  std::unordered_map<const Type *, std::shared_ptr<PointerType>> pointerTypes;
-  std::unordered_map<ArrayKey, std::shared_ptr<ArrayType>> arrayTypes;
-  std::unordered_map<StructKey, std::shared_ptr<StructType>> structTypes;
-  std::unordered_map<NamedKey, std::shared_ptr<NamedType>> namedTypes;
-
-public:
-  const ArrayType *getArray(const Type *elem, size_t length) {
-    ArrayKey key{elem, length};
-    auto it = arrayTypes.find(key);
-    if (it != arrayTypes.end())
-      return it->second.get();
-
-    auto array = std::make_shared<ArrayType>(elem, length);
-    arrayTypes[key] = array;
-    return array.get();
-  }
-
-  const StructType *
-  getStruct(const std::vector<std::pair<std::string, const Type *>> &fields) {
-    StructKey key{fields};
-    auto it = structTypes.find(key);
-    if (it != structTypes.end())
-      return it->second.get();
-
-    auto strct = std::make_shared<StructType>(fields);
-    structTypes[key] = strct;
-    return strct.get();
-  }
-
-  const NamedType *getNamed(const std::string &name) {
-    NamedKey key{name};
-    auto it = namedTypes.find(key);
-    if (it != namedTypes.end())
-      return it->second.get();
-
-    auto named = std::make_shared<NamedType>(name);
-    namedTypes[key] = named;
-    return named.get();
-  }
-
-  const PointerType *getPointer(const Type *to) {
-    auto it = pointerTypes.find(to);
-    if (it != pointerTypes.end())
-      return it->second.get();
-
-    auto ptr = std::make_shared<PointerType>(to);
-    pointerTypes[to] = ptr;
-    return ptr.get();
-  }
-};
+} // namespace type
 
 #endif // DEFS_TYPE_H

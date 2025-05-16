@@ -659,7 +659,6 @@ TranslationUnit *Parser::parse_translation_unit() {
       synchronize();
     }
   }
-  const auto last_stmt = unit->get_declarations().front()->get_location();
-  unit->set_source_location(lexer.get_file_name(), {0, 0}, last_stmt.end);
+  unit->set_source_location(lexer.get_file_name(), {0, 0}, {0,0});
   return unit;
 }

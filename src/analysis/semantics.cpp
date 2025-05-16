@@ -1,6 +1,4 @@
 #include "semantics.hpp"
-#include "symbol.hpp"
-#include <sys/types.h>
 
 void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
   for (const auto &declaration : unit.get_declarations()) {
@@ -9,15 +7,19 @@ void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
 }
 
 void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
-  symbol_table.define(FunctionSymbol{decl.get_name(), decl.get_location()});
+  auto fs =
+      FunctionSymbol{decl.get_name(), decl.get_location(),
+                     symbol_table.next_id(), decl.get_body() ? true : false};
+  symbol_table.define(fs);
 
   // Enter scope and handle statements
   symbol_table.enter_scope(std::format("Scope_{}", decl.get_name()));
 
   // Add parameter symbols
   for (const auto &param : decl.get_parameter_declarations()) {
-    symbol_table.define(
-        VariableSymbol{param->get_name(), param->get_location()});
+    auto vs = VariableSymbol{param->get_name(), param->get_location(),
+                             symbol_table.next_id(), true};
+    symbol_table.define(vs);
   }
 
   const auto body = decl.get_body();
@@ -46,31 +48,63 @@ void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
 }
 
 void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
-  stmt.get_lvalue()->accept(*this);
+  if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
+    const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
+    auto lookup = symbol_table.lookup(var_l_val->get_name());
+    if (!lookup) {
+      diagnostics->emit_error(
+          var_l_val->get_location(),
+          std::format("Unresolved reference {}", var_l_val->get_name()));
+      diagnostics->add_source_context(
+          source_manager->get_line(var_l_val->get_location().start_line()));
+    }
+    if (!lookup->get().is_initialized() &&
+        stmt.get_op() != AssignmentOperator::Equals) {
+      diagnostics->emit_error(
+          var_l_val->get_location(),
+          std::format("Referencing uninitialized variable {} ",
+                      var_l_val->get_name()));
+      diagnostics->add_source_context(
+          source_manager->get_line(var_l_val->get_location().start_line()));
+      diagnostics->suggest_fix(
+          std::format("Try initializing {}", lookup->get().get_name()));
+
+      diagnostics->emit_note(
+          lookup->get().get_source_location(),
+          std::format("Variable {} declared here", lookup->get().get_name()));
+      diagnostics->add_source_context(
+          source_manager->get_snippet(lookup->get().get_source_location()));
+    } else {
+      lookup->get().set_initialized(true);
+      var_l_val->set_symbol(std::make_shared<Symbol>(lookup.value()));
+    }
+  }
   stmt.get_expr()->accept(*this);
 }
 
-void semantic::SemanticVisitor::visit(VariableLValue &val) {
-  const auto lookup = symbol_table.lookup(val.get_name());
-  if (lookup) {
-    symbol_table.define(VariableSymbol{val.get_name(), val.get_location()});
-  }
-}
+void semantic::SemanticVisitor::visit(VariableLValue &val) {}
 
 void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
-  stmt.get_initializer()->accept(*this);
-  if (!symbol_table.define(
-          VariableSymbol{stmt.get_identifier(), stmt.get_location()})) {
+  bool initialized = false;
+  if (stmt.get_initializer()) {
+    stmt.get_initializer()->accept(*this);
+    initialized = true;
+  }
+  auto vs = VariableSymbol{stmt.get_identifier(), stmt.get_location(),
+                           symbol_table.next_id(), initialized};
+  if (!symbol_table.define(vs)) {
     const auto previous_def = symbol_table.lookup(stmt.get_identifier());
     diagnostics->emit_error(
         stmt.get_location(),
         std::format("Redefinition of variable {} ", stmt.get_identifier()));
     diagnostics->add_source_context(
         source_manager->get_line(stmt.get_location().start_line()));
-    diagnostics->emit_note(previous_def->get_source_location(),
+    diagnostics->emit_note(previous_def->get().get_source_location(),
                            "Previously defined here:");
     diagnostics->add_source_context(source_manager->get_line(
-        previous_def->get_source_location().start_line()));
+        previous_def->get().get_source_location().start_line()));
+  } else {
+    stmt.set_symbol(std::make_shared<Symbol>(vs));
   }
 }
 
@@ -82,6 +116,23 @@ void semantic::SemanticVisitor::visit(VarExpr &expr) {
         std::format("Unresolved reference {}", expr.get_variable_name()));
     diagnostics->add_source_context(
         source_manager->get_line(expr.get_location().start_line()));
+  } else if (!lookup->get().is_initialized()) {
+    diagnostics->emit_error(
+        expr.get_location(),
+        std::format("Referencing uninitialized variable {} ",
+                    expr.get_variable_name()));
+    diagnostics->add_source_context(
+        source_manager->get_line(expr.get_location().start_line()));
+    diagnostics->suggest_fix(
+        std::format("Try initializing {}", lookup->get().get_name()));
+
+    diagnostics->emit_note(
+        lookup->get().get_source_location(),
+        std::format("Variable {} declared here", lookup->get().get_name()));
+    diagnostics->add_source_context(
+        source_manager->get_snippet(lookup->get().get_source_location()));
+  } else {
+    expr.set_symbol(std::make_shared<Symbol>(lookup.value()));
   }
 }
 
@@ -133,7 +184,10 @@ void semantic::SemanticVisitor::visit(Typedef &typedef_) {
   ASTVisitor::visit(typedef_);
 }
 void semantic::SemanticVisitor::visit(StructDeclaration &decl) {
-  symbol_table.define(StructSymbol{decl.get_name(), decl.get_location()});
+  auto ss =
+      StructSymbol{decl.get_name(), decl.get_location(), symbol_table.next_id(),
+                   decl.get_fields() ? true : false};
+  symbol_table.define(ss);
 }
 void semantic::SemanticVisitor::visit(AssertStmt &stmt) {
   stmt.get_expression()->accept(*this);

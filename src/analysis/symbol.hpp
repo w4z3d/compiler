@@ -2,11 +2,11 @@
 #define ANALYSIS_SYMBOL_H
 
 #include "../alloc/arena.hpp"
-#include "../defs/ast.hpp"
+#include "../defs/source_location.hpp"
 #include "spdlog/spdlog.h"
 #include <format>
+#include <functional>
 #include <iostream>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -18,18 +18,20 @@ public:
   enum class Kind { Variable, Function, Struct };
 
 private:
-  std::string name;
+  size_t id;
+  std::string_view name;
   Kind kind;
-  bool initialized = false;
-  bool constant = false;
+  bool initialized;
 
   SourceLocation location;
 
 public:
-  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind)
-      : name(name), location(std::move(loc)), kind(kind) {}
+  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind,
+                  size_t id, bool initialized)
+      : name(name), location(std::move(loc)), kind(kind), id(id),
+        initialized(initialized) {}
 
-  [[nodiscard]] const std::string &get_name() const { return name; }
+  [[nodiscard]] std::string_view get_name() const { return name; }
 
   [[nodiscard]] const SourceLocation &get_source_location() const {
     return location;
@@ -37,30 +39,43 @@ public:
 
   [[nodiscard]] Kind get_kind() const { return kind; }
 
+  [[nodiscard]] size_t get_id() const { return id; }
+
+  void set_id(size_t id_) { id = id_; }
+
+  [[nodiscard]] bool is_initialized() const { return initialized; }
+
+  void set_initialized(bool init) { initialized = init; }
+
   [[nodiscard]] std::string to_string() const {
-    return std::format("[{}, <{}:{}:{} - {}:{}:{}>]", name, location.file_name,
-                       std::get<0>(location.begin), std::get<1>(location.begin),
-                       location.file_name, std::get<0>(location.end),
-                       std::get<1>(location.end));
+    return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id,
+                       location.file_name, std::get<0>(location.begin),
+                       std::get<1>(location.begin), location.file_name,
+                       std::get<0>(location.end), std::get<1>(location.end));
   }
 };
 
 class VariableSymbol : public Symbol {
+  bool initialized = false;
+
 public:
-  explicit VariableSymbol(std::string_view name, SourceLocation loc)
-      : Symbol(name, loc, Kind::Variable) {}
+  explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id,
+                          bool initialized)
+      : Symbol(name, loc, Kind::Variable, id, initialized) {}
 };
 
 class FunctionSymbol : public Symbol {
 public:
-  explicit FunctionSymbol(std::string_view name, SourceLocation loc)
-      : Symbol(name, loc, Kind::Function) {}
+  explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id,
+                          bool initialized)
+      : Symbol(name, loc, Kind::Function, id, initialized) {}
 };
 
 class StructSymbol : public Symbol {
 public:
-  explicit StructSymbol(std::string_view name, SourceLocation loc)
-      : Symbol(name, loc, Kind::Struct) {}
+  explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id,
+                        bool initialized)
+      : Symbol(name, loc, Kind::Struct, id, initialized) {}
 };
 
 class Scope {
@@ -97,18 +112,18 @@ public:
     return true;
   }
 
-  [[nodiscard]] std::optional<Symbol>
-  lookup_local(std::string_view name) const {
+  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
+  lookup_local(std::string_view name) {
     auto it = symbols.find(name);
     if (it != symbols.end()) {
-      return it->second;
+      return std::reference_wrapper<Symbol>(it->second);
     }
 
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<Symbol>
-  lookup(const std::string_view name) const {
+  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
+  lookup(const std::string_view name) {
     auto symbol = lookup_local(name);
 
     if (symbol) {
@@ -135,6 +150,7 @@ class SymbolTable {
 private:
   Scope *current_scope;
   arena::Arena arena;
+  size_t id_counter = 0;
 
 public:
   explicit SymbolTable() : arena(arena::Arena{}) {
@@ -165,7 +181,10 @@ public:
 
   bool define(const Symbol &symbol) { return current_scope->define(symbol); }
 
-  [[nodiscard]] std::optional<Symbol> lookup(std::string_view name) const {
+  size_t next_id() { return id_counter++; }
+
+  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
+  lookup(std::string_view name) {
     return current_scope->lookup(name);
   }
 
