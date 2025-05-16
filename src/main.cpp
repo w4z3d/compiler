@@ -1,5 +1,7 @@
 #include "analysis/liveness.hpp"
 #include "analysis/semantics.hpp"
+#include "code_gen/interference_graph.hpp"
+#include "code_gen/register_alloc.hpp"
 #include "defs/ast.hpp"
 #include "defs/ast_printer.hpp"
 #include "io/io.hpp"
@@ -58,6 +60,16 @@ int main(int argc, char *argv[]) {
   Liveness liveness{representation};
   liveness.analyse();
   std::cout << liveness.to_string_block_to_live() << std::endl;
+
+  InterferenceGraph i_graph{liveness.get_42()};
+  i_graph.construct();
+  //std::cout << i_graph.to_string() << std::endl;
+  //std::cout << i_graph.to_dot() << std::endl;
+
+  RegisterAllocation reg_alloc{i_graph};
+  reg_alloc.color();
+  std::cout << reg_alloc.soe_to_string() << std::endl;
+  std::cout << reg_alloc.to_dot() << std::endl;
 
   // spdlog::info("End");
   system("pause");
