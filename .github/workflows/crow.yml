@@ -1,0 +1,54 @@
+name: Crow workflow integration
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  trigger-crow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Finding commit message for push
+        if: github.event_name == 'push'
+        run: |
+          set -euo pipefail
+          export MESSAGE="$(echo "$COMMIT_MESSAGE" | base64 -w 0)"
+          echo "MESSAGE=$MESSAGE" >> $GITHUB_ENV
+          echo "GH_COMMIT=$GITHUB_SHA" >> $GITHUB_ENV
+          echo "Found message"
+          echo "$MESSAGE"
+        env:
+          COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
+      - name: Finding commit message for pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          set -euo pipefail
+          export MESSAGE="#$PR_NUMBER: $(git log --format=%B -n 1 "$LAST_COMMIT")"
+          export MESSAGE="$(echo "$MESSAGE" | base64 -w 0)"
+          echo "MESSAGE=$MESSAGE" >> $GITHUB_ENV
+          echo "GH_COMMIT=$LAST_COMMIT" >> $GITHUB_ENV
+          echo "Found message"
+          echo "$MESSAGE"
+        env:
+          LAST_COMMIT: "${{ github.event.pull_request.head.sha }}"
+          PR_NUMBER: "${{ github.event.pull_request.number }}"
+      - name: Triggering crow
+        run: |
+          set -euo pipefail
+          echo "Queueing $GITHUB_SHA for $GH_COMMIT"
+          curl --fail \
+               -X PUT \
+               --header 'Authorization: Bearer ${{ secrets.CROW_INTEGRATION_TOKEN }}' \
+               --header 'Content-Type: application/json' \
+               --data "$(echo "$MESSAGE" | base64 -d | jq -R -s "{ commitMessage: ., checkedCommit: \"$GH_COMMIT\" }")" \
+               https://compiler.vads.kastel.kit.edu/api/integration/token/queue/rev/"$GITHUB_SHA"
+      - name: Explaining a bit
+        run: |
+          echo "The commit was pushed in the crow queue."
+          echo "Crow periodically syncs the status from its queue to your repository, so a check should appear here soon :)"
