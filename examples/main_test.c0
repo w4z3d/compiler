@@ -1,6 +1,4 @@
 int main() {
-    int a = 100;
-    int b = 200;
-
-    return a+b + 300;
+    int a = -100;
+    return a;
   }

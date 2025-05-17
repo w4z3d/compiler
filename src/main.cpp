@@ -68,8 +68,14 @@ int main(int argc, char *argv[]) {
   RegisterAllocation reg_alloc{i_graph};
   reg_alloc.color();
 
-  InstructionSelector selector{reg_alloc.get_result()};
+  InstructionSelector selector{reg_alloc.get_result(), diagnostics};
   const auto asm_string = selector.generate_function_body(representation);
+
+  if (diagnostics->has_errors()) {
+    diagnostics->print_all();
+    system("pause");
+    return -1;
+  }
 
   std::cout << "Generated Assembly:" << std::endl;
   std::cout << asm_string << std::endl;

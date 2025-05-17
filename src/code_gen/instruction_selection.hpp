@@ -2,11 +2,15 @@
 #define CODEGEN_INSTRUCTION_SELECTION_H
 #include "../ir/cfg.hpp"
 #include "../ir/ir.hpp"
+#include "../report/report_builder.hpp"
 #include <cstdint>
+#include <format>
+#include <memory>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_map>
+#include <utility>
 #include <variant>
-
 template <class... Ts> struct overloaded : Ts... {
   using Ts::operator()...;
 };
@@ -18,13 +22,23 @@ struct Register {
 
 struct InstructionSelector {
 private:
+  std::shared_ptr<DiagnosticEmitter> diagnostics;
+
   std::unordered_map<Var, size_t> var_to_color{};
   std::vector<Register> GPR32{Register{"eax", 32}, Register{"ecx", 32},
-                              Register{"edx", 32}, Register{"esi", 32},
-                              Register{"edi", 32}, Register{"ebp", 32}};
+                              Register{"edx", 32}, Register{"edi", 32},
+                              Register{"ebp", 32}, Register{"esp", 32}};
   std::vector<Register> GPR64{};
 
   Register get_32bit_register_for_color(size_t color) const {
+    if (color >= GPR32.size()) {
+      diagnostics->emit_error(SourceLocation{},
+                              "Error while generating instructions, tried to "
+                              "allocate a register that doesn't exist.");
+      diagnostics->suggest_fix(
+          "Seems like the variable didn't get spilled onto the stack.");
+      return GPR32.at(0);
+    }
     return GPR32.at(color);
   }
 
@@ -33,8 +47,9 @@ private:
   }
 
 public:
-  explicit InstructionSelector(const std::unordered_map<Var, size_t> &color_map)
-      : var_to_color(color_map) {}
+  explicit InstructionSelector(const std::unordered_map<Var, size_t> &color_map,
+                               std::shared_ptr<DiagnosticEmitter> diagnostics)
+      : var_to_color(color_map), diagnostics(std::move(diagnostics)) {}
 
   std::string
   generate_function_body(IntermediateRepresentation &representation) {
@@ -45,8 +60,8 @@ public:
     out << ".text" << std::endl;
     out << "main:" << std::endl;
     out << "call _main" << std::endl;
-    out << "movq\trdi, rax" << std::endl;
-    out << "movq\trax, 0x3C" << std::endl;
+    out << "mov\trdi, rax" << std::endl;
+    out << "mov\trax, 0x3C" << std::endl;
     out << "syscall" << std::endl;
     out << "_main:" << std::endl;
     for (const auto &cfg : representation.get_cfgs()) {
@@ -70,11 +85,111 @@ public:
     std::ostringstream out{};
     switch (instruction.get_opcode()) {
 
-    case Opcode::SUB:
-    case Opcode::MUL:
-    case Opcode::DIV:
-    case Opcode::MOD:
+    case Opcode::SUB: {
+      const auto target_reg =
+          get_32bit_register_for_color(
+              var_to_color.at(instruction.get_result().value()))
+              .canonical_name;
 
+      const auto lhs =
+          std::visit(operand_to_string, instruction.get_operands().at(0).value);
+      const auto rhs =
+          std::visit(operand_to_string, instruction.get_operands().at(1).value);
+      if (target_reg == lhs) {
+        out << std::format("sub\t{}, {}\t # {}", lhs, rhs,
+                           instruction.to_string())
+            << std::endl;
+      } else if (target_reg == rhs) {
+        out << std::format("sub\t{}, {}\t # {}", rhs, lhs,
+                           instruction.to_string())
+            << std::endl;
+      } else {
+        out << std::format("sub\t{}, {}\t # Moving to target reg", target_reg,
+                           lhs)
+            << std::endl;
+        out << std::format("sub\t{}, {}\t # {}", target_reg, rhs,
+                           instruction.to_string())
+            << std::endl;
+      }
+    } break;
+    case Opcode::MOD: {
+      const auto target_reg =
+          get_32bit_register_for_color(
+              var_to_color.at(instruction.get_result().value()))
+              .canonical_name;
+
+      const auto lhs =
+          std::visit(operand_to_string, instruction.get_operands().at(0).value);
+      const auto rhs =
+          std::visit(operand_to_string, instruction.get_operands().at(1).value);
+      if (target_reg == lhs) {
+        out << std::format("idiv\t{}\t # {}", lhs, rhs, instruction.to_string())
+            << std::endl;
+      } else if (target_reg == rhs) {
+        out << std::format("idiv\t{}\t # {}", rhs, lhs, instruction.to_string())
+            << std::endl;
+      } else {
+        out << std::format("mov\t{}, {}\t # Moving to target reg", target_reg,
+                           lhs)
+            << std::endl;
+        out << std::format("idiv\t{}\t # {}", target_reg, rhs,
+                           instruction.to_string())
+            << std::endl;
+      }
+    } break;
+    case Opcode::DIV: {
+
+      const auto target_reg =
+          get_32bit_register_for_color(
+              var_to_color.at(instruction.get_result().value()))
+              .canonical_name;
+
+      const auto lhs =
+          std::visit(operand_to_string, instruction.get_operands().at(0).value);
+      const auto rhs =
+          std::visit(operand_to_string, instruction.get_operands().at(1).value);
+      if (target_reg == lhs) {
+        out << std::format("idiv\t{}\t # {}", lhs, rhs, instruction.to_string())
+            << std::endl;
+      } else if (target_reg == rhs) {
+        out << std::format("idiv\t{}\t # {}", rhs, lhs, instruction.to_string())
+            << std::endl;
+      } else {
+        out << std::format("mov\t{}, {}\t # Moving to target reg", target_reg,
+                           lhs)
+            << std::endl;
+        out << std::format("idiv\t{}, {}\t # {}", target_reg, rhs,
+                           instruction.to_string())
+            << std::endl;
+      }
+    } break;
+    case Opcode::MUL: {
+      const auto target_reg =
+          get_32bit_register_for_color(
+              var_to_color.at(instruction.get_result().value()))
+              .canonical_name;
+
+      const auto lhs =
+          std::visit(operand_to_string, instruction.get_operands().at(0).value);
+      const auto rhs =
+          std::visit(operand_to_string, instruction.get_operands().at(1).value);
+      if (target_reg == lhs) {
+        out << std::format("imul\t{}, {}\t # {}", lhs, rhs,
+                           instruction.to_string())
+            << std::endl;
+      } else if (target_reg == rhs) {
+        out << std::format("imul\t{}, {}\t # {}", rhs, lhs,
+                           instruction.to_string())
+            << std::endl;
+      } else {
+        out << std::format("mov\t{}, {}\t # Moving to target reg", target_reg,
+                           lhs)
+            << std::endl;
+        out << std::format("imul\t{}, {}\t # {}", target_reg, rhs,
+                           instruction.to_string())
+            << std::endl;
+      }
+    } break;
     case Opcode::ADD: {
       const auto target_reg =
           get_32bit_register_for_color(
@@ -103,8 +218,21 @@ public:
       }
 
     } break;
-    case Opcode::NEG:
-      break;
+    case Opcode::NEG: {
+      const auto target_reg =
+          get_32bit_register_for_color(
+              var_to_color.at(instruction.get_result().value()))
+              .canonical_name;
+      const auto operand =
+          std::visit(operand_to_string, instruction.get_operands().at(0).value);
+      out << std::format("neg\t{}\t\t # {}", operand, instruction.to_string())
+          << std::endl;
+      if (operand != target_reg) {
+        out << std::format("mov\t{}, {} # Move into target reg", target_reg,
+                           operand)
+            << std::endl;
+      }
+    } break;
     case Opcode::LT:
       break;
     case Opcode::LE:
