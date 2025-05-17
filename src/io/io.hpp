@@ -10,6 +10,7 @@ struct SourceFile {
 };
 
 SourceFile read_file(const std::string &path);
+bool write_file(const std::string &path, const std::string &content);
 
 } // namespace io
 

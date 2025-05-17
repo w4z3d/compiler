@@ -4,8 +4,6 @@
 #include "../defs/ast.hpp"
 #include "../lexer/lexer.hpp"
 #include "../report/report_builder.hpp"
-#include "spdlog/common.h"
-#include "spdlog/spdlog.h"
 #include <cstddef>
 #include <exception>
 #include <optional>
@@ -33,7 +31,6 @@ private:
   [[nodiscard]] token::Token peek(std::size_t n = 0) {
     while (token_buffer.size() <= n) {
       const auto next_token{lexer.next_token()};
-      spdlog::log(spdlog::level::debug, "Peeking {}", std::string{next_token});
       token_buffer.push_back(next_token);
     }
     return token_buffer[n];
@@ -57,7 +54,6 @@ private:
       return token;
     } else {
       const auto result{token_buffer.front()};
-      spdlog::log(spdlog::level::debug, "Lexing {}", std::string{result});
       token_buffer.erase(token_buffer.begin());
       return result;
     }

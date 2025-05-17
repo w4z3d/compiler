@@ -14,8 +14,5 @@ file(GLOB_RECURSE SOURCES "src/*.cpp" "include/*.hpp")
 # Add target
 add_executable(compiler ${SOURCES})
 
-# Add spdlog
-add_subdirectory(lib/spdlog)
-
 # Link spdlog
-target_link_libraries(compiler PRIVATE spdlog::spdlog_header_only)
+target_link_libraries(compiler PRIVATE)
