@@ -1,9 +1,8 @@
-struct Test {
-    int x;
-};
 
 int main() {
-  Test a = 100;
+  int a = 100;
+  int b = 200;
+  int c = a + b;
 
-  int i = 1312; int i = a * 100;
+  return a;
 }

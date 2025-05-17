@@ -2,3 +2,57 @@ int main() {
     int a = -100;
     return a;
   }
+
+
+
+t0 <- STORE 100
+t1 <- STORE 200
+t2 <- STORE 300
+t3 <- ADD t0 t1
+t4 <- MUL t3 t2
+RET t4
+
+mov_ri vreg0, 100   ;
+mov_ri vrge1, 200   ; 0
+mov_ri vreg2, 300   ; 1, 0      
+add_rr vreg0, vreg1 ; 2, 1, 0   2, 0, 1
+mul_rr vreg0, vreg2 ; 2, 0      2, 0
+mov eax, vreg0      ; 3        0
+ret
+
+mov_ri eax, 100
+mov_ri ecx, 200
+mov_ri edx, 300
+add_rr eax, ecx
+mul_rr eax, edx
+mov eax, eax
+ret
+
+t0 <- STORE 100
+t1 <- STORE 200
+t2 <- STORE 300
+t3 <- STORE 400
+t4 <- DIV t0 t1
+t5 <- DIV t2 t3
+t6 <- ADD t5 t4
+RET t6
+
+
+mov_ri vreg0, 100   ;
+mov_ri vrge1, 200   ; 0
+mov_ri vreg2, 300   ; 1, 0,   
+mov_ri vreg3, 400   ; 2, 0, 1
+
+mov_rr eax, vreg0     ; 2, 0, 1, 3
+div_rr vreg1          ; eax, edx, 2, 1, 3
+mov_rr vreg4, eax     ; eax, 2, 3
+
+mov_rr eax, vreg2     ; 2, 4, 3
+div_rr vreg3          ; eax, edx, 4, 3
+mov_rr vreg5, eax     ; eax, 4
+
+mov_rr vreg6, vreg4   ; 4, 5
+add_rr vreg4, vreg5   ; 4, 5
+
+mov_rr eax, vreg4     ; 4
+ret
