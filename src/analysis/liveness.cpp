@@ -1,5 +1,7 @@
 #include "liveness.hpp"
 
+#include <ranges>
+
 template <typename T>
 std::unordered_set<T> difference(std::unordered_set<T> a, T b) {
   std::unordered_set<T> result;
@@ -26,16 +28,14 @@ void Liveness::analyse_cfg(const CFG &cfg) {
   auto current_block = cfg.get_entry_block();
   std::vector<std::unordered_set<Var>> lives_per_line{};
   std::unordered_set<Var> prev_line{};
-  for (auto bIt = current_block->get_instructions().rbegin();
-       bIt != current_block->get_instructions().rend(); ++bIt) {
-    const IRInstruction &iri = *bIt;
+  for (const auto &iri :
+       std::ranges::reverse_view(current_block->get_instructions())) {
     lives_per_line.push_back(iri.get_used());
     if (iri.get_result().has_value()) {
       union_sets(lives_per_line.back(),
                  difference(prev_line, iri.get_result().value()));
     } else {
-      union_sets(lives_per_line.back(),
-                 prev_line);
+      union_sets(lives_per_line.back(), prev_line);
     }
     prev_line = lives_per_line.back();
   }

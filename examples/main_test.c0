@@ -1,8 +1,4 @@
-
-int main () {
-    int ich_hab_bedeutung = -1;
-    int x = 0;
-    x += 200;
-    return ich_hab_bedeutung;
-}
-
+int main() {
+    int a = -100;
+    return a;
+  }

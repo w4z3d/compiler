@@ -1,7 +1,5 @@
 #include "lexer.hpp"
 #include <cctype>
-#include <spdlog/common.h>
-#include <spdlog/spdlog.h>
 #include <string_view>
 #include <tuple>
 

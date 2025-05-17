@@ -2,7 +2,22 @@
  * Frank Pfenning
  */
 
+int char_chr() {
+return 0;
+}
+
+int char_ord() {
+return 0;
+  }
+
+string string_from_chararray() {
+    return "!";
+  }
+
 //#use < string>
+int int_size() {
+ return 0;
+}
 
 /* Some limits, which are fixed in the language definition */
 int int_size() { return 4; }         /* size of ints, in bytes */
@@ -49,7 +64,6 @@ string int2hex(int x)
 //@ensures string_length(\result) == 2*int_size();
 {
   int digits = 2 * int_size();
-  char[] s = alloc_array(char, digits + 1);
   s[digits] = '\0'; /* required string terminator */
   for (int i = 0; i < digits; i++)
   //@loop_invariant 0 <= i && i <= digits;
@@ -57,7 +71,7 @@ string int2hex(int x)
     s[digits - i - 1] = hexdig2char(x & 0xF);
     x = x >> 4; /* 4 = bits in a hex digit */
   }
-  return string_from_chararray(s);
+  return string_from_chararray(10);
 }
 
 /* some small tests */

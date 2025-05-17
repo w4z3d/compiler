@@ -48,14 +48,16 @@ void IRBuilder::visit(AssignmentStatement &stmt) {
     const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
     const auto new_var = gen_temp();
     if (stmt.get_op() == AssignmentOperator::Equals) {
-      symbol_to_var.insert_or_assign(var_l_val->get_symbol()->get_id(), new_var);
+      symbol_to_var.insert_or_assign(var_l_val->get_symbol()->get_id(),
+                                     new_var);
       current_block->add_instruction(
           IRInstruction{Opcode::STORE, {Operand{from}}, new_var});
     } else {
       auto op = from_assmt_op(stmt.get_op());
       const auto var_it = symbol_to_var.find(var_l_val->get_symbol()->get_id());
       if (var_it == symbol_to_var.end()) {
-        throw std::runtime_error("namensanalyse goes brrrrr. Variable ist nicht init, wird aber verwendet...");
+        throw std::runtime_error("namensanalyse goes brrrrr. Variable ist "
+                                 "nicht init, wird aber verwendet...");
       } else {
         auto old_var = var_it->second;
         current_block->add_instruction(
@@ -63,7 +65,8 @@ void IRBuilder::visit(AssignmentStatement &stmt) {
       }
     }
   } else {
-    throw std::runtime_error("Was auch immer du gemacht hast, bei L1 geht das noch nicht.");
+    throw std::runtime_error(
+        "Was auch immer du gemacht hast, bei L1 geht das noch nicht.");
   }
 }
 void IRBuilder::visit(ExpressionStatement &stmt) { ASTVisitor::visit(stmt); }

@@ -138,14 +138,28 @@ void semantic::SemanticVisitor::visit(VarExpr &expr) {
 
 void semantic::SemanticVisitor::visit(CallExpr &expr) {
   const auto lookup = symbol_table.lookup(expr.get_function_name());
-  if (lookup) {
+  if (!lookup) {
     diagnostics->emit_error(expr.get_location(),
                             std::format("Unresolved method reference {}",
                                         expr.get_function_name()));
     diagnostics->add_source_context(
         source_manager->get_line(expr.get_location().start_line()));
-  }
+  } else if (!lookup->get().is_initialized()) {
+    diagnostics->emit_error(
+        expr.get_location(),
+        std::format("Referencing function declaration {} with no function body",
+                    expr.get_function_name()));
+    diagnostics->add_source_context(
+        source_manager->get_line(expr.get_location().start_line()));
+    diagnostics->suggest_fix(
+        std::format("Try giving {} a body", lookup->get().get_name()));
 
+    diagnostics->emit_note(
+        lookup->get().get_source_location(),
+        std::format("Function {} declared here", lookup->get().get_name()));
+    diagnostics->add_source_context(
+        source_manager->get_snippet(lookup->get().get_source_location()));
+  }
   for (const auto &param : expr.get_params()) {
     param->accept(*this);
   }

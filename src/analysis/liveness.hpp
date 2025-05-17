@@ -22,7 +22,6 @@ public:
     for (const auto& [block_id, live_sets] : block_to_live) {
       oss << "Block " << block_id << ":\n";
 
-      // Beachte: vector[0] ist die letzte Zeile, also rückwärts iterieren
       for (size_t i = 0; i < live_sets.size(); ++i) {
         size_t line_index = live_sets.size() - 1 - i;
         const auto& live_set = live_sets[line_index];

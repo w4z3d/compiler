@@ -3,7 +3,6 @@
 
 #include "../alloc/arena.hpp"
 #include "../defs/source_location.hpp"
-#include "spdlog/spdlog.h"
 #include <format>
 #include <functional>
 #include <iostream>
@@ -159,23 +158,17 @@ public:
 
   void enter_scope(const std::string &name = "anonymous") {
     auto new_scope = arena.create<Scope>(name, current_scope);
-    spdlog::debug("Entering scope {} with parent {}", new_scope->get_name(),
-                  current_scope->get_name());
     current_scope = new_scope;
   }
 
   bool exit_scope() {
 
-    spdlog::debug("Exiting Scope {}", current_scope->get_name());
     auto parent = current_scope->get_parent();
 
     if (parent) {
-      spdlog::debug("Exiting scope {} with parent {}",
-                    current_scope->get_name(), parent->get_name());
       current_scope = parent;
       return true;
     }
-    spdlog::debug("New Scope {}", current_scope->get_name());
     return false;
   }
 
