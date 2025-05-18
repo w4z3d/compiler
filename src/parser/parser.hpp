@@ -157,6 +157,10 @@ public:
                   std::shared_ptr<SourceManager> source_manager)
       : lexer(lexer), diagnostics(std::move(diagnostics)),
         source_manager(std::move(source_manager)), arena(arena::Arena{}) {}
+  ~Parser() {
+    std::cout << "Arena used: " << arena.used() << std::endl;
+    arena.clear();
+  }
 };
 
 #endif

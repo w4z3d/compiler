@@ -8,6 +8,7 @@
 #include "io/io.hpp"
 #include "ir/ir_builder.hpp"
 #include "lexer/lexer.hpp"
+#include "mir/mir_generator.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
 #include <iostream>
@@ -21,10 +22,10 @@ int main(int argc, char *argv[]) {
   const auto diagnostics = std::make_shared<DiagnosticEmitter>();
   const auto source_manager =
       std::make_shared<SourceManager>(file.content, file.name);
-  Lexer lexer{file.name, file.content};
-  Parser parser{lexer, diagnostics, source_manager};
+  auto *lexer = new Lexer{file.name, file.content};
+  auto *parser = new Parser{*lexer, diagnostics, source_manager};
 
-  const auto unit{parser.parse_translation_unit()};
+  const auto unit{parser->parse_translation_unit()};
 
   // ClangStylePrintVisitor visitor{};
   // unit->accept(visitor);
@@ -35,10 +36,8 @@ int main(int argc, char *argv[]) {
     system("pause");
     return -1;
   }
-
   semantic::SemanticVisitor semantic_visitor{diagnostics, source_manager};
   unit->accept(semantic_visitor);
-
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     system("pause");
@@ -56,10 +55,20 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  Liveness liveness{representation};
+  delete parser;
+  delete lexer;
+
+  mir::MIRProgram program{};
+  MIRGenerator mir_generator{representation, program};
+  mir_generator.generate();
+  std::cout << mir::to_string(program) << std::endl;
+
+  Liveness liveness{program};
   liveness.analyse();
   std::cout << liveness.to_string_block_to_live() << std::endl;
 
+
+/*
   InterferenceGraph i_graph{liveness.get_42()};
   i_graph.construct();
   // std::cout << i_graph.to_string() << std::endl;
@@ -70,19 +79,20 @@ int main(int argc, char *argv[]) {
 
   InstructionSelector selector{reg_alloc.get_result(), diagnostics};
   const auto asm_string = selector.generate_function_body(representation);
+   */
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     system("pause");
     return -1;
   }
-
+/*
   std::cout << "Generated Assembly:" << std::endl;
   std::cout << asm_string << std::endl;
   std::cout << "Writing file" << std::endl;
   io::write_file("🤣.s", asm_string);
   system(std::format("gcc 🤣.s -o a.out", argv[1]).c_str());
-  std::remove("🤣.s");
+  std::remove("🤣.s");*/
   system("pause");
   return 0;
 }

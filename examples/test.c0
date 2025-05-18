@@ -3,11 +3,6 @@ int main() {
   int b = 57;
   int c = 46;
   int d = 93;
-  int e = 26;
-       a=a*b-c/d+e;
-     b=a- b % c +d+e;
-   c= a - b / c % d *e;
-     d=a*b / c + d%e;
-       e=a-b+c-d/e;
-  return e;
+  int x = a + b + c + d;
+  return x;
 }

@@ -10,8 +10,6 @@
 #include <variant>
 #include <vector>
 
-struct BasicBlock;
-
 // TODO: types
 struct Var {
   std::size_t numeral;
@@ -36,11 +34,11 @@ struct hash<Var> {
 
 struct grr {
   std::string operator()(Var v) const { return v.to_string(); }
-  std::string operator()(uint32_t v) const { return std::format("{}", v); }
+  std::string operator()(int32_t v) const { return std::format("{}", v); }
 };
 
 struct Operand {
-  std::variant<Var, std::uint32_t> value;
+  std::variant<Var, std::int32_t> value;
 };
 
 enum class Opcode {
