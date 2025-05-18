@@ -67,32 +67,31 @@ int main(int argc, char *argv[]) {
   liveness.analyse();
   std::cout << liveness.to_string_block_to_live() << std::endl;
 
+  /*
+    InterferenceGraph i_graph{liveness.get_42()};
+    i_graph.construct();
+    // std::cout << i_graph.to_string() << std::endl;
+    // std::cout << i_graph.to_dot() << std::endl;
 
-/*
-  InterferenceGraph i_graph{liveness.get_42()};
-  i_graph.construct();
-  // std::cout << i_graph.to_string() << std::endl;
-  // std::cout << i_graph.to_dot() << std::endl;
+    RegisterAllocation reg_alloc{i_graph};
+    reg_alloc.color();
 
-  RegisterAllocation reg_alloc{i_graph};
-  reg_alloc.color();
-
-  InstructionSelector selector{reg_alloc.get_result(), diagnostics};
-  const auto asm_string = selector.generate_function_body(representation);
-   */
+    InstructionSelector selector{reg_alloc.get_result(), diagnostics};
+    const auto asm_string = selector.generate_function_body(representation);
+     */
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     system("pause");
     return -1;
   }
-/*
-  std::cout << "Generated Assembly:" << std::endl;
-  std::cout << asm_string << std::endl;
-  std::cout << "Writing file" << std::endl;
-  io::write_file("🤣.s", asm_string);
-  system(std::format("gcc 🤣.s -o a.out", argv[1]).c_str());
-  std::remove("🤣.s");*/
+  /*
+    std::cout << "Generated Assembly:" << std::endl;
+    std::cout << asm_string << std::endl;
+    std::cout << "Writing file" << std::endl;
+    io::write_file("🤣.s", asm_string);
+    system(std::format("gcc 🤣.s -o a.out", argv[1]).c_str());
+    std::remove("🤣.s");*/
   system("pause");
   return 0;
 }

@@ -1,4 +1,5 @@
 #include "mir_generator.hpp"
+#include "mir.hpp"
 
 void MIRGenerator::generate() {
   for (const auto &cfg : representation.get_cfgs()) {
@@ -91,8 +92,21 @@ mir::MachineBasicBlock *MIRGenerator::generate_bb(const BasicBlock *bb) {
     } break;
     case Opcode::NEG:
       break;
-    case Opcode::RET:
-      break;
+    case Opcode::RET: {
+      const auto src =
+          std::visit(ir_op_to_m_op, ir_instruction.get_operands().at(0).value);
+      const auto mov_inst = arena.create<mir::MachineInstruction>(
+          is_register(src) ? mir::MachineInstruction::MachineOpcode::MOV_RR
+                           : mir::MachineInstruction::MachineOpcode::MOV_RI,
+          std::vector<mir::MachineOperand>{src},
+          std::vector<mir::MachineOperand>{
+              mir::MachineOperand{mir::PhysicalRegister{"eax", 32}}});
+      new_block->add_instruction(mov_inst);
+
+      const auto ret_inst = arena.create<mir::MachineInstruction>(
+          mir::MachineInstruction::MachineOpcode::RET);
+      new_block->add_instruction(ret_inst);
+    } break;
     default:
       break;
     }

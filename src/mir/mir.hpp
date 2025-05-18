@@ -5,11 +5,11 @@
 #include <cstdint>
 #include <format>
 #include <list>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <variant>
 #include <vector>
-#include <sstream>
 
 namespace mir {
 
@@ -94,6 +94,7 @@ public:
 
     NEG_R, // out:dest = -in:dest
 
+    RET // in:eax
   };
 
 private:
@@ -109,13 +110,19 @@ public:
                               std::vector<MachineOperand> outs = {},
                               std::vector<MachineOperand> implicit_def = {},
                               std::vector<MachineOperand> implicit_use = {})
-      : opcode(opcode), ins(std::move(ins)), outs(std::move(outs)), implicit_uses(std::move(implicit_use)), implicit_defs(std::move(implicit_def)) {}
+      : opcode(opcode), ins(std::move(ins)), outs(std::move(outs)),
+        implicit_uses(std::move(implicit_use)),
+        implicit_defs(std::move(implicit_def)) {}
 
   void add_in(const MachineOperand &op) { ins.push_back(op); }
-  [[nodiscard]] const std::vector<MachineOperand> &get_ins() const { return ins; }
+  [[nodiscard]] const std::vector<MachineOperand> &get_ins() const {
+    return ins;
+  }
 
   void add_out(const MachineOperand &op) { outs.push_back(op); }
-  [[nodiscard]] const std::vector<MachineOperand> &get_outs() const { return outs; }
+  [[nodiscard]] const std::vector<MachineOperand> &get_outs() const {
+    return outs;
+  }
 
   void add_implicit_def(const MachineOperand &op) {
     implicit_defs.push_back(op);
@@ -129,9 +136,7 @@ public:
   [[nodiscard]] const std::vector<MachineOperand> &get_implicit_uses() const {
     return implicit_uses;
   }
-  [[nodiscard]] MachineOpcode get_opcode() const {
-    return opcode;
-  }
+  [[nodiscard]] MachineOpcode get_opcode() const { return opcode; }
 };
 
 struct MachineBasicBlock {
@@ -186,16 +191,16 @@ private:
 
 public:
   void add_function(const MachineFunction &func) { functions.push_back(func); }
-  [[nodiscard]] const std::vector<MachineFunction> &get_functions() const { return functions; }
+  [[nodiscard]] const std::vector<MachineFunction> &get_functions() const {
+    return functions;
+  }
 };
 
-
-inline std::string to_string(const Register &reg) {
-  return reg.get_name();
-}
+inline std::string to_string(const Register &reg) { return reg.get_name(); }
 
 inline std::string to_string(const StackSlot &slot) {
-  return std::format("stack[{}+{}]", to_string(slot.stack_pointer), slot.offset);
+  return std::format("stack[{}+{}]", to_string(slot.stack_pointer),
+                     slot.offset);
 }
 
 inline std::string to_string(const Immediate &imm) {
@@ -207,24 +212,36 @@ inline std::string to_string(const MemoryAccess &mem) {
 }
 
 inline std::string to_string(const MachineOperand &op) {
-  return std::visit([](auto &&arg) -> std::string {
-    return to_string(arg);
-  }, op.get_op());
+  return std::visit([](auto &&arg) -> std::string { return to_string(arg); },
+                    op.get_op());
 }
 
 inline std::string to_string(MachineInstruction::MachineOpcode opcode) {
   switch (opcode) {
-  case MachineInstruction::MachineOpcode::MOV_RR: return "MOV_RR";
-  case MachineInstruction::MachineOpcode::MOV_RI: return "MOV_RI";
-  case MachineInstruction::MachineOpcode::STORE_MEM_REG: return "STORE_MEM_REG";
-  case MachineInstruction::MachineOpcode::LOAD_REG_MEM: return "LOAD_REG_MEM";
-  case MachineInstruction::MachineOpcode::ADD_RR: return "ADD_RR";
-  case MachineInstruction::MachineOpcode::ADD_RI: return "ADD_RI";
-  case MachineInstruction::MachineOpcode::DIV_RR: return "DIV_RR";
-  case MachineInstruction::MachineOpcode::DIV_RI: return "DIV_RI";
-  case MachineInstruction::MachineOpcode::MUL_RR: return "MUL_RR";
-  case MachineInstruction::MachineOpcode::MUL_RI: return "MUL_RI";
-  case MachineInstruction::MachineOpcode::NEG_R: return "NEG_R";
+  case MachineInstruction::MachineOpcode::MOV_RR:
+    return "MOV_RR";
+  case MachineInstruction::MachineOpcode::MOV_RI:
+    return "MOV_RI";
+  case MachineInstruction::MachineOpcode::STORE_MEM_REG:
+    return "STORE_MEM_REG";
+  case MachineInstruction::MachineOpcode::LOAD_REG_MEM:
+    return "LOAD_REG_MEM";
+  case MachineInstruction::MachineOpcode::ADD_RR:
+    return "ADD_RR";
+  case MachineInstruction::MachineOpcode::ADD_RI:
+    return "ADD_RI";
+  case MachineInstruction::MachineOpcode::DIV_RR:
+    return "DIV_RR";
+  case MachineInstruction::MachineOpcode::DIV_RI:
+    return "DIV_RI";
+  case MachineInstruction::MachineOpcode::MUL_RR:
+    return "MUL_RR";
+  case MachineInstruction::MachineOpcode::MUL_RI:
+    return "MUL_RI";
+  case MachineInstruction::MachineOpcode::NEG_R:
+    return "NEG_R";
+  case mir::MachineInstruction::MachineOpcode::RET:
+    return "RET";
   }
   return "UNKNOWN";
 }
@@ -233,7 +250,8 @@ inline std::string to_string(const MachineInstruction &instr) {
   std::ostringstream oss;
   oss << to_string(instr.get_opcode());
 
-  auto print_operands = [&](const std::vector<MachineOperand> &ops, const std::string &prefix) {
+  auto print_operands = [&](const std::vector<MachineOperand> &ops,
+                            const std::string &prefix) {
     if (!ops.empty()) {
       oss << " " << prefix << ":";
       for (const auto &op : ops) {
@@ -262,8 +280,8 @@ inline std::string to_string(const MachineBasicBlock &block) {
 inline std::string to_string(const MachineFunction &func) {
   std::ostringstream oss;
   oss << "Function " << func.get_id() << ":\n";
-  std::unordered_set<MachineBasicBlock*> visited;
-  std::list<MachineBasicBlock*> queue{};
+  std::unordered_set<MachineBasicBlock *> visited;
+  std::list<MachineBasicBlock *> queue{};
 
   if (auto *entry = func.get_entry_block(); entry) {
     queue.push_front(entry);
@@ -292,7 +310,6 @@ inline std::string to_string(const MIRProgram &program) {
   }
   return oss.str();
 }
-
 
 } // namespace mir
 #endif // !MIR_MIR_H
