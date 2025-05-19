@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./build/compiler $0
+./build/compiler $1 $2

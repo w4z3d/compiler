@@ -38,15 +38,13 @@ int main(int argc, char *argv[]) {
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
-    system("pause");
-    return -1;
+    return 42;
   }
   semantic::SemanticVisitor semantic_visitor{diagnostics, source_manager};
   unit->accept(semantic_visitor);
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
-    system("pause");
-    return -1;
+    return 7;
   }
   IntermediateRepresentation representation{};
   IRBuilder builder{representation, diagnostics, source_manager};
@@ -57,7 +55,7 @@ int main(int argc, char *argv[]) {
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     system("pause");
-    return -1;
+    return 7;
   }
 
   delete parser;
@@ -91,12 +89,6 @@ int main(int argc, char *argv[]) {
     const auto asm_string = selector.generate_function_body(representation);
      */
 
-  if (diagnostics->has_errors()) {
-    diagnostics->print_all();
-    system("pause");
-    return -1;
-  }
-
   X86Generator gen{};
   const auto asm_string = gen.generate_program(program);
 
@@ -106,6 +98,5 @@ int main(int argc, char *argv[]) {
   io::write_file("🤣.s", asm_string);
   system(std::format("gcc 🤣.s -o {}", argv[2]).c_str());
   std::remove("🤣.s");
-  system("pause");
   return 0;
 }

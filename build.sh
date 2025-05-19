@@ -4,17 +4,6 @@ BUILD_DIR="build"
 
 echo "Cleaning..."
 
-# Prüfen, ob das Verzeichnis existiert
-# if [ -d "$BUILD_DIR" ]; then
-#   # Versuche, es ohne Root zu löschen
-#   rm -rf "$BUILD_DIR" 2>/dev/null
-#
-#   # Prüfe, ob es noch existiert
-#   if [ -d "$BUILD_DIR" ]; then
-#     echo "Failed to delete build dir"
-#   fi
-# fi
-
 # Neu erstellen
 mkdir "$BUILD_DIR" || {
   echo "Failed to create build dir" >&2
