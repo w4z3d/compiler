@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
 
   const auto unit{parser->parse_translation_unit()};
 
-  // ClangStylePrintVisitor visitor{};
-  // unit->accept(visitor);
-  // std::cout << visitor.get_content() << std::endl;
+  ClangStylePrintVisitor visitor{};
+  unit->accept(visitor);
+  std::cout << visitor.get_content() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();

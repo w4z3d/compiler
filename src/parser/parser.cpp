@@ -65,8 +65,11 @@ TypeAnnotation *Parser::parse_type() {
   if (builtin != Builtin::Unknown) {
     return parse_type_tail(parse_builtin_type(next_token.kind));
   } else {
-    throw ParseError(std::format(
-        "Expected TypeAnnotation, but next token was {}", next_token.text));
+    throw ParseError(
+        std::format("Expected TypeAnnotation, but next token was {}",
+                    next_token.text),
+        SourceLocation{lexer.get_file_name(), next_token.span.start,
+                       next_token.span.end});
   }
 }
 
@@ -155,7 +158,8 @@ Expression *Parser::parse_exp_head() {
     return parse_var_expr();
   } else {
     throw ParseError(
-        std::format("Expected Expression, but next token was {}", peek().text));
+        std::format("Expected Expression, but next token was {}", peek().text),
+        SourceLocation{lexer.get_file_name(), peek().span.start, peek().span.end});
   }
 }
 
@@ -432,7 +436,10 @@ Statement *Parser::parse_simple_stmt() {
         throw ParseError(std::format("Expected one of <simple> ::= \n| <lv> "
                                      "<asnop> <exp>\n| <lv> ++\n| <lv> --\n,"
                                      " but next token was {}",
-                                     next_token.text));
+                                     next_token.text),
+                         SourceLocation{lexer.get_file_name(),
+                                        next_token.span.start,
+                                        next_token.span.end});
       }
     }
   }
@@ -654,6 +661,9 @@ TranslationUnit *Parser::parse_translation_unit() {
       else
         unit->add_declaration(parse_function_declaration());
     } catch (ParseError &error) {
+      diagnostics->emit_error(error.get_loc(), error.what());
+      diagnostics->add_source_context(
+          source_manager->get_snippet(error.get_loc()));
       synchronize();
     }
   }

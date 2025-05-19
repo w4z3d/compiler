@@ -12,11 +12,16 @@
 
 class ParseError : public std::exception {
   std::string message;
+  SourceLocation loc;
 
 public:
-  explicit ParseError(std::string message) : message(std::move(message)) {}
+  explicit ParseError(std::string message, SourceLocation loc = {})
+      : message(std::move(message)), loc(std::move(loc)) {}
   [[nodiscard]] const char *what() const noexcept override {
     return message.c_str();
+  }
+  [[nodiscard]] SourceLocation get_loc() const {
+    return loc;
   }
 };
 

@@ -58,7 +58,7 @@ void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
       diagnostics->add_source_context(
           source_manager->get_line(var_l_val->get_location().start_line()));
     }
-    if (!lookup->get().is_initialized() &&
+    else if (!lookup->get().is_initialized() &&
         stmt.get_op() != AssignmentOperator::Equals) {
       diagnostics->emit_error(
           var_l_val->get_location(),
@@ -82,7 +82,19 @@ void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
   stmt.get_expr()->accept(*this);
 }
 
-void semantic::SemanticVisitor::visit(VariableLValue &val) {}
+void semantic::SemanticVisitor::visit(VariableLValue &val) {
+  auto lookup = symbol_table.lookup(val.get_name());
+  if(!lookup) {
+    diagnostics->emit_error(
+        val.get_location(),
+        std::format("Unresolved reference {}", val.get_name()));
+    diagnostics->add_source_context(
+        source_manager->get_line(val.get_location().start_line()));
+  } else {
+    lookup->get().set_initialized(true);
+    val.set_symbol(std::make_shared<Symbol>(lookup.value()));
+  }
+}
 
 void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
   bool initialized = false;
