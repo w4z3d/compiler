@@ -30,8 +30,12 @@ public:
     std::list<mir::PhysicalRegister> unused_regs{gprs.begin(), gprs.end()};
     std::unordered_map<size_t, mir::PhysicalRegister> color_to_physical_reg{};
     std::unordered_map<size_t, mir::StackSlot> color_to_stack_slot{};
+    std::cout << "constructing ig" << std::endl;
     ig.construct();
+    std::cout << "done" << std::endl;
+    std::cout << "coloring" << std::endl;
     std::unordered_map<size_t, size_t> color_map = std::move(ig.color());
+    std::cout << "done" << std::endl;
     // get mapping of used physical registers
     for (const auto &live_id : rmap.get_physical_live_ids()) {
       const mir::PhysicalRegister reg = get_physical_reg_from_string(
@@ -56,6 +60,7 @@ public:
       color_to_stack_slot.emplace(color, mir::StackSlot{slot_counter++ * 4});
     }
 
+    std::cout << "replacing virtual regs with physical/stack slot" << std::endl;
     for (auto inst = function.get_entry_block()->get_instructions().begin();
          inst != function.get_entry_block()->get_instructions().end(); ++inst) {
       int i = 0;
@@ -108,6 +113,7 @@ public:
     }
 
     function.set_frame_size(color_to_stack_slot.size() * 4);
+    std::cout << "done" << std::endl;
   }
 
   mir::PhysicalRegister get_physical_reg_from_string(const std::string &name) {

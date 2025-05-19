@@ -20,9 +20,7 @@ public:
   [[nodiscard]] const char *what() const noexcept override {
     return message.c_str();
   }
-  [[nodiscard]] SourceLocation get_loc() const {
-    return loc;
-  }
+  [[nodiscard]] SourceLocation get_loc() const { return loc; }
 };
 
 class Parser {
@@ -70,24 +68,11 @@ private:
       next_token();
       return token;
     }
-    const auto loc =
-        SourceLocation{lexer.get_file_name(), token.span.start, token.span.end};
-
-    diagnostics->emit_error(
-        loc, std::format("Unexpected {} token on line {}:{} \'{}\' expected {}",
-                         token_kind_to_string(token.kind),
-                         std::get<0>(token.span.start),
-                         std::get<1>(token.span.start), token.text,
-                         token::token_kind_to_string(expected)));
-
-    diagnostics->add_source_context(
-        source_manager->get_line(std::get<0>(token.span.start)));
-
-    throw ParseError{std::format(
-        "Unexpected {} token on line {}:{} \'{}\' expected {}",
-        token_kind_to_string(token.kind), std::get<0>(token.span.start),
-        std::get<1>(token.span.start), token.text,
-        token::token_kind_to_string(expected))};
+    throw ParseError{std::format("Unexpected {} \'{}\'. expected {}",
+                                 token_kind_to_string(token.kind), token.text,
+                                 token::token_kind_to_string(expected)),
+                     SourceLocation{lexer.get_file_name(), token.span.start,
+                                    token.span.end}};
     return std::nullopt;
   }
 
