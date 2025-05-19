@@ -165,6 +165,7 @@ Expression *Parser::parse_expr_with_precedence(int minPrecedence) {
   while (true) {
     auto next_token = peek();
     if (left == nullptr && token::unary_ops.contains(next_token.kind)) {
+      std::cout << "unarayyyy" << std::endl;
       const auto op = unOpFromToken(next_token.kind);
       const auto precedence = precedenceFromUnOp(op);
       if (precedence < minPrecedence)

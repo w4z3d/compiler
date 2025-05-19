@@ -1,63 +1,122 @@
 #ifndef COMPILER_REGISTER_ALLOC_H
 #define COMPILER_REGISTER_ALLOC_H
 
+#include "../analysis/liveness.hpp"
 #include "interference_graph.hpp"
+#include "target/target.hpp"
+
 class RegisterAllocation {
 private:
-  InterferenceGraph &ig;
-  std::unordered_map<Var, size_t> var_to_color{};
-  std::vector<Var> soe{}; // Simplicial Elimination Ordering
-  static Var get_max_key(std::unordered_set<Var> &set,
-                         std::unordered_map<Var, size_t> &map);
-  void maximum_cardinality_search();
-  size_t get_color(Var v);
-  void greedy_coloring();
+  arena::Arena arena;
+  InterferenceGraph ig;
+  Liveness &liveness;
+  MIRRegisterMap &rmap;
+  mir::MachineFunction &function;
+  const Target &target;
 
 public:
-  explicit RegisterAllocation(InterferenceGraph &ig) : ig(ig) {}
-  void color();
+  explicit RegisterAllocation(Liveness &liveness, MIRRegisterMap &rmap,
+                              mir::MachineFunction &function,
+                              const Target &target)
+      : liveness(liveness), rmap(rmap), function(function),
+        ig(InterferenceGraph{liveness.get_liveness(), rmap, function}),
+        target(target), arena(arena::Arena{}) {}
 
-  [[nodiscard]] const std::unordered_map<Var, size_t> &get_result() const {
-    return var_to_color;
-  }
-
-  [[nodiscard]] std::string soe_to_string() const {
-    std::ostringstream oss;
-    oss << "[";
-    for (size_t i = 0; i < soe.size(); ++i) {
-      oss << soe[i].to_string();
-      if (i + 1 < soe.size())
-        oss << ", ";
+  // graph coloring, color to register/stack slot, also change Regs directly in
+  // mir::MachineFunction?
+  void allocate() {
+    size_t slot_counter = 1;
+    const auto gprs = target.get_gprs();
+    std::list<mir::PhysicalRegister> unused_regs{gprs.begin(), gprs.end()};
+    std::unordered_map<size_t, mir::PhysicalRegister> color_to_physical_reg{};
+    std::unordered_map<size_t, mir::StackSlot> color_to_stack_slot{};
+    ig.construct();
+    std::unordered_map<size_t, size_t> color_map = std::move(ig.color());
+    // get mapping of used physical registers
+    for (const auto &live_id : rmap.get_physical_live_ids()) {
+      const mir::PhysicalRegister reg = get_physical_reg_from_string(
+          rmap.physical_from_live(live_id).value());
+      color_to_physical_reg.emplace(color_map[live_id], reg);
+      unused_regs.remove(reg);
     }
-    oss << "]";
-    return oss.str();
-  }
-  std::string to_dot(const std::string &graph_name = "G",
-                     bool directed = false) {
-    std::ostringstream oss;
-    std::string edge_op = directed ? "->" : "--";
-    std::string graph_type = directed ? "digraph" : "graph";
 
-    oss << graph_type << " " << graph_name << " {\n";
+    for (const auto &[live_id, color] : color_map) {
+      if (unused_regs.size() == 1) {
+        break;
+      }
+      color_to_physical_reg.emplace(color, unused_regs.front());
+      unused_regs.pop_front();
+    }
 
-    std::unordered_set<std::pair<Var, Var>,
-                       std::function<std::size_t(const std::pair<Var, Var> &)>>
-        printed_edges(10, [](const std::pair<Var, Var> &p) {
-          return std::hash<Var>()(p.first) ^ (std::hash<Var>()(p.second) << 1);
-        });
+    const auto spilling_reg = unused_regs.front();
 
-    for (const auto &[from, neighbors] : ig.get_adjacent_map()) {
-      oss << "  \"" << from.to_string() << "\""
-          << std::format("[label=\"{}\"]", var_to_color.find(from)->second)
-          << ";\n";
-      for (const auto &to : neighbors) {
-        oss << "  \"" << from.to_string() << "\" " << edge_op << " \""
-            << to.to_string() << "\";\n";
+    for (const auto &[live_id, color] : color_map) {
+      if (color_to_physical_reg.contains(color))
+        continue;
+      color_to_stack_slot.emplace(color, mir::StackSlot{slot_counter++ * 4});
+    }
+
+    for (auto inst = function.get_entry_block()->get_instructions().begin();
+         inst != function.get_entry_block()->get_instructions().end(); ++inst) {
+      int i = 0;
+      for (auto &item : (*inst)->get_ins_mut()) {
+        i++;
+        if (std::holds_alternative<mir::VirtualRegister>(item.get_op())) {
+          auto reg = std::get<mir::VirtualRegister>(item.get_op());
+          auto color = color_map[rmap.from_virtual(reg.get_numeral())];
+          if (color_to_physical_reg.contains(color)) {
+            item.replace_with_physical(color_to_physical_reg.at(color));
+          } else {
+            if (i == 1 && (*inst)->get_ins().size() > 1) {
+              const auto slot_move = arena.create<mir::MachineInstruction>(
+                  mir::MachineInstruction::MachineOpcode::LOAD_REG_MEM,
+                  std::vector<mir::MachineOperand>{
+                      mir::MachineOperand{color_to_stack_slot.at(color)}},
+                  std::vector<mir::MachineOperand>{
+                      mir::MachineOperand{spilling_reg}});
+              function.get_entry_block()->get_instructions().insert(inst,
+                                                                    slot_move);
+              item.replace_with_physical(spilling_reg);
+            } else {
+              if ((*inst)->get_opcode() == mir::MachineInstruction::MachineOpcode::MOV_RR) {
+                (*inst)->set_opcode(mir::MachineInstruction::MachineOpcode::LOAD_REG_MEM);
+              }
+              item.replace_with_stack_slot(color_to_stack_slot.at(color));
+            }
+          }
+        }
+      }
+      for (auto &item : (*inst)->get_outs_mut()) {
+        if (std::holds_alternative<mir::VirtualRegister>(item.get_op())) {
+          auto reg = std::get<mir::VirtualRegister>(item.get_op());
+          auto color = color_map[rmap.from_virtual(reg.get_numeral())];
+          if (color_to_physical_reg.contains(color)) {
+            item.replace_with_physical(color_to_physical_reg.at(color));
+          } else {
+            const auto slot_move = arena.create<mir::MachineInstruction>(
+                mir::MachineInstruction::MachineOpcode::STORE_MEM_REG,
+                std::vector<mir::MachineOperand>{
+                    mir::MachineOperand{spilling_reg}},
+                std::vector<mir::MachineOperand>{
+                    mir::MachineOperand{color_to_stack_slot.at(color)}});
+            function.get_entry_block()->get_instructions().insert(std::next(inst),
+                                                                  slot_move);
+            item.replace_with_physical(spilling_reg);
+          }
+        }
       }
     }
 
-    oss << "}\n";
-    return oss.str();
+    function.set_frame_size(color_to_stack_slot.size() * 4);
+  }
+
+  mir::PhysicalRegister get_physical_reg_from_string(const std::string &name) {
+    for (const auto &item : target.get_gprs()) {
+      if (item.get_name() == name) {
+        return item;
+      }
+    }
+    throw std::runtime_error("gedagedigedagedago");
   }
 };
 

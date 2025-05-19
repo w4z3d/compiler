@@ -1,32 +1,50 @@
 #ifndef COMPILER_INTERFERENCE_GRAPH_H
 #define COMPILER_INTERFERENCE_GRAPH_H
 
+#include "../graph_coloring/graph_coloring.hpp"
 #include "../ir/ir.hpp"
+#include "../mir/mir.hpp"
+#include "yapper.hpp"
+#include <ranges>
+
+template <class... Ts> struct overload : Ts... {
+  using Ts::operator()...;
+};
 
 class InterferenceGraph {
 private:
-  std::unordered_map<Var, std::unordered_set<Var>> adjacent_map{};
-  std::unordered_map<size_t, std::vector<std::unordered_set<Var>>>
+  UndirectedGraph graph{};
+  std::unordered_map<size_t, std::list<std::unordered_set<size_t>>>
       &block_to_live;
+  MIRRegisterMap &rmap;
+  mir::MachineFunction &function;
 
 public:
   explicit InterferenceGraph(
-      std::unordered_map<size_t, std::vector<std::unordered_set<Var>>> &live)
-      : block_to_live(live) {}
-  std::unordered_map<Var, std::unordered_set<Var>> &get_adjacent_map() {
-    return adjacent_map;
-  }
+      std::unordered_map<size_t, std::list<std::unordered_set<size_t>>> &live,
+      MIRRegisterMap &rmap, mir::MachineFunction &function)
+      : block_to_live(live), rmap(rmap), function(function) {}
   void construct();
+  std::unordered_map<size_t, size_t> color();
 
   std::string to_string() {
     std::ostringstream oss;
-    for (const auto &[key, neighbors] : adjacent_map) {
-      oss << key.to_string() << " -> {";
+    for (const auto &[key, neighbors] : graph.get_adjacent_list()) {
+      if (rmap.physical_from_live(key).has_value()) {
+        oss << rmap.physical_from_live(key).value() << " -> {";
+      } else {
+        oss << rmap.virtual_from_live(key).value() << " -> {";
+      }
+
       bool first = true;
       for (const auto &neighbor : neighbors) {
         if (!first)
           oss << ", ";
-        oss << neighbor.to_string();
+        if (rmap.physical_from_live(neighbor).has_value()) {
+          oss << rmap.physical_from_live(neighbor).value();
+        } else {
+          oss << rmap.virtual_from_live(neighbor).value();
+        }
         first = false;
       }
       oss << "}\n";
@@ -48,11 +66,25 @@ public:
           return std::hash<Var>()(p.first) ^ (std::hash<Var>()(p.second) << 1);
         });
 
-    for (const auto &[from, neighbors] : adjacent_map) {
-      oss << "  \"" << from.to_string() << "\";\n";
+    for (const auto &[from, neighbors] : graph.get_adjacent_list()) {
+      if (rmap.physical_from_live(from).has_value()) {
+        oss << "  \"" << rmap.physical_from_live(from).value() << "\";\n";
+      } else {
+        oss << "  \"" << rmap.virtual_from_live(from).value() << "\";\n";
+      }
       for (const auto &to : neighbors) {
-        oss << "  \"" << from.to_string() << "\" " << edge_op << " \""
-            << to.to_string() << "\";\n";
+        if (rmap.physical_from_live(from).has_value()) {
+          oss << "  \"" << rmap.physical_from_live(from).value() << "\" "
+              << edge_op << " \"";
+        } else {
+          oss << "  \"" << rmap.virtual_from_live(from).value() << "\" "
+              << edge_op << " \"";
+        }
+        if (rmap.physical_from_live(to).has_value()) {
+          oss << rmap.physical_from_live(to).value() << "\";\n";
+        } else {
+          oss << rmap.virtual_from_live(to).value() << "\";\n";
+        }
       }
     }
 

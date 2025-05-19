@@ -72,7 +72,7 @@ public:
     out << entry_block->to_string() << std::endl;
     return out.str();
   }
-  [[nodiscard]] BasicBlock *get_entry_block() const { return entry_block; }
+  [[nodiscard]] const BasicBlock *get_entry_block() const { return entry_block; }
 };
 
 struct IntermediateRepresentation {

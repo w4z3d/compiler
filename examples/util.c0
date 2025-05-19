@@ -11,7 +11,7 @@ return 0;
   }
 
 string string_from_chararray() {
-    return "!";
+    return 0; // "!"
   }
 
 //#use < string>

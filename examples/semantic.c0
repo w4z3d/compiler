@@ -1,9 +1,3 @@
-struct Test {
-    int x;
-};
-
 int main() {
-  Test a = 100;
-
-  int i = 1312; int i = a * 100;
+  return -2147483648 / -1;
 }
