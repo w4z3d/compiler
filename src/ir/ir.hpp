@@ -38,7 +38,7 @@ struct grr {
 };
 
 struct Operand {
-  std::variant<Var, std::int32_t> value;
+  std::variant<Var, std::uint32_t> value;
 };
 
 enum class Opcode {

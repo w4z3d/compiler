@@ -18,7 +18,7 @@ void union_sets(std::unordered_set<T> &a, const std::unordered_set<T> &b) {
 
 void Liveness::analyse() {
   for (const auto &item : mir_program.get_functions()) {
-    analyse_func(item);
+    analyse_func(item.second);
   }
 }
 
@@ -36,46 +36,6 @@ void Liveness::dfs_basic_block(mir::MachineBasicBlock *bb,
     dfs_basic_block(item, visited);
   }
   basic_block_order.push_back(bb);
-  for (const auto instr : bb->get_instructions()) {
-    for (const auto &in_operand : instr->get_ins()) {
-      // oh
-      std::visit(overload{[this](const mir::VirtualRegister &r) {
-                            if (virtual_to_live_id.contains(r.get_numeral()))
-                              return;
-                            std::size_t id = id_counter++;
-                            virtual_to_live_id[r.get_numeral()] = id;
-                            live_id_to_virtual[id] = r.get_numeral();
-                          },
-                          [this](const mir::PhysicalRegister &r) {
-                            if (physical_to_live_id.contains(r.get_name()))
-                              return;
-                            std::size_t id = id_counter++;
-                            physical_to_live_id[r.get_name()] = id;
-                            live_id_to_physical[id] = r.get_name();
-                          },
-                          [](auto &) {}},
-                 in_operand.get_op());
-    }
-    for (const auto &out_operand : instr->get_outs()) {
-      // oh
-      std::visit(overload{[this](const mir::VirtualRegister &r) {
-                            if (virtual_to_live_id.contains(r.get_numeral()))
-                              return;
-                            std::size_t id = id_counter++;
-                            virtual_to_live_id[r.get_numeral()] = id;
-                            live_id_to_virtual[id] = r.get_numeral();
-                          },
-                          [this](const mir::PhysicalRegister &r) {
-                            if (physical_to_live_id.contains(r.get_name()))
-                              return;
-                            std::size_t id = id_counter++;
-                            physical_to_live_id[r.get_name()] = id;
-                            live_id_to_physical[id] = r.get_name();
-                          },
-                          [](auto &) {}},
-                 out_operand.get_op());
-    }
-  }
 }
 
 void Liveness::analyse_func(const mir::MachineFunction &machine_function) {
@@ -98,10 +58,10 @@ void Liveness::analyse_func(const mir::MachineFunction &machine_function) {
       for (const auto &in_operand : instr->get_ins()) {
         // oh
         std::visit(overload{[this, &lives_per_line](const mir::VirtualRegister &r) {
-                              lives_per_line.front().insert(virtual_to_live_id[r.get_numeral()]);
+                              lives_per_line.front().insert(rmap.from_virtual(r.get_numeral()));
                             },
                             [this, &lives_per_line](const mir::PhysicalRegister &r) {
-                              lives_per_line.front().insert(physical_to_live_id[r.get_name()]);
+                              lives_per_line.front().insert(rmap.from_physical(r.get_name()));
                             },
                             [](auto &) {}},
                    in_operand.get_op());
@@ -110,10 +70,10 @@ void Liveness::analyse_func(const mir::MachineFunction &machine_function) {
       for (const auto &out_operand : instr->get_outs()) {
         // oh
         std::visit(overload{[this, &prev_line](const mir::VirtualRegister &r) {
-                              prev_line.erase(virtual_to_live_id[r.get_numeral()]);
+                              prev_line.erase(rmap.from_virtual(r.get_numeral()));
                             },
                             [this, &prev_line](const mir::PhysicalRegister &r) {
-                              prev_line.erase(physical_to_live_id[r.get_name()]);
+                              prev_line.erase(rmap.from_physical(r.get_name()));
                             },
                             [](auto &) {}},
                    out_operand.get_op());

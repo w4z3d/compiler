@@ -4,11 +4,10 @@
 class Generator {
   // TODO: Add register_alloc information
 public:
-  Generator();
   virtual std::string generate_program(mir::MIRProgram program) = 0;
-  virtual std::string translate_basic_block(mir::MachineBasicBlock block) = 0;
+  virtual std::string translate_basic_block(mir::MachineBasicBlock *block) = 0;
   virtual std::string
-  translate_instruction(mir::MachineInstruction instruction) = 0;
+  translate_instruction(mir::MachineInstruction *instruction) = 0;
   virtual std::string translate_function(mir::MachineFunction function) = 0;
 };
 

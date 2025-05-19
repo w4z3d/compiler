@@ -78,7 +78,7 @@ void IRBuilder::visit(Expression &expr) { ASTVisitor::visit(expr); }
 void IRBuilder::visit(NumericExpr &expr) {
   const auto temp = gen_temp();
   temp_var_stack.push(temp);
-  const auto num = expr.try_parse<std::int32_t>();
+  const auto num = expr.try_parse<std::uint32_t>();
   current_block->add_instruction(
       IRInstruction{Opcode::STORE, {Operand{num.value()}}, temp});
 }
