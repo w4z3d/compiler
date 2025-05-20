@@ -1,4 +1,7 @@
 #include "ir_builder.hpp"
+#include "cfg.hpp"
+#include "ir.hpp"
+#include <optional>
 
 void IRBuilder::visit(Typedef &typedef_) { ASTVisitor::visit(typedef_); }
 void IRBuilder::visit(Declaration &decl) { ASTVisitor::visit(decl); }
@@ -33,11 +36,9 @@ void IRBuilder::visit(VariableDeclarationStatement &stmt) {
     return;
   stmt.get_initializer()->accept(*this);
   auto var = gen_temp();
-  symbol_to_var.emplace(stmt.get_symbol()->get_id(), var); /*/*/
   auto init = temp_var_stack.top();
+  symbol_to_var.emplace(stmt.get_symbol()->get_id(), init); /*/*/
   temp_var_stack.pop();
-  current_block->add_instruction(
-      IRInstruction{Opcode::STORE, {Operand{init}}, var});
 }
 void IRBuilder::visit(UnaryMutationStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(AssignmentStatement &stmt) {
@@ -46,12 +47,8 @@ void IRBuilder::visit(AssignmentStatement &stmt) {
   temp_var_stack.pop();
   if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
     const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
-    const auto new_var = gen_temp();
     if (stmt.get_op() == AssignmentOperator::Equals) {
-      symbol_to_var.insert_or_assign(var_l_val->get_symbol()->get_id(),
-                                     new_var);
-      current_block->add_instruction(
-          IRInstruction{Opcode::STORE, {Operand{from}}, new_var});
+      symbol_to_var.insert_or_assign(var_l_val->get_symbol()->get_id(), from);
     } else {
       auto op = from_assmt_op(stmt.get_op());
       const auto var_it = symbol_to_var.find(var_l_val->get_symbol()->get_id());
@@ -59,6 +56,8 @@ void IRBuilder::visit(AssignmentStatement &stmt) {
         throw std::runtime_error("namensanalyse goes brrrrr. Variable ist "
                                  "nicht init, wird aber verwendet...");
       } else {
+        const auto new_var = gen_temp();
+
         auto old_var = var_it->second;
         current_block->add_instruction(
             IRInstruction{op, {Operand{from}, Operand{old_var}}, new_var});
@@ -72,8 +71,96 @@ void IRBuilder::visit(AssignmentStatement &stmt) {
   }
 }
 void IRBuilder::visit(ExpressionStatement &stmt) { ASTVisitor::visit(stmt); }
-void IRBuilder::visit(IfStatement &stmt) { ASTVisitor::visit(stmt); }
-void IRBuilder::visit(ForStatement &stmt) { ASTVisitor::visit(stmt); }
+void IRBuilder::visit(IfStatement &stmt) {
+  BasicBlock *condition_eval = current_block;
+
+  auto *then_block = arena.create<BasicBlock>(block_counter++);
+  BasicBlock *else_block = nullptr; // Will be created if an else branch exists.
+  auto *merge_block = arena.create<BasicBlock>(block_counter++);
+  stmt.get_condition()->accept(*this);
+
+  const auto condition_temp = temp_var_stack.top();
+  temp_var_stack.pop();
+
+  condition_eval->set_successor_true(then_block);
+  if (stmt.get_else_branch()) {
+    else_block = arena.create<BasicBlock>(block_counter++);
+    condition_eval->set_successor_false(else_block);
+  } else {
+    condition_eval->set_successor_false(merge_block);
+  }
+
+  current_block = then_block;
+  stmt.get_then_branch()->accept(*this);
+
+  if (current_block) {
+    Operand merge_operand;
+
+    merge_operand.value = static_cast<std::uint32_t>(merge_block->get_id());
+    current_block->add_instruction(
+        IRInstruction(Opcode::JMP, {merge_operand}, std::nullopt));
+    current_block->set_successor_true(merge_block);
+    current_block->set_successor_false(std::nullopt);
+  }
+
+  if (stmt.get_else_branch()) {
+    current_block = else_block;
+    stmt.get_else_branch()->accept(*this);
+    if (current_block) {
+      Operand merge_operand;
+
+      merge_operand.value = static_cast<std::uint32_t>(merge_block->get_id());
+      current_block->add_instruction(
+          IRInstruction(Opcode::JMP, {merge_operand}, std::nullopt));
+      current_block->set_successor_true(merge_block);
+      current_block->set_successor_false(std::nullopt);
+    }
+  }
+
+  current_block = merge_block;
+}
+void IRBuilder::visit(ForStatement &stmt) {
+  auto *condition_block = arena.create<BasicBlock>(block_counter++);
+  auto *body_block = arena.create<BasicBlock>(block_counter++);
+  auto *increment_block = stmt.get_increment()
+                              ? arena.create<BasicBlock>(block_counter++)
+                              : nullptr;
+  auto *exit_loop_block = arena.create<BasicBlock>(block_counter++);
+  current_block->set_successor_true(condition_block);
+  stmt.get_init()->accept(*this);
+
+  current_block->add_instruction(IRInstruction(
+      Opcode::JMP,
+      {Operand{static_cast<std::uint32_t>(condition_block->get_id())}},
+      std::nullopt));
+
+  current_block = condition_block;
+  stmt.get_condition()->accept(*this);
+  auto condition = temp_var_stack.top();
+  temp_var_stack.pop();
+
+  condition_block->set_successor_true(body_block);
+  condition_block->set_successor_false(exit_loop_block);
+
+  current_block = body_block;
+  stmt.get_body()->accept(*this);
+  auto next_block = increment_block ? increment_block : condition_block;
+  current_block->add_instruction(IRInstruction(
+      Opcode::JMP, {Operand{static_cast<std::uint32_t>(next_block->get_id())}},
+      std::nullopt));
+  current_block->set_successor_true(next_block);
+  if (increment_block) {
+    current_block = increment_block;
+    stmt.get_increment()->accept(*this);
+
+    current_block->add_instruction(IRInstruction(
+        Opcode::JMP,
+        {Operand{static_cast<std::uint32_t>(condition_block->get_id())}},
+        std::nullopt));
+    current_block->set_successor_true(condition_block);
+  }
+  current_block = exit_loop_block;
+}
 void IRBuilder::visit(WhileStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(ErrorStatement &stmt) { ASTVisitor::visit(stmt); }
 void IRBuilder::visit(Expression &expr) { ASTVisitor::visit(expr); }

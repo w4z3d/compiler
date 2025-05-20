@@ -12,6 +12,7 @@
 #include "ir/ir_builder.hpp"
 #include "lexer/lexer.hpp"
 #include "mir/mir_generator.hpp"
+#include "opt/mir/peephole_pass.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
 #include <iostream>
@@ -88,6 +89,11 @@ int main(int argc, char *argv[]) {
     InstructionSelector selector{reg_alloc.get_result(), diagnostics};
     const auto asm_string = selector.generate_function_body(representation);
      */
+
+  // Opt passes
+  MIRPeepholePass peephole{};
+  peephole.run(program);
+  std::cout << mir::to_string(program) << std::endl;
 
   X86Generator gen{};
   const auto asm_string = gen.generate_program(program);

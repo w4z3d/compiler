@@ -1,3 +1,16 @@
 int main() {
-  return -2147483648 / -1;
+  int x = 100;
+  for(int i = 0; i < 100; i+=1) {
+    int a = 100;
+    return a;
+  }
+  int y = 100;
+  if (y > 50) {
+    for(x = 50; x < 100; y = 20) {
+      y += 20;
+    }
+  } else {
+    x = 10;
+  }
+  return x + y;
 }
