@@ -23,4 +23,4 @@ void InterferenceGraph::construct() {
     }
   }
 }
-std::unordered_map<size_t, size_t> InterferenceGraph::color() { return std::move(graph.color({})); }
+std::unordered_map<size_t, size_t> InterferenceGraph::color() { return std::move(graph.color({}, rmap.get_size())); }

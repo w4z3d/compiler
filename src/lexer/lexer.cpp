@@ -69,7 +69,6 @@ token::Token Lexer::next_token() {
 
   // remove comments
   if (c == '/') {
-    std::cout << "maybe comment" << std::endl;
     if (peek(1) == '/') {
       skip_oneline_comment();
       // there could be whitespace again after comment...

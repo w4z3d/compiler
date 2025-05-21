@@ -1,11 +1,10 @@
 #include "graph_coloring.hpp"
 
-size_t UndirectedGraph::get_max_key(std::unordered_set<size_t> &set,
-                                    std::unordered_map<size_t, size_t> &map) {
+size_t UndirectedGraph::get_max_key(BitSet &set, std::vector<size_t> &weight) {
   size_t max_v = 0;
   size_t max_k{0};
   for (const auto &item : set) {
-    const auto value = map.find(item)->second;
+    const auto value = weight[item];
     if (value >= max_v) {
       max_k = item;
       max_v = value;
@@ -15,38 +14,34 @@ size_t UndirectedGraph::get_max_key(std::unordered_set<size_t> &set,
 }
 std::vector<size_t> UndirectedGraph::maximum_cardinality_search(
     std::vector<size_t> &seo,
-    std::vector<std::pair<size_t, size_t>> &precolored_nodes) {
-  std::unordered_map<size_t, size_t> weight{};
-  std::unordered_set<size_t> V{};
-  std::unordered_set<size_t> W{};
-  for (const auto &item : adjacent_map) {
-    weight.emplace(item.first, 0);
-    V.insert(item.first);
-    W.insert(item.first);
-  }
+    const std::vector<std::pair<size_t, size_t>> &precolored_nodes,
+    size_t num_nodes) {
+  std::vector<size_t> weight(num_nodes, 0);
+  BitSet V{num_nodes, true};
+  BitSet W{num_nodes, true};
   // remove precolored nodes from selection, but still increase weight function
   // (Source: Vorlesung GRRR)
   for (const auto &v : precolored_nodes) {
-    std::unordered_set<size_t> &neighbours_v = adjacent_map[v.first];
+    BitSet &neighbours_v = adjacency_list.neighbors(v.first);
     for (const auto &item : W) {
-      if (neighbours_v.contains(item)) {
-        weight[item] = weight[item] + 1;
+      if (neighbours_v.test(item)) {
+        weight[item]++;
       }
     }
-    W.erase(v.first);
-    V.erase(v.first);
+    W.reset(v.first);
+    V.reset(v.first);
   }
   // Build SEO
-  for (int i = 0; i < V.size(); i++) {
+  for (int i = 0; i < V.count(); i++) {
     size_t v = get_max_key(W, weight);
     seo.push_back(v);
-    std::unordered_set<size_t> &neighbours_v = adjacent_map[v];
+    BitSet &neighbours_v = adjacency_list.neighbors(v);
     for (const auto &item : W) {
-      if (neighbours_v.contains(item)) {
-        weight[item] = weight[item] + 1;
+      if (neighbours_v.test(item)) {
+        weight[item]++;
       }
     }
-    W.erase(v);
+    W.reset(v);
   }
   return seo;
 }
@@ -55,7 +50,7 @@ size_t
 UndirectedGraph::get_color(size_t v,
                            std::unordered_map<size_t, size_t> &var_to_color) {
   size_t color = 0;
-  std::unordered_set<size_t> &neighbours_v = adjacent_map[v];
+  BitSet &neighbours_v = adjacency_list.neighbors(v);
   std::unordered_set<size_t> neighbour_colors{};
   for (const auto &item : neighbours_v) {
     if (var_to_color.contains(item)) {
@@ -77,16 +72,19 @@ void UndirectedGraph::greedy_coloring(
 }
 
 std::unordered_map<size_t, size_t> UndirectedGraph::color(
-    std::vector<std::pair<size_t, size_t>> precolored_nodes) {
+    const std::vector<std::pair<size_t, size_t>> precolored_nodes,
+    size_t num_nodes) {
   std::vector<size_t> soe{};
   std::unordered_map<size_t, size_t> var_to_color{};
 
   // calculate SEO
-  maximum_cardinality_search(soe, precolored_nodes);
+  maximum_cardinality_search(soe, precolored_nodes, num_nodes);
+
   // set pre colors
   for (const auto &item : precolored_nodes) {
     var_to_color[item.first] = item.second;
   }
+
   greedy_coloring(soe, var_to_color);
   return var_to_color;
 }
