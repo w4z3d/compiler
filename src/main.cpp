@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
   const auto asm_string = gen.generate_program(program);
 
   std::cout << "Generated Assembly:" << std::endl;
-  std::cout << asm_string << std::endl;
+  //std::cout << asm_string << std::endl;
   std::cout << "Writing file" << std::endl;
   io::write_file("🤣.s", asm_string);
   system(std::format("gcc 🤣.s -o {}", argv[2]).c_str());

@@ -1,6 +1,7 @@
 #include "peephole_pass.hpp"
 #include <iostream>
 #include <iterator>
+#include <chrono>
 
 bool MIRPeepholePass::optimize_redundant_mov_rr(
     mir::MachineBasicBlock *block,
@@ -108,12 +109,13 @@ bool optimize_stack_operations(
 void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
   bool made_change_this_pass;
   int pass_count = 0;
+  auto t1 = std::chrono::high_resolution_clock::now();
   do {
     pass_count++;
     made_change_this_pass = false;
-    std::cout << "Peephole: Starting/Re-starting pass over block "
+    /*std::cout << "Peephole: Starting/Re-starting pass over block "
               << block->get_id() << " this is the " << pass_count << ". pass"
-              << std::endl;
+              << std::endl;*/
     auto inst_iter = block->instructions.begin();
     while (inst_iter != block->instructions.end()) {
       if (optimize_redundant_mov_rr(block, inst_iter)) {
@@ -131,4 +133,7 @@ void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
     }
   restart_block_scan:;
   } while (made_change_this_pass);
+  auto t2 = std::chrono::high_resolution_clock::now();
+  auto td = duration_cast<std::chrono::milliseconds>(t2 - t1);
+  std::cout << "Peephole took " << td/1000. << "s" << std::endl;
 }
