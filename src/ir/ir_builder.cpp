@@ -60,7 +60,7 @@ void IRBuilder::visit(AssignmentStatement &stmt) {
 
         auto old_var = var_it->second;
         current_block->add_instruction(
-            IRInstruction{op, {Operand{from}, Operand{old_var}}, new_var});
+            IRInstruction{op, {Operand{old_var}, Operand{from}}, new_var});
         symbol_to_var.insert_or_assign(var_l_val->get_symbol()->get_id(),
                                        new_var);
       }

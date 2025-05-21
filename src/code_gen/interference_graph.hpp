@@ -13,7 +13,7 @@ template <class... Ts> struct overload : Ts... {
 
 class InterferenceGraph {
 private:
-  UndirectedGraph graph{};
+  UndirectedGraph graph;
   std::unordered_map<size_t, std::list<std::unordered_set<size_t>>>
       &block_to_live;
   MIRRegisterMap &rmap;
@@ -23,17 +23,21 @@ public:
   explicit InterferenceGraph(
       std::unordered_map<size_t, std::list<std::unordered_set<size_t>>> &live,
       MIRRegisterMap &rmap, mir::MachineFunction &function)
-      : block_to_live(live), rmap(rmap), function(function) {}
+      : block_to_live(live), rmap(rmap), function(function),
+        graph(UndirectedGraph{rmap.get_size() + 16}) {}// TODO: not hardcoded
   void construct();
   std::unordered_map<size_t, size_t> color();
 
   std::string to_string() {
     std::ostringstream oss;
-    for (const auto &[key, neighbors] : graph.get_adjacent_list()) {
+    for (const auto &[key, neighbors] : graph.get_adjacent_list().smart()) {
       if (rmap.physical_from_live(key).has_value()) {
         oss << rmap.physical_from_live(key).value() << " -> {";
-      } else {
+      } else if (rmap.virtual_from_live(key).has_value()) {
         oss << rmap.virtual_from_live(key).value() << " -> {";
+      } else {
+        oss << "no var mapped with id " << key << std::endl;
+        continue;
       }
 
       bool first = true;
@@ -42,8 +46,10 @@ public:
           oss << ", ";
         if (rmap.physical_from_live(neighbor).has_value()) {
           oss << rmap.physical_from_live(neighbor).value();
-        } else {
+        } else if (rmap.virtual_from_live(neighbor).has_value()) {
           oss << rmap.virtual_from_live(neighbor).value();
+        } else {
+          oss << "invalid=(" << neighbor << ")";
         }
         first = false;
       }
@@ -66,7 +72,7 @@ public:
           return std::hash<Var>()(p.first) ^ (std::hash<Var>()(p.second) << 1);
         });
 
-    for (const auto &[from, neighbors] : graph.get_adjacent_list()) {
+    for (const auto &[from, neighbors] : graph.get_adjacent_list().smart()) {
       if (rmap.physical_from_live(from).has_value()) {
         oss << "  \"" << rmap.physical_from_live(from).value() << "\";\n";
       } else {

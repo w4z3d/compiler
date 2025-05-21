@@ -9,7 +9,7 @@
 
 struct MIRRegisterMap {
 private:
-  inline static size_t id_counter = 0;
+  size_t id_counter = 0;
   std::unordered_map<std::string, size_t> physical_to_live_id{};
   std::unordered_map<size_t, std::string> live_id_to_physical{};
   std::unordered_map<size_t, size_t> virtual_to_live_id{};
@@ -28,18 +28,18 @@ public:
     if (physical_to_live_id.contains(s)) {
       return physical_to_live_id[s];
     } else {
-      physical_to_live_id[s] = ++id_counter;
+      physical_to_live_id[s] = id_counter;
       live_id_to_physical[id_counter] = s;
-      return id_counter;
+      return id_counter++;
     }
   }
   size_t from_virtual(size_t s) {
     if (virtual_to_live_id.contains(s)) {
       return virtual_to_live_id[s];
     } else {
-      virtual_to_live_id[s] = ++id_counter;
+      virtual_to_live_id[s] = id_counter;
       live_id_to_virtual[id_counter] = s;
-      return id_counter;
+      return id_counter++;
     }
   }
   std::optional<size_t> virtual_from_live(size_t id) {
@@ -55,6 +55,9 @@ public:
     } else {
       return std::nullopt;
     }
+  }
+  size_t get_size() {
+    return id_counter;
   }
 };
 

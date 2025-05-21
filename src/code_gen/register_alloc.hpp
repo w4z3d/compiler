@@ -20,7 +20,9 @@ public:
                               const Target &target)
       : liveness(liveness), rmap(rmap), function(function),
         ig(InterferenceGraph{liveness.get_liveness(), rmap, function}),
-        target(target), arena(arena::Arena{}) {}
+        target(target), arena(arena::Arena{}) {
+    std::cout << rmap.get_size() << std::endl;
+  }
 
   // graph coloring, color to register/stack slot, also change Regs directly in
   // mir::MachineFunction?
@@ -32,6 +34,7 @@ public:
     std::unordered_map<size_t, mir::StackSlot> color_to_stack_slot{};
     std::cout << "constructing ig" << std::endl;
     ig.construct();
+    std::cout << ig.to_string() << std::endl;
     std::cout << "done" << std::endl;
     std::cout << "coloring" << std::endl;
     std::unordered_map<size_t, size_t> color_map = std::move(ig.color());
