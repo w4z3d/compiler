@@ -30,7 +30,7 @@ public:
     adjacency_list.add_edge(a, b);
   }
   void add_clique(std::unordered_set<size_t> &clique) {
-    adjacency_list.add_clique_optimized(clique);
+    adjacency_list.add_clique(clique);
   }
   [[nodiscard]] const AdjacencyList &get_adjacent_list() const {
     return adjacency_list;

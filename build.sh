@@ -1,13 +1,27 @@
 #!/bin/bash
 
+BUILD_DIR="build"
+
+echo "Cleaning..."
+
+# Neu erstellen
+mkdir "$BUILD_DIR" || {
+  echo "Failed to create build dir" >&2
+}
+
+cd "$BUILD_DIR" || {
+  echo "Failed to enter build dir" >&2
+  exit 1
+}
+
 echo "Starting cmake"
-cmake -S . -B build -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ || {
+cmake .. -G "CodeBlocks - Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang || {
   echo "Failed to generate build files" >&2
   exit 1
 }
 
 echo "Building..."
-cmake --build build -- -j12 || {
+cmake --build . -- -j9 || {
   echo "Failed to build with cmake" >&2
   exit 1
 }
