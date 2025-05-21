@@ -94,6 +94,7 @@ public:
     return entry_block;
   } //
 
+  [[nodiscard]] BasicBlock *get_entry_block_mut() const { return entry_block; }
   [[nodiscard]] std::string to_dot_graph() const {
     std::stringstream dot_graph;
     dot_graph << "digraph CFG {\n";
