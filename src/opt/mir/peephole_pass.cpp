@@ -67,11 +67,6 @@ bool optimize_stack_operations(
     if (next_inst->get_opcode() ==
         mir::MachineInstruction::MachineOpcode::STORE_MEM_REG) {
 
-      std::cout << "Optimization candidate found: MOV_RI then STORE_MEM_REG"
-                << std::endl;
-      std::cout << "Current: " << mir::to_string(*current_inst) << std::endl;
-      std::cout << "Next: " << mir::to_string(*next_inst) << std::endl;
-
       const auto &mov_ri_out_reg = current_inst->get_outs().front().get_op();
       const auto &store_mem_reg_in_reg = next_inst->get_ins().front().get_op();
 
@@ -102,9 +97,7 @@ bool optimize_stack_operations(
           std::holds_alternative<mir::StackSlot>(load_source_slot)) {
         if (std::get<mir::StackSlot>(store_target_slot).offset ==
             std::get<mir::StackSlot>(load_source_slot).offset) {
-          inst_iter = block->get_instructions().erase(inst_iter);
-          inst_iter = block->get_instructions().erase(next_iter);
-          return true;
+          return false;
         }
       }
     }
@@ -114,10 +107,13 @@ bool optimize_stack_operations(
 }
 void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
   bool made_change_this_pass;
+  int pass_count = 0;
   do {
+    pass_count++;
     made_change_this_pass = false;
     std::cout << "Peephole: Starting/Re-starting pass over block "
-              << block->get_id() << std::endl;
+              << block->get_id() << " this is the " << pass_count << ". pass"
+              << std::endl;
     auto inst_iter = block->instructions.begin();
     while (inst_iter != block->instructions.end()) {
       if (optimize_redundant_mov_rr(block, inst_iter)) {
