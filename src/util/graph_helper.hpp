@@ -11,13 +11,9 @@
 #if defined(_MSC_VER)
 #include <intrin.h>
 #pragma intrinsic(__popcnt64)
-inline int popcount64(uint64_t x) {
-  return __popcnt64(x);
-}
+inline int popcount64(uint64_t x) { return __popcnt64(x); }
 #else
-inline int popcount64(uint64_t x) {
-  return __builtin_popcountll(x);
-}
+inline int popcount64(uint64_t x) { return __builtin_popcountll(x); }
 #endif
 
 template <typename Container> class IndexedView {
@@ -117,8 +113,8 @@ public:
   BitSet(size_t size, bool ones) : num_bits(size) {
     size_t num_words = (size + BITS_PER_WORD - 1) / BITS_PER_WORD;
     bits.resize(num_words, ones ? 0xFFFFFFFFFFFFFFFF : 0);
-    if (num_bits%64 > 0) {
-      bits[num_words-1] >>= 64 - (num_bits % 64);
+    if (num_bits % 64 > 0) {
+      bits[num_words - 1] >>= 64 - (num_bits % 64);
     }
   }
 
@@ -219,6 +215,34 @@ public:
     for (int i = 0; i < s; i++) {
       for (int j = i + 1; j < s; j++) {
         add_edge(c[i], c[j]);
+      }
+    }
+  }
+
+  void add_clique_optimized(const std::unordered_set<size_t> &clique_members) {
+    if (clique_members.size() < 2) {
+      return;
+    }
+
+    // Erzeuge ein BitSet, das alle Mitglieder der aktuellen Clique
+    // repräsentiert. 'n' ist die Gesamtanzahl der Knoten im Graphen (z.B.
+    // this->get_size()).
+    BitSet current_clique_bs(n);
+    for (size_t member_u : clique_members) {
+      if (member_u < n) { // Boundary check
+        current_clique_bs.set(member_u);
+      }
+    }
+
+    // Für jedes Mitglied der Clique, füge Kanten zu allen anderen Mitgliedern
+    // hinzu.
+    for (size_t member_u : clique_members) {
+      if (member_u < n) { // Boundary check
+        BitSet others_in_clique =
+            current_clique_bs; // Erstelle eine Kopie für die Modifikation
+        others_in_clique.reset(member_u); // Entferne member_u selbst
+        adjacency[member_u] |=
+            others_in_clique; // Vereinige mit existierenden Nachbarn
       }
     }
   }
