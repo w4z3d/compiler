@@ -66,12 +66,12 @@ int main(int argc, char *argv[]) {
   mir::MIRProgram program{};
   MIRGenerator mir_generator{representation, program};
   mir_generator.generate();
-  //std::cout << mir::to_string(program) << std::endl;
+  // std::cout << mir::to_string(program) << std::endl;
 
   MIRRegisterMap m{};
   Liveness liveness{program, m};
   liveness.analyse();
-  std::cout << liveness.to_string_block_to_live() << std::endl;
+  //std::cout << liveness.to_string_block_to_live() << std::endl;
 
   RegisterAllocation reg_alloc{liveness, m,
                                program.get_functions().begin()->second, target};
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
   // Opt passes
   MIROptPhase mir_opt_phase{{new MIRPeepholePass{}}};
   mir_opt_phase.perform_passes(program);
-  std::cout << mir::to_string(program) << std::endl;
+  //std::cout << mir::to_string(program) << std::endl;
 
   X86Generator gen{};
   const auto asm_string = gen.generate_program(program);

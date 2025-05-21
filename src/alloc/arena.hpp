@@ -7,6 +7,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include <iostream>
 
 namespace arena {
 class Arena {
@@ -86,6 +87,7 @@ public:
   }
 
   void clear() noexcept {
+    std::cout << "Freeing arena of " << used() << " bytes" << std::endl;
     blocks_.clear();
     blocks_.emplace_back(block_size_);
   }
@@ -106,7 +108,9 @@ public:
     return total;
   }
 
-  ~Arena() = default;
+  ~Arena() {
+      clear();
+  };
 
   Arena(const Arena &) = delete;
   Arena &operator=(const Arena &) = delete;

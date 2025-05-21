@@ -42,11 +42,6 @@ void Liveness::analyse_func(const mir::MachineFunction &machine_function) {
   // TODO: maybe clear some stuff here? Relevant for multiple functions.
   std::unordered_set<size_t> visited{};
   dfs_basic_block(machine_function.get_entry_block(), visited);
-  std::cout << "bb order: ";
-  for (const auto &item : basic_block_order) {
-    std::cout << item->get_id() << " ";
-  }
-  std::cout << std::endl;
   // TODO: changed flag, to check when to stop. For now one pass is enough.
   // TODO: while(not changed) do:
   std::list<std::unordered_set<size_t>> lives_per_line{};
