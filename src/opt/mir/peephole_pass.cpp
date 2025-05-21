@@ -1,4 +1,5 @@
 #include "peephole_pass.hpp"
+#include <iostream>
 
 void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
   auto inst_iter = block->instructions.begin();
