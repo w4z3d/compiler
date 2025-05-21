@@ -15,13 +15,13 @@ cd "$BUILD_DIR" || {
 }
 
 echo "Starting cmake"
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang || {
+cmake .. -G "CodeBlocks - Unix Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DCMAKE_C_COMPILER=/usr/bin/clang || {
   echo "Failed to generate build files" >&2
   exit 1
 }
 
 echo "Building..."
-cmake --build . --parallel 14 || {
+cmake --build . -- -j9 || {
   echo "Failed to build with cmake" >&2
   exit 1
 }
