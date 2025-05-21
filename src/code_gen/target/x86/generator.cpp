@@ -8,8 +8,8 @@ std::string X86Generator::add_assembly_prolouge() {
   out << ".text" << std::endl;
   out << "main:" << std::endl;
   out << "call _main" << std::endl;
-  out << "movq rdi, rax" << std::endl;
-  out << "movq rax, 0x3C" << std::endl;
+  out << "mov rdi, rax" << std::endl;
+  out << "mov rax, 0x3C" << std::endl;
   out << "syscall" << std::endl;
   out << "_main:" << std::endl;
   return out.str();
@@ -32,11 +32,15 @@ std::string X86Generator::translate_basic_block(mir::MachineBasicBlock *block) {
 }
 std::string X86Generator::translate_function(mir::MachineFunction function) {
   std::ostringstream out{};
+  auto frame_size = function.get_frame_size() * 4;
   out << "push rbp" << std::endl;
   out << "mov rbp, rsp" << std::endl;
-  out << std::format("sub\trsp, {}\t # Mach halt stack größer keine Ahnung man",
-                     function.get_frame_size() + 4)
-      << std::endl;
+  if (frame_size)
+    out << std::format(
+               "sub\trsp, {}\t # Mach halt stack größer keine Ahnung man",
+               frame_size)
+        << std::endl;
+
   out << translate_basic_block(function.get_entry_block());
   return out.str();
 }
