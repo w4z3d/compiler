@@ -12,6 +12,7 @@
 #include "ir/ir_builder.hpp"
 #include "lexer/lexer.hpp"
 #include "mir/mir_generator.hpp"
+#include "opt/mir/mir_optimization_pass.hpp"
 #include "opt/mir/peephole_pass.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
@@ -91,8 +92,8 @@ int main(int argc, char *argv[]) {
      */
 
   // Opt passes
-  MIRPeepholePass peephole{};
-  peephole.run(program);
+  MIROptPhase mir_opt_phase{{new MIRPeepholePass{}}};
+  mir_opt_phase.perform_passes(program);
   std::cout << mir::to_string(program) << std::endl;
 
   X86Generator gen{};
