@@ -5,9 +5,9 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <vector>
-#include <iostream>
 
 namespace arena {
 class Arena {
@@ -31,7 +31,7 @@ private:
   }
 
 public:
-  explicit Arena(std::size_t block_size = 4096, size_t alignment = 8)
+  explicit Arena(std::size_t block_size = 16384, size_t alignment = 8)
       : block_size_(block_size), alignment_(alignment) {
     blocks_.emplace_back(block_size_);
   }
@@ -108,9 +108,7 @@ public:
     return total;
   }
 
-  ~Arena() {
-      clear();
-  };
+  ~Arena() { clear(); };
 
   Arena(const Arena &) = delete;
   Arena &operator=(const Arena &) = delete;
