@@ -1,17 +1,24 @@
 #ifndef COMPILER_BITSET_H
 #define COMPILER_BITSET_H
 
-#ifdef _MSC_VER
-#  include <intrin.h>
-#  define __builtin_popcount __popcnt
-#endif
-
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#if defined(_MSC_VER)
+#include <intrin.h>
+#pragma intrinsic(__popcnt64)
+inline int popcount64(uint64_t x) {
+  return __popcnt64(x);
+}
+#else
+inline int popcount64(uint64_t x) {
+  return __builtin_popcountll(x);
+}
+#endif
 
 template <typename Container> class IndexedView {
 public:
@@ -144,7 +151,7 @@ public:
   [[nodiscard]] size_t count() const {
     size_t total = 0;
     for (uint64_t word : bits) {
-      total += __builtin_popcountll(word);
+      total += popcount64(word);
     }
     return total;
   }
