@@ -5,14 +5,14 @@
 #include <cstdint>
 #include <format>
 #include <list>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <variant>
 #include <vector>
-#include <unordered_map>
-#include <unordered_set>
-#include <optional>
 
 namespace mir {
 
@@ -47,9 +47,7 @@ public:
   Register(std::string name, int bit_size)
       : name(std::move(name)), bit_size(bit_size) {}
   [[nodiscard]] std::string get_name() const { return name; }
-  bool operator==(Register other) const {
-    return name == other.name;
-  }
+  bool operator==(Register other) const { return name == other.name; }
 };
 
 class VirtualRegister : public Register {
@@ -71,7 +69,7 @@ public:
 struct MachineOperand {
 private:
   std::variant<VirtualRegister, PhysicalRegister, StackSlot, Immediate,
-                     MemoryAccess>
+               MemoryAccess>
       operand;
 
 public:
@@ -86,13 +84,9 @@ public:
     return operand;
   }
 
-  void replace_with_physical(PhysicalRegister r) {
-    operand = r;
-  }
+  void replace_with_physical(PhysicalRegister r) { operand = r; }
 
-  void replace_with_stack_slot(StackSlot s) {
-    operand = s;
-  }
+  void replace_with_stack_slot(StackSlot s) { operand = s; }
 
   MachineOperand(const MachineOperand &ref) = default;
   explicit MachineOperand(
@@ -108,6 +102,7 @@ public:
     MOV_RI,
     STORE_MEM_REG,
     LOAD_REG_MEM,
+    STORE_MEM_IMM,
 
     ADD_RR, // inout:dest += in:src
     ADD_RI, // inout:dest += in:imm
@@ -146,27 +141,21 @@ public:
         implicit_uses(std::move(implicit_use)),
         implicit_defs(std::move(implicit_def)) {}
 
-  void set_opcode(MachineOpcode opcode) {
-    this->opcode = opcode;
-  }
+  void set_opcode(MachineOpcode opcode) { this->opcode = opcode; }
 
   void add_in(const MachineOperand &op) { ins.push_back(op); }
   [[nodiscard]] const std::vector<MachineOperand> &get_ins() const {
     return ins;
   }
 
-  std::vector<MachineOperand> &get_ins_mut() {
-    return ins;
-  }
+  std::vector<MachineOperand> &get_ins_mut() { return ins; }
 
   void add_out(const MachineOperand &op) { outs.push_back(op); }
   [[nodiscard]] const std::vector<MachineOperand> &get_outs() const {
     return outs;
   }
 
-  std::vector<MachineOperand> &get_outs_mut() {
-    return outs;
-  }
+  std::vector<MachineOperand> &get_outs_mut() { return outs; }
 
   void add_implicit_def(const MachineOperand &op) {
     implicit_defs.push_back(op);
@@ -229,12 +218,8 @@ public:
   [[nodiscard]] std::size_t get_id() const { return id; }
   bool operator==(const MachineFunction &other) const { return id == other.id; }
 
-  [[nodiscard]] size_t get_frame_size() const {
-    return frame_size;
-  }
-  void set_frame_size(size_t size) {
-    frame_size = size;
-  }
+  [[nodiscard]] size_t get_frame_size() const { return frame_size; }
+  void set_frame_size(size_t size) { frame_size = size; }
 };
 
 } // namespace mir
@@ -245,7 +230,7 @@ template <> struct hash<mir::MachineFunction> {
     return std::hash<size_t>()(p.get_id());
   }
 };
-}
+} // namespace std
 
 namespace mir {
 
@@ -254,7 +239,9 @@ private:
   std::unordered_map<size_t, MachineFunction> functions{};
 
 public:
-  void add_function(MachineFunction func) { functions.emplace(func.get_id(), func); }
+  void add_function(MachineFunction func) {
+    functions.emplace(func.get_id(), func);
+  }
   [[nodiscard]] std::unordered_map<size_t, MachineFunction> &get_functions() {
     return functions;
   }
@@ -263,8 +250,7 @@ public:
 inline std::string to_string(const Register &reg) { return reg.get_name(); }
 
 inline std::string to_string(const StackSlot &slot) {
-  return std::format("stack[{}]",
-                     slot.offset);
+  return std::format("stack[{}]", slot.offset);
 }
 
 inline std::string to_string(const Immediate &imm) {
@@ -307,13 +293,15 @@ inline std::string to_string(MachineInstruction::MachineOpcode opcode) {
   case mir::MachineInstruction::MachineOpcode::RET:
     return "RET";
   case MachineInstruction::MachineOpcode::SUB_RR:
-    return "SUB";
+    return "SUB_RR";
   case MachineInstruction::MachineOpcode::SUB_RI:
-    return "SUB";
+    return "SUB_RI";
   case MachineInstruction::MachineOpcode::MOD_RR:
-    return "MOD";
+    return "MOD_RR";
   case MachineInstruction::MachineOpcode::MOD_RI:
-    return "MOD";
+    return "MOD_RI";
+  case MachineInstruction::MachineOpcode::STORE_MEM_IMM:
+    return "STORE_MEM_IMM";
   }
   return "UNKNOWN";
 }

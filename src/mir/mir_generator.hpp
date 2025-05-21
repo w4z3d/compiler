@@ -12,6 +12,11 @@ private:
 
   mir::MachineFunction generate_function(const CFG &cfg);
   mir::MachineBasicBlock *generate_bb(const BasicBlock *bb);
+  void generate_add_instruction(mir::MachineBasicBlock *new_block);
+
+  mir::MachineInstruction *create_mov_rr(const mir::MachineOperand &from,
+                                         const mir::MachineOperand &to);
+
   template <class... Ts> struct overload : Ts... {
     using Ts::operator()...;
   };
@@ -21,10 +26,12 @@ private:
   static inline bool is_register(const mir::MachineOperand &op) {
     return std::holds_alternative<mir::VirtualRegister>(op.get_op());
   }
+
 public:
   explicit MIRGenerator(IntermediateRepresentation &representation,
                         mir::MIRProgram &program)
-      : representation(representation), mir_program(program), arena(arena::Arena{}) {}
+      : representation(representation), mir_program(program),
+        arena(arena::Arena{}) {}
   void generate();
 };
 
