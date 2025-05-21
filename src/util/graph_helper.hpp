@@ -1,6 +1,11 @@
 #ifndef COMPILER_BITSET_H
 #define COMPILER_BITSET_H
 
+#ifdef _MSC_VER
+#  include <intrin.h>
+#  define __builtin_popcount __popcnt
+#endif
+
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
