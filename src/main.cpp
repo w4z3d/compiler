@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
   const auto unit{parser->parse_translation_unit()};
 
   ClangStylePrintVisitor visitor{};
-  unit->accept(visitor);
-  std::cout << visitor.get_content() << std::endl;
+  // unit->accept(visitor);
+  // std::cout << visitor.get_content() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   IRBuilder builder{representation, diagnostics, source_manager};
   unit->accept(builder);
 
-  std::cout << representation.to_string() << std::endl;
+  // std::cout << representation.to_string() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
@@ -66,17 +66,17 @@ int main(int argc, char *argv[]) {
   mir::MIRProgram program{};
   MIRGenerator mir_generator{representation, program};
   mir_generator.generate();
-  std::cout << mir::to_string(program) << std::endl;
+  // std::cout << mir::to_string(program) << std::endl;
 
   MIRRegisterMap m{};
   Liveness liveness{program, m};
   liveness.analyse();
-  std::cout << liveness.to_string_block_to_live() << std::endl;
+  // std::cout << liveness.to_string_block_to_live() << std::endl;
 
   RegisterAllocation reg_alloc{liveness, m,
                                program.get_functions().begin()->second, target};
   reg_alloc.allocate();
-  std::cout << mir::to_string(program) << std::endl;
+  // std::cout << mir::to_string(program) << std::endl;
 
   /*
     InterferenceGraph i_graph{liveness.get_42()};
