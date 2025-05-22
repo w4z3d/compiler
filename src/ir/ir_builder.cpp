@@ -167,9 +167,12 @@ void IRBuilder::visit(Expression &expr) { ASTVisitor::visit(expr); }
 void IRBuilder::visit(NumericExpr &expr) {
   const auto temp = gen_temp();
   temp_var_stack.push(temp);
-  const auto num = expr.try_parse<std::uint32_t>();
+   auto num = expr.try_parse<std::uint32_t>().value();
+  if(expr.get_base() == NumericExpr::Base::Hexadecimal && num > 0x7FFFFFFF) {
+     num = ~num + 1;
+  }
   current_block->add_instruction(
-      IRInstruction{Opcode::STORE, {Operand{num.value()}}, temp});
+      IRInstruction{Opcode::STORE, {Operand{num}}, temp});
 }
 void IRBuilder::visit(CallExpr &expr) { ASTVisitor::visit(expr); }
 void IRBuilder::visit(StringLiteralExpr &expr) { ASTVisitor::visit(expr); }
