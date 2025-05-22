@@ -9,10 +9,10 @@ void InterferenceGraph::construct() {
                              function.get_entry_block()->get_instructions());
   for (auto it = zip.begin(); it != zip.end(); ++it) {
     // auto s1 = std::chrono::high_resolution_clock::now();
-    auto liveness = (*it).first;
+    auto liveness = std::get<0>(*it);
     graph.add_clique(liveness);
     // auto s2 = std::chrono::high_resolution_clock::now();
-    for (const auto &operand : (*it).second->get_implicit_defs()) {
+    for (const auto &operand : std::get<1>(*it)->get_implicit_defs()) {
       std::visit(overload{[this, &liveness](const mir::PhysicalRegister &r) {
                             size_t reg_id = rmap.from_physical(r.get_name());
                             for (const auto &item : liveness) {
@@ -31,7 +31,7 @@ void InterferenceGraph::construct() {
     if (it == zip.begin())
       continue;
     it--;
-    for (const auto &operand : (*it).second->get_outs()) {
+    for (const auto &operand : std::get<1>(*it)->get_outs()) {
       std::visit(overload{[this, &liveness](const mir::PhysicalRegister &r) {
                             size_t reg_id = rmap.from_physical(r.get_name());
                             for (const auto &item : liveness) {
