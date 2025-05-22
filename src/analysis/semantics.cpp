@@ -295,7 +295,7 @@ void semantic::SemanticVisitor::visit(DereferenceLValue &val) {
 }
 
 void semantic::SemanticVisitor::visit(NumericExpr &expr) {
-  const auto value = expr.try_parse<std::uint32_t>();
+  const auto value = expr.try_parse<int>();
   if (!value) {
     diagnostics->emit_error(
         expr.get_location(),
