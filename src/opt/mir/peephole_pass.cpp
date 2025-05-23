@@ -1,13 +1,13 @@
 #include "peephole_pass.hpp"
+#include <chrono>
 #include <iostream>
 #include <iterator>
-#include <chrono>
 
 bool MIRPeepholePass::optimize_redundant_mov_rr(
-    mir::MachineBasicBlock *block,
+    mir::MachineFunction &block,
     std::list<mir::MachineInstruction *>::iterator &inst_iter) {
 
-  if (inst_iter == block->get_instructions().end()) {
+  if (inst_iter == block.get_instructions().end()) {
     return false;
   }
   mir::MachineInstruction *current_instruction = *inst_iter;
@@ -26,7 +26,7 @@ bool MIRPeepholePass::optimize_redundant_mov_rr(
 
       if (from.get_name() == to.get_name()) {
 
-        inst_iter = block->instructions.erase(inst_iter);
+        inst_iter = block.get_instructions_mut().erase(inst_iter);
         return true;
       }
     } else {
@@ -44,16 +44,16 @@ bool MIRPeepholePass::optimize_redundant_mov_rr(
 }
 
 bool optimize_stack_operations(
-    mir::MachineBasicBlock *block,
+    mir::MachineFunction &block,
     std::list<mir::MachineInstruction *>::iterator &inst_iter) {
-  if (inst_iter == block->get_instructions().end()) {
+  if (inst_iter == block.get_instructions().end()) {
     return false;
   }
 
   auto *current_inst = *inst_iter;
 
   auto next_iter = std::next(inst_iter, 1);
-  if (next_iter == block->get_instructions().end()) {
+  if (next_iter == block.get_instructions().end()) {
     return false;
   }
   auto *next_inst = *next_iter;
@@ -81,7 +81,7 @@ bool optimize_stack_operations(
           next_inst->get_ins_mut().clear();
           next_inst->get_ins_mut().push_back(current_inst->get_ins().front());
 
-          inst_iter = block->get_instructions().erase(inst_iter);
+          inst_iter = block.get_instructions_mut().erase(inst_iter);
           return true;
         } else {
           // Registers don't match
@@ -106,7 +106,7 @@ bool optimize_stack_operations(
 
   return false;
 }
-void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
+void MIRPeepholePass::transform_function(mir::MachineFunction &function) {
   bool made_change_this_pass;
   int pass_count = 0;
   auto t1 = std::chrono::high_resolution_clock::now();
@@ -116,18 +116,18 @@ void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
     /*std::cout << "Peephole: Starting/Re-starting pass over block "
               << block->get_id() << " this is the " << pass_count << ". pass"
               << std::endl;*/
-    auto inst_iter = block->instructions.begin();
-    while (inst_iter != block->instructions.end()) {
-      if (optimize_redundant_mov_rr(block, inst_iter)) {
+    auto inst_iter = function.get_instructions_mut().begin();
+    while (inst_iter != function.get_instructions_mut().end()) {
+      if (optimize_redundant_mov_rr(function, inst_iter)) {
         made_change_this_pass = true;
         goto restart_block_scan;
       }
-      if (optimize_stack_operations(block, inst_iter)) {
+      if (optimize_stack_operations(function, inst_iter)) {
         made_change_this_pass = true;
         goto restart_block_scan;
       }
 
-      if (inst_iter != block->instructions.end()) {
+      if (inst_iter != function.get_instructions_mut().end()) {
         ++inst_iter;
       }
     }
@@ -135,5 +135,5 @@ void MIRPeepholePass::transform_block(mir::MachineBasicBlock *block) {
   } while (made_change_this_pass);
   auto t2 = std::chrono::high_resolution_clock::now();
   auto td = duration_cast<std::chrono::milliseconds>(t2 - t1);
-  std::cout << "Peephole took " << td/1000. << "s" << std::endl;
+  std::cout << "Peephole took " << td / 1000. << "s" << std::endl;
 }

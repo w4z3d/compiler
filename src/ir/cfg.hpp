@@ -21,6 +21,11 @@ public:
   [[nodiscard]] const std::vector<IRInstruction> &get_instructions() const {
     return instructions;
   }
+
+  bool operator==(BasicBlock &other) const {
+    return this->block_id == other.block_id;
+  }
+
   void add_instruction(const IRInstruction &instruction) {
     instructions.push_back(instruction);
   }

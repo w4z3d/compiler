@@ -9,8 +9,6 @@
 
 namespace semantic {
 
-#define L1
-
 class SemanticVisitor : public ASTVisitor {
 private:
   SymbolTable symbol_table{};

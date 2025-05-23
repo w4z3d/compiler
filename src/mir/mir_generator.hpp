@@ -3,6 +3,7 @@
 
 #include "../ir/cfg.hpp"
 #include "mir.hpp"
+#include <vector>
 struct MIRGenerator {
 private:
   IntermediateRepresentation &representation;
@@ -10,13 +11,26 @@ private:
   arena::Arena arena;
   std::unordered_map<std::size_t, std::size_t> temp_to_reg{};
 
+  void perform_dfs_basic_block(BasicBlock *current_block,
+                               std::set<BasicBlock *> &visited,
+                               std::list<BasicBlock *> &linearized_order);
   mir::MachineFunction generate_function(const CFG &cfg);
-  mir::MachineBasicBlock *generate_bb(const BasicBlock *bb);
-  void generate_add_instruction(mir::MachineBasicBlock *new_block);
+  void generate_bb(mir::MachineFunction &function, const BasicBlock *bb);
+  void generate_add_instruction(mir::MachineFunction &new_block);
 
   mir::MachineInstruction *create_mov_rr(const mir::MachineOperand &from,
                                          const mir::MachineOperand &to);
 
+  mir::MachineInstruction *create_label(std::size_t block_id);
+
+  mir::MachineInstruction *create_add_rr(const mir::MachineOperand &rhs,
+                                         const mir::MachineOperand &target_reg);
+  mir::MachineInstruction *create_add_ri(const mir::MachineOperand &from,
+                                         const mir::MachineOperand &to);
+  mir::MachineInstruction *create_div_rr(const mir::MachineOperand &from,
+                                         const mir::MachineOperand &to);
+  mir::MachineInstruction *create_sub_rr(const mir::MachineOperand &from,
+                                         const mir::MachineOperand &to);
   template <class... Ts> struct overload : Ts... {
     using Ts::operator()...;
   };

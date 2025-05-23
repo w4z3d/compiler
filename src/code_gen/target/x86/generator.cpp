@@ -18,15 +18,8 @@ std::string X86Generator::add_assembly_prolouge() {
 std::string X86Generator::generate_program(mir::MIRProgram program) {
   std::ostringstream out{};
   out << add_assembly_prolouge();
-  for (const auto function : program.get_functions()) {
+  for (const auto &function : program.get_functions()) {
     out << translate_function(function.second);
-  }
-  return out.str();
-}
-std::string X86Generator::translate_basic_block(mir::MachineBasicBlock *block) {
-  std::ostringstream out{};
-  for (const auto &item : block->get_instructions()) {
-    out << translate_instruction(item);
   }
   return out.str();
 }
@@ -40,8 +33,9 @@ std::string X86Generator::translate_function(mir::MachineFunction function) {
                "sub\trsp, {}\t # Mach halt stack größer keine Ahnung man",
                frame_size)
         << std::endl;
-
-  out << translate_basic_block(function.get_entry_block());
+  for (const auto &item : function.get_instructions()) {
+    out << translate_instruction(item);
+  }
   return out.str();
 }
 
@@ -102,6 +96,18 @@ X86Generator::translate_instruction(mir::MachineInstruction *instruction) {
     break;
   case mir::MachineInstruction::MachineOpcode::RET:
     out << translate_ret_instruction(instruction) << std::endl;
+    break;
+  case mir::MachineInstruction::MachineOpcode::JMP:
+    out << translate_jmp_instruction(instruction) << std::endl;
+    break;
+  case mir::MachineInstruction::MachineOpcode::CMP:
+    out << translate_cmp_instruction(instruction) << std::endl;
+    break;
+  case mir::MachineInstruction::MachineOpcode::JL:
+    out << translate_jl_instruction(instruction) << std::endl;
+    break;
+  case mir::MachineInstruction::MachineOpcode::DEF_LABEL:
+    out << translate_pseudo_label_instruction(instruction) << std::endl;
     break;
   default:
     out << "# Hier könnte ihr opcode stehen" << std::endl;
@@ -193,6 +199,7 @@ std::string X86Generator::translate_div_rr_instruction(
                      mir::to_string(*instruction));
   return out.str();
 }
+
 std::string X86Generator::translate_sub_rr_instruction(
     mir::MachineInstruction *instruction) {
   std::ostringstream out{};
@@ -237,7 +244,38 @@ std::string X86Generator::translate_neg_r_instruction(
   return std::format("neg\t{}\t\t\t #{}", dst.get_name(),
                      mir::to_string(*instruction));
 }
-std::string X86Generator::translate_mod_rr_instruction(
+
+std::string X86Generator::translate_pseudo_label_instruction(
     mir::MachineInstruction *instruction) {
-  return std::string();
+  const auto label_id =
+      std::get<mir::Immediate>(instruction->get_ins().at(0).get_op());
+  return std::format("l{}:", label_id.value);
+}
+std::string
+X86Generator::translate_jmp_instruction(mir::MachineInstruction *instruction) {
+  const auto label_id =
+      std::get<mir::Immediate>(instruction->get_ins().at(0).get_op());
+  return std::format("jmp\tl{}\t\t\t #{}", label_id.value,
+                     mir::to_string(*instruction));
+}
+
+// TODO: Change to cmp_rr and cmp_ri because we can also compare immediates.
+// The code below could just be replaced with test reg, reg which is faster
+// because it just ANDs the 2 regs together. fix this in the future pls @me
+std::string
+X86Generator::translate_cmp_instruction(mir::MachineInstruction *instruction) {
+  const auto lhs =
+      std::get<mir::PhysicalRegister>(instruction->get_ins().at(0).get_op());
+  const auto rhs =
+      std::get<mir::PhysicalRegister>(instruction->get_ins().at(1).get_op());
+  return std::format("cmp\t{}, {}\t\t #{}", lhs.get_name(), rhs.get_name(),
+                     mir::to_string(*instruction));
+}
+
+std::string
+X86Generator::translate_jl_instruction(mir::MachineInstruction *instruction) {
+  const auto label_id =
+      std::get<mir::Immediate>(instruction->get_ins().at(0).get_op());
+  return std::format("jl\tl{}\t\t\t #{}", label_id.value,
+                     mir::to_string(*instruction));
 }

@@ -18,19 +18,16 @@ public:
   [[nodiscard]] std::string to_string() const {
     return std::format("t{}", numeral);
   }
-  bool operator==(const Var& other) const {
-    return numeral == other.numeral;
-  }
+  bool operator==(const Var &other) const { return numeral == other.numeral; }
 };
 
 namespace std {
-template <>
-struct hash<Var> {
-  std::size_t operator()(const Var& s) const noexcept {
+template <> struct hash<Var> {
+  std::size_t operator()(const Var &s) const noexcept {
     return std::hash<size_t>{}(s.numeral);
   }
 };
-}
+} // namespace std
 
 struct grr {
   std::string operator()(Var v) const { return v.to_string(); }
@@ -180,16 +177,16 @@ class IRInstruction {
 private:
   const Opcode opcode;
   const std::vector<Operand> operands;
-  const std::optional<Var> result;  // aka defined var
-  std::unordered_set<Var> use{};    // used vars
+  const std::optional<Var> result; // aka defined var
+  std::unordered_set<Var> use{};   // used vars
 
 public:
   IRInstruction(const Opcode op, const std::vector<Operand> &ops,
                 std::optional<Var> result = std::nullopt)
       : opcode(op), operands(ops), result(result) {
     // set used vars
-    for (const auto& v : ops) {
-      if (const Var* s = std::get_if<Var>(&v.value)) {
+    for (const auto &v : ops) {
+      if (const Var *s = std::get_if<Var>(&v.value)) {
         use.insert(*s);
       }
     }

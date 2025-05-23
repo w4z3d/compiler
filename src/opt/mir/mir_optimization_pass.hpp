@@ -11,10 +11,7 @@ class MIROptPass {
 private:
   std::string name;
 
-  inline void transform_function(mir::MachineFunction &function) {
-    transform_block(function.get_entry_block());
-  }
-  virtual void transform_block(mir::MachineBasicBlock *block) = 0;
+  virtual void transform_function(mir::MachineFunction &function) = 0;
 
 public:
   virtual ~MIROptPass() = default;

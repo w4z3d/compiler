@@ -31,18 +31,27 @@ private:
   static std::string
   translate_div_rr_instruction(mir::MachineInstruction *instruction);
   static std::string
-  translate_mod_rr_instruction(mir::MachineInstruction *instruction);
-  static std::string
   translate_mul_rr_instruction(mir::MachineInstruction *instruction);
 
   static std::string
   translate_neg_r_instruction(mir::MachineInstruction *instruction);
 
+  static std::string
+  translate_pseudo_label_instruction(mir::MachineInstruction *instruction);
+
+  static std::string
+  translate_jmp_instruction(mir::MachineInstruction *instruction);
+
+  static std::string
+  translate_cmp_instruction(mir::MachineInstruction *instruction);
+
+  static std::string
+  translate_jl_instruction(mir::MachineInstruction *instruction);
+
 public:
   X86Generator() : Generator() {}
 
   std::string generate_program(mir::MIRProgram program) override;
-  std::string translate_basic_block(mir::MachineBasicBlock *block) override;
   std::string translate_function(mir::MachineFunction function) override;
   std::string
   translate_instruction(mir::MachineInstruction *instruction) override;

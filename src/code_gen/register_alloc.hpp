@@ -61,8 +61,8 @@ public:
     }
 
     std::cout << "replacing virtual regs with physical/stack slot" << std::endl;
-    for (auto inst = function.get_entry_block()->get_instructions().begin();
-         inst != function.get_entry_block()->get_instructions().end(); ++inst) {
+    for (auto inst = function.get_instructions_mut().begin();
+         inst != function.get_instructions_mut().end(); ++inst) {
       int i = 0;
       for (auto &item : (*inst)->get_ins_mut()) {
         i++;
@@ -79,12 +79,13 @@ public:
                       mir::MachineOperand{color_to_stack_slot.at(color)}},
                   std::vector<mir::MachineOperand>{
                       mir::MachineOperand{spilling_reg}});
-              function.get_entry_block()->get_instructions().insert(inst,
-                                                                    slot_move);
+              function.get_instructions_mut().insert(inst, slot_move);
               item.replace_with_physical(spilling_reg);
             } else {
-              if ((*inst)->get_opcode() == mir::MachineInstruction::MachineOpcode::MOV_RR) {
-                (*inst)->set_opcode(mir::MachineInstruction::MachineOpcode::LOAD_REG_MEM);
+              if ((*inst)->get_opcode() ==
+                  mir::MachineInstruction::MachineOpcode::MOV_RR) {
+                (*inst)->set_opcode(
+                    mir::MachineInstruction::MachineOpcode::LOAD_REG_MEM);
               }
               item.replace_with_stack_slot(color_to_stack_slot.at(color));
             }
@@ -104,8 +105,7 @@ public:
                     mir::MachineOperand{spilling_reg}},
                 std::vector<mir::MachineOperand>{
                     mir::MachineOperand{color_to_stack_slot.at(color)}});
-            function.get_entry_block()->get_instructions().insert(std::next(inst),
-                                                                  slot_move);
+            function.get_instructions_mut().insert(std::next(inst), slot_move);
             item.replace_with_physical(spilling_reg);
           }
         }

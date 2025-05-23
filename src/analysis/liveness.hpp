@@ -12,19 +12,18 @@ private:
   MIRRegisterMap &rmap;
   std::unordered_map<size_t, std::list<std::unordered_set<size_t>>>
       block_to_live{};
-  std::vector<mir::MachineBasicBlock *> basic_block_order{};
 
   void analyse_func(const mir::MachineFunction &machine_function);
-  void dfs_basic_block(mir::MachineBasicBlock *bb,
-                       std::unordered_set<size_t> &visited);
 
 public:
-  explicit Liveness(mir::MIRProgram &mir_program, MIRRegisterMap &rmap) : mir_program(mir_program), rmap(rmap) {}
+  explicit Liveness(mir::MIRProgram &mir_program, MIRRegisterMap &rmap)
+      : mir_program(mir_program), rmap(rmap) {}
   // 1. Create mapping from virtual and physical register to size_t
   // 2. Analyse liveness
   // 3. provide adapter to get liveness information
   void analyse();
-  std::unordered_map<size_t, std::list<std::unordered_set<size_t>>> &get_liveness() {
+  std::unordered_map<size_t, std::list<std::unordered_set<size_t>>> &
+  get_liveness() {
     return block_to_live;
   }
   std::string to_string_block_to_live() {

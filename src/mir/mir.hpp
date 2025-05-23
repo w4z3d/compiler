@@ -47,7 +47,7 @@ public:
   Register(std::string name, int bit_size)
       : name(std::move(name)), bit_size(bit_size) {}
   [[nodiscard]] std::string get_name() const { return name; }
-  bool operator==(Register other) const { return name == other.name; }
+  bool operator==(const Register &other) const { return name == other.name; }
 };
 
 class VirtualRegister : public Register {
@@ -84,7 +84,7 @@ public:
     return operand;
   }
 
-  void replace_with_physical(PhysicalRegister r) { operand = r; }
+  void replace_with_physical(const PhysicalRegister &r) { operand = r; }
 
   void replace_with_stack_slot(StackSlot s) { operand = s; }
 
@@ -121,7 +121,23 @@ public:
 
     NEG_R, // out:dest = -in:dest
 
-    RET // in:eax
+    CMP,
+
+    JMP,
+    JE,
+    JZ,
+    JNE,
+    JNZ,  // jmp (zero flag)
+    JB,   // unsigned less than
+    JNBE, // unsigned less than or eq
+    JNAE, // unsigned not above and not eq
+    JGE,  // signed greate eq
+    JG,   // signed greater
+    JL,   // signed less than
+    JNGE, // signed not greater or eq
+    RET,  // in:eax
+
+    DEF_LABEL
   };
 
 private:
@@ -172,28 +188,6 @@ public:
   [[nodiscard]] MachineOpcode get_opcode() const { return opcode; }
 };
 
-struct MachineBasicBlock {
-  std::list<MachineInstruction *> instructions{};
-  std::vector<MachineBasicBlock *> successors{};
-  std::vector<MachineBasicBlock *> predecessors{};
-
-  std::size_t id;
-  inline static std::size_t id_counter = 0;
-
-public:
-  MachineBasicBlock() : id(id_counter++) {}
-
-  void add_instruction(MachineInstruction *instruction) {
-    instructions.push_back(instruction);
-  }
-  std::list<MachineInstruction *> &get_instructions() { return instructions; }
-
-  void add_successor(MachineBasicBlock *block) { successors.push_back(block); }
-  std::vector<MachineBasicBlock *> &get_successors() { return successors; }
-  std::vector<MachineBasicBlock *> &get_predecessors() { return predecessors; }
-  [[nodiscard]] size_t get_id() const { return id; }
-};
-
 struct CallingConvention {
 private:
   std::string name;
@@ -203,23 +197,31 @@ private:
 };
 struct MachineFunction {
 private:
-  MachineBasicBlock *entry_block;
   // Maybe later: CallingConvention calling_convention;
   std::size_t frame_size;
   std::size_t id;
   inline static std::size_t fn_id_counter = 0;
+  std::list<MachineInstruction *> instructions{};
 
 public:
-  MachineFunction(MachineBasicBlock *entry_block, std::size_t frame_size)
-      : entry_block(entry_block), frame_size(frame_size), id(fn_id_counter++) {}
-  [[nodiscard]] MachineBasicBlock *get_entry_block() const {
-    return entry_block;
-  }
+  explicit MachineFunction(std::size_t frame_size = 0)
+      : frame_size(frame_size), id(fn_id_counter++) {}
   [[nodiscard]] std::size_t get_id() const { return id; }
   bool operator==(const MachineFunction &other) const { return id == other.id; }
 
   [[nodiscard]] size_t get_frame_size() const { return frame_size; }
+  [[nodiscard]] const std::list<MachineInstruction *> &
+  get_instructions() const {
+    return instructions;
+  }
+
+  [[nodiscard]] std::list<MachineInstruction *> &get_instructions_mut() {
+    return instructions;
+  }
   void set_frame_size(size_t size) { frame_size = size; }
+  void add_instruction(MachineInstruction *instruction) {
+    instructions.push_back(instruction);
+  }
 };
 
 } // namespace mir
@@ -302,6 +304,34 @@ inline std::string to_string(MachineInstruction::MachineOpcode opcode) {
     return "MOD_RI";
   case MachineInstruction::MachineOpcode::STORE_MEM_IMM:
     return "STORE_MEM_IMM";
+  case MachineInstruction::MachineOpcode::DEF_LABEL:
+    return "LABEL";
+  case MachineInstruction::MachineOpcode::CMP:
+    return "CMP";
+  case MachineInstruction::MachineOpcode::JMP:
+    return "JMP";
+  case MachineInstruction::MachineOpcode::JE:
+    return "JE";
+  case MachineInstruction::MachineOpcode::JZ:
+    return "JZ";
+  case MachineInstruction::MachineOpcode::JNE:
+    return "JNE";
+  case MachineInstruction::MachineOpcode::JNZ:
+    return "JNZ";
+  case MachineInstruction::MachineOpcode::JB:
+    return "JB";
+  case MachineInstruction::MachineOpcode::JNBE:
+    return "JNBE";
+  case MachineInstruction::MachineOpcode::JNAE:
+    return "JNAE";
+  case MachineInstruction::MachineOpcode::JGE:
+    return "JGE";
+  case MachineInstruction::MachineOpcode::JG:
+    return "JG";
+  case MachineInstruction::MachineOpcode::JL:
+    return "JL";
+  case MachineInstruction::MachineOpcode::JNGE:
+    return "JNGE";
   }
   return "UNKNOWN";
 }
@@ -328,38 +358,12 @@ inline std::string to_string(const MachineInstruction &instr) {
   return oss.str();
 }
 
-inline std::string to_string(const MachineBasicBlock &block) {
-  std::ostringstream oss;
-  oss << "Block " << block.get_id() << ":\n";
-  for (const auto *instr : block.instructions) {
-    oss << "  " << to_string(*instr) << "\n";
-  }
-  return oss.str();
-}
-
 inline std::string to_string(const MachineFunction &func) {
   std::ostringstream oss;
   oss << "Function " << func.get_id() << ":\n";
-  std::unordered_set<MachineBasicBlock *> visited;
-  std::list<MachineBasicBlock *> queue{};
-
-  if (auto *entry = func.get_entry_block(); entry) {
-    queue.push_front(entry);
-    visited.insert(entry);
+  for (const auto *inst : func.get_instructions()) {
+    oss << to_string(*inst) << std::endl;
   }
-
-  while (!queue.empty()) {
-    MachineBasicBlock *block = queue.front();
-    queue.pop_front();
-    oss << to_string(*block);
-
-    for (auto *succ : block->get_successors()) {
-      if (visited.insert(succ).second) {
-        queue.push_front(succ);
-      }
-    }
-  }
-
   return oss.str();
 }
 
