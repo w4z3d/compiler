@@ -134,6 +134,6 @@ void MIRPeepholePass::transform_function(mir::MachineFunction &function) {
   restart_block_scan:;
   } while (made_change_this_pass);
   auto t2 = std::chrono::high_resolution_clock::now();
-  auto td = duration_cast<std::chrono::milliseconds>(t2 - t1);
+  auto td = duration_cast<std::chrono::milliseconds>(t2 - t1).count();
   std::cout << "Peephole took " << td / 1000. << "s" << std::endl;
 }

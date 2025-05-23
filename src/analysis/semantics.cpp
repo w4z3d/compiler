@@ -294,9 +294,11 @@ void semantic::SemanticVisitor::visit(DereferenceLValue &val) {
   val.get_operand()->accept(*this);
 }
 
+constexpr std::uint32_t MAX_INT = 0x80000000;
+
 void semantic::SemanticVisitor::visit(NumericExpr &expr) {
   const auto value = expr.try_parse<std::uint32_t>();
-  if (!value) {
+  if (!value || (expr.get_base() == NumericExpr::Base::Decimal && value > MAX_INT)) {
     diagnostics->emit_error(
         expr.get_location(),
         std::format("Integer literal out of bounds {}", expr.get_value()));

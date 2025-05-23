@@ -136,28 +136,22 @@ void MIRGenerator::generate_bb(mir::MachineFunction &function,
             std::vector<mir::MachineOperand>{target_reg});
         function.add_instruction(mir_inst);
       } else if (is_register(rhs) && is_immediate(lhs)) {
-        if (std::get<mir::VirtualRegister>(lhs.get_op()).get_name() !=
-            std::get<mir::VirtualRegister>(rhs.get_op()).get_name()) {
-          const auto move_instr = arena.create<mir::MachineInstruction>(
-              mir::MachineInstruction::MachineOpcode::MOV_RR,
-              std::vector<mir::MachineOperand>{rhs},
-              std::vector<mir::MachineOperand>{target_reg});
-          function.add_instruction(move_instr);
-        }
+        const auto move_instr = arena.create<mir::MachineInstruction>(
+            mir::MachineInstruction::MachineOpcode::MOV_RR,
+            std::vector<mir::MachineOperand>{rhs},
+            std::vector<mir::MachineOperand>{target_reg});
+        function.add_instruction(move_instr);
         const auto mir_inst = arena.create<mir::MachineInstruction>(
             mir::MachineInstruction::MachineOpcode::SUB_RI,
             std::vector<mir::MachineOperand>{target_reg, lhs},
             std::vector<mir::MachineOperand>{target_reg});
         function.add_instruction(mir_inst);
       } else if (is_register(rhs) && is_register(lhs)) {
-        if (std::get<mir::VirtualRegister>(lhs.get_op()).get_name() !=
-            std::get<mir::VirtualRegister>(rhs.get_op()).get_name()) {
-          const auto move_instr = arena.create<mir::MachineInstruction>(
-              mir::MachineInstruction::MachineOpcode::MOV_RR,
-              std::vector<mir::MachineOperand>{lhs},
-              std::vector<mir::MachineOperand>{target_reg});
-          function.add_instruction(move_instr);
-        }
+        const auto move_instr = arena.create<mir::MachineInstruction>(
+            mir::MachineInstruction::MachineOpcode::MOV_RR,
+            std::vector<mir::MachineOperand>{lhs},
+            std::vector<mir::MachineOperand>{target_reg});
+        function.add_instruction(move_instr);
 
         const auto mir_inst = arena.create<mir::MachineInstruction>(
             mir::MachineInstruction::MachineOpcode::SUB_RR,
@@ -295,7 +289,8 @@ void MIRGenerator::generate_bb(mir::MachineFunction &function,
             std::vector<mir::MachineOperand>{
                 mir::MachineOperand{mir::PhysicalRegister{"edx", 32}}},
             std::vector<mir::MachineOperand>{
-                mir::MachineOperand{mir::PhysicalRegister{"eax", 32}}});
+                mir::MachineOperand{mir::PhysicalRegister{"eax", 32}},
+                mir::MachineOperand{mir::PhysicalRegister{"edx", 32}}});
         function.add_instruction(div_inst);
         const auto mov_into_target = arena.create<mir::MachineInstruction>(
             mir::MachineInstruction::MachineOpcode::MOV_RR,
@@ -317,7 +312,8 @@ void MIRGenerator::generate_bb(mir::MachineFunction &function,
             std::vector<mir::MachineOperand>{
                 mir::MachineOperand{mir::PhysicalRegister{"edx", 32}}},
             std::vector<mir::MachineOperand>{
-                mir::MachineOperand{mir::PhysicalRegister{"eax", 32}}});
+                mir::MachineOperand{mir::PhysicalRegister{"eax", 32}},
+                mir::MachineOperand{mir::PhysicalRegister{"edx", 32}}});
         function.add_instruction(div_inst);
         const auto mov_into_target = arena.create<mir::MachineInstruction>(
             mir::MachineInstruction::MachineOpcode::MOV_RR,

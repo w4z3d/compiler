@@ -288,19 +288,24 @@ public:
   void accept(class ASTVisitor &visitor) override;
 
   template <typename IntType> std::optional<IntType> try_parse() {
-    int int_base;
+    int format;
     IntType result{};
+    std::string_view local_value = value;
+
     switch (base) {
     case Base::Decimal:
-      int_base = 10;
+      format = 10;
+      break;
     case Base::Hexadecimal:
-      int_base = 16;
+      format = 16;
+      local_value.remove_prefix(2);
+      break;
     };
 
     auto [ptr, ec] =
-        std::from_chars(value.data(), value.data() + value.size(), result);
+        std::from_chars(local_value.data(), local_value.data() + local_value.size(), result, format);
 
-    // spdlog::info("String repr: {} errc: {}", value, static_cast<int>(ec));
+    std::cout << std::format("String repr: {} errc: {} for base {}", local_value, static_cast<int>(ec), format) << std::endl;
     if (ec == std::errc()) {
       return result;
     }
