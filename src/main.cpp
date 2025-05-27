@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   IRBuilder builder{representation, diagnostics, source_manager};
   unit->accept(builder);
 
-  std::cout << representation.to_string() << std::endl;
+  // std::cout << representation.to_string() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
@@ -66,7 +66,7 @@ int main(int argc, char *argv[]) {
   mir::MIRProgram program{};
   MIRGenerator mir_generator{representation, program};
   mir_generator.generate();
-  std::cout << mir::to_string(program) << std::endl;
+  // std::cout << mir::to_string(program) << std::endl;
 
   MIRRegisterMap m{};
   Liveness liveness{program, m};
@@ -80,29 +80,16 @@ int main(int argc, char *argv[]) {
 
   // std::cout << mir::to_string(program) << std::endl;
 
-  /*
-    InterferenceGraph i_graph{liveness.get_42()};
-    i_graph.construct();
-    // std::cout << i_graph.to_string() << std::endl;
-    // std::cout << i_graph.to_dot() << std::endl;
-
-    RegisterAllocation reg_alloc{i_graph};
-    reg_alloc.color();
-
-    InstructionSelector selector{reg_alloc.get_result(), diagnostics};
-    const auto asm_string = selector.generate_function_body(representation);
-     */
-
   // Opt passes
-  // MIROptPhase mir_opt_phase{{new MIRPeepholePass{}}};
-  // mir_opt_phase.perform_passes(program);
+  MIROptPhase mir_opt_phase{{new MIRPeepholePass{}}};
+  mir_opt_phase.perform_passes(program);
   // std::cout << mir::to_string(program) << std::endl;
 
   X86Generator gen{};
   const auto asm_string = gen.generate_program(program);
 
   std::cout << "Generated Assembly:" << std::endl;
-  std::cout << asm_string << std::endl;
+  // std::cout << asm_string << std::endl;
   std::cout << "Writing file" << std::endl;
   io::write_file("🤣.s", asm_string);
   system(std::format("gcc 🤣.s -o {}", argv[2]).c_str());

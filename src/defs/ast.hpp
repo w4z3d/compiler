@@ -302,10 +302,10 @@ public:
       break;
     };
 
-    auto [ptr, ec] =
-        std::from_chars(local_value.data(), local_value.data() + local_value.size(), result, format);
+    auto [ptr, ec] = std::from_chars(local_value.data(),
+                                     local_value.data() + local_value.size(),
+                                     result, format);
 
-    std::cout << std::format("String repr: {} errc: {} for base {}", local_value, static_cast<int>(ec), format) << std::endl;
     if (ec == std::errc()) {
       return result;
     }
