@@ -79,6 +79,12 @@ X86Generator::translate_instruction(mir::MachineInstruction *instruction) {
   case mir::MachineInstruction::MachineOpcode::NEG_R:
     out << translate_neg_r_instruction(instruction) << std::endl;
     break;
+  case mir::MachineInstruction::MachineOpcode::INC_R:
+    out << translate_inc_r_instruction(instruction) << std::endl;
+    break;
+  case mir::MachineInstruction::MachineOpcode::DEC_R:
+    out << translate_dec_r_instruction(instruction) << std::endl;
+    break;
   case mir::MachineInstruction::MachineOpcode::LOAD_REG_MEM:
     out << translate_load_reg_mem_instruction(instruction) << std::endl;
     break;
@@ -242,6 +248,24 @@ std::string X86Generator::translate_neg_r_instruction(
       std::get<mir::PhysicalRegister>(instruction->get_ins().at(0).get_op());
 
   return std::format("neg\t{}\t\t\t #{}", dst.get_name(),
+                     mir::to_string(*instruction));
+}
+
+std::string X86Generator::translate_inc_r_instruction(
+    mir::MachineInstruction *instruction) {
+  const auto dst =
+      std::get<mir::PhysicalRegister>(instruction->get_ins().at(0).get_op());
+
+  return std::format("inc\t{}\t\t\t #{}", dst.get_name(),
+                     mir::to_string(*instruction));
+}
+
+std::string X86Generator::translate_dec_r_instruction(
+    mir::MachineInstruction *instruction) {
+  const auto dst =
+      std::get<mir::PhysicalRegister>(instruction->get_ins().at(0).get_op());
+
+  return std::format("dec\t{}\t\t\t #{}", dst.get_name(),
                      mir::to_string(*instruction));
 }
 

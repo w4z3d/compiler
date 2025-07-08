@@ -5,19 +5,50 @@
 #include "../defs/ast.hpp"
 #include "../report/report_builder.hpp"
 #include "cfg.hpp"
+#include "ir.hpp"
+#include <map>
 #include <stack>
+#include <unordered_map>
 
 class IRBuilder : public ASTVisitor {
 private:
+  arena::Arena arena;
+
   IntermediateRepresentation &representation;
   BasicBlock *current_block = nullptr;
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
+
   std::size_t temp_counter = 0;
   std::size_t block_counter = 0;
   std::stack<Var> temp_var_stack{};
   std::unordered_map<size_t, Var> symbol_to_var{};
-  arena::Arena arena;
+
+  // Maps a source variable (Symbol ID) to its current SSA Var in the current
+  // block being processed. Cleared or managed when moving to a new
+  // current_block.
+  std::unordered_map<size_t /*symbol_id*/,
+                     std::unordered_map<BasicBlock *, Var>>
+      current_definitions_in_block;
+
+  // Tracks blocks that will not receive further predecessors.
+  std::unordered_set<BasicBlock *> sealed_blocks;
+
+  // For handling forward references in loops/unsealed blocks.
+  // Key: Block where PHI is needed. Value: Map of Symbol ID to the PHI
+  // IRInstruction* or its result Var. We'll store the result Var of the
+  // placeholder PHI.
+  std::unordered_map<BasicBlock *,
+                     std::unordered_map<size_t /*symbol_id*/, Var>>
+      incomplete_phis;
+
+  // Helper to get predecessors (you'll need to build this mapping as you build
+  // the CFG)
+  std::unordered_map<BasicBlock *, std::vector<BasicBlock *>> predecessors_map;
+
+  // Optional: Memoization for find_reaching_definition to avoid recomputing for
+  // the same (symbol, block)
+  std::map<std::pair<size_t, BasicBlock *>, Var> find_reaching_def_cache;
 
 public:
   explicit IRBuilder(IntermediateRepresentation &representation,
@@ -77,6 +108,15 @@ public:
   void visit(FieldAccessLValue &val) override;
   void visit(DereferenceLValue &val) override;
   void visit(TranslationUnit &unit) override;
+
+  void write_variable(size_t symbol, Var value, BasicBlock *block);
+  Var read_variable(size_t symbol_id, BasicBlock *for_block);
+  Var read_Variable_recursive(size_t symbol_id, BasicBlock *block);
+
+  void seal_block(BasicBlock *block);
+
+  Var try_remove_trivial_phi(IRInstruction *phi_inst, Var phi_result_var,
+                             BasicBlock *in_block);
 };
 
 #endif // COMPILER_IR_BUILDER_H

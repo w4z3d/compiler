@@ -4,6 +4,7 @@
 #include "../analysis/symbol.hpp"
 #include "source_location.hpp"
 #include "token.hpp"
+#include "type.hpp"
 #include <charconv>
 #include <format>
 #include <optional>
@@ -189,13 +190,20 @@ public:
 private:
   Kind kind;
   std::string_view name;
+  std::shared_ptr<type::Type> resolved_type;
 
 public:
   Expression(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(loc), kind(k), name(n) {}
   [[nodiscard]] Kind get_kind() const { return kind; }
   [[nodiscard]] std::string_view get_name() const { return name; }
+  [[nodiscard]] std::shared_ptr<type::Type> get_resolved_type() const {
+    return resolved_type;
+  }
   void accept(class ASTVisitor &visitor) override;
+  void set_resolved_type(const std::shared_ptr<type::Type> &type) {
+    resolved_type = type;
+  }
 };
 
 class AllocExpression : public Expression {
@@ -820,12 +828,17 @@ class ParameterDeclaration : public Declaration {
 private:
   std::string_view name;
   TypeAnnotation *type;
+  std::shared_ptr<Symbol> resolved_symbol;
 
 public:
   ParameterDeclaration(std::string_view name, TypeAnnotation *type,
                        SourceLocation loc = {})
       : Declaration(Kind::Parameter, name, loc), name(name), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
+  void set_symbol(const std::shared_ptr<Symbol> &sym) { resolved_symbol = sym; }
+  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
+    return resolved_symbol;
+  }
   void accept(ASTVisitor &visitor) override;
 };
 
@@ -849,7 +862,7 @@ public:
   void set_body(CompoundStmt *stmt) { body = stmt; }
 
   [[nodiscard]] const std::vector<ParameterDeclaration *> &
-  get_parameter_declarations() const {
+  get_parameter_declarations() {
     return parameters;
   }
   [[nodiscard]] CompoundStmt *get_body() const { return body; };
@@ -931,4 +944,45 @@ public:
   virtual void visit(TranslationUnit &unit) {}
 };
 
+static std::shared_ptr<type::BuiltinType>
+from_type(const BuiltinTypeAnnotation *type_annotation) {
+  switch (type_annotation->get_type()) {
+  case Builtin::Int:
+    return std::make_shared<type::BuiltinType>(type::INT_T);
+  case Builtin::Bool:
+    return std::make_shared<type::BuiltinType>(type::BOOL_T);
+  case Builtin::String:
+    return std::make_shared<type::BuiltinType>(type::STRING_T);
+  case Builtin::Char:
+    return std::make_shared<type::BuiltinType>(type::CHAR_T);
+  case Builtin::Void:
+    return std::make_shared<type::BuiltinType>(type::VOID_T);
+  case Builtin::Unknown:
+    throw std::runtime_error("gg");
+  }
+}
+static std::shared_ptr<type::StructType>
+from_type(const StructTypeAnnotation *type_annotation) {
+  return std::make_shared<type::StructType>(
+      type::StructType{type_annotation->get_name().data()});
+}
+static std::shared_ptr<type::NamedType>
+from_type(const NamedTypeAnnotation *type_annotation) {
+  return std::make_shared<type::NamedType>(
+      type::NamedType{type_annotation->get_name().data()});
+}
+static std::shared_ptr<type::Type>
+from_type_annotation(const TypeAnnotation *annotation) {
+  if (auto builtin = dynamic_cast<const BuiltinTypeAnnotation *>(annotation)) {
+    return from_type(builtin);
+  } else if (auto struct_ =
+                 dynamic_cast<const StructTypeAnnotation *>(annotation)) {
+    return from_type(struct_);
+  } else if (auto named =
+                 dynamic_cast<const NamedTypeAnnotation *>(annotation)) {
+    return from_type(named);
+  } else {
+    throw std::runtime_error("Unknown type annotation");
+  }
+}
 #endif // !DEFS_AST_H

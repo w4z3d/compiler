@@ -1,14 +1,12 @@
 #ifndef DEFS_TYPE_H
 #define DEFS_TYPE_H
-
-#include <memory>
-#include <stdexcept>
+#include <sstream> // For easily building strings
 #include <string>
-#include <string_view>
-#include <unordered_map>
-#include <utility>
+#include <utility> // For std::pair
 #include <vector>
-#include "ast.hpp"
+
+// Potentially needed for PointerType, ArrayType etc. to call toString on their
+// members Make sure to include the full header where these types are defined.
 
 namespace type {
 
@@ -17,10 +15,16 @@ public:
   enum class Kind { Builtin, Pointer, Array, Struct, Named, Function };
   constexpr explicit Type(Kind kind) : kind(kind) {}
   Kind kind;
-  virtual ~Type() = default;
-  [[nodiscard]] virtual bool equals(const Type &other) const = 0;
+
+  [[nodiscard]] virtual bool equals(const Type &other) const {
+    return kind == other.kind;
+  }
+
+  // Add pure virtual toString method
+  [[nodiscard]] virtual std::string toString() const { return ""; }
 };
 
+// --- BuiltinType ---
 class BuiltinType : public Type {
 public:
   enum class BuiltinKind { Int, Char, String, Bool, Void };
@@ -36,14 +40,26 @@ public:
     return other.kind == Kind::Builtin &&
            builtinKind == dynamic_cast<const BuiltinType &>(other).builtinKind;
   }
+
+  [[nodiscard]] std::string toString() const override {
+    switch (builtinKind) {
+    case BuiltinKind::Int:
+      return "int";
+    case BuiltinKind::Char:
+      return "char";
+    case BuiltinKind::String:
+      return "string";
+    case BuiltinKind::Bool:
+      return "bool";
+    case BuiltinKind::Void:
+      return "void";
+    default:
+      return "UnknownBuiltin";
+    }
+  }
 };
 
-constexpr BuiltinType INT_T{BuiltinType::BuiltinKind::Int};
-constexpr BuiltinType BOOL_T{BuiltinType::BuiltinKind::Bool};
-constexpr BuiltinType CHAR_T{BuiltinType::BuiltinKind::Char};
-constexpr BuiltinType STRING_T{BuiltinType::BuiltinKind::String};
-constexpr BuiltinType VOID_T{BuiltinType::BuiltinKind::Void};
-
+// --- PointerType ---
 class PointerType : public Type {
 public:
   const Type *to;
@@ -51,11 +67,23 @@ public:
   explicit PointerType(const Type *to) : Type(Kind::Pointer), to(to) {}
 
   [[nodiscard]] bool equals(const Type &other) const override {
-    return other.kind == Kind::Pointer &&
-           to->equals(*dynamic_cast<const PointerType &>(other).to);
+    if (other.kind != Kind::Pointer)
+      return false;
+    const auto &otherPtr = dynamic_cast<const PointerType &>(other);
+    if (!to || !otherPtr.to)
+      return !to && !otherPtr.to; // Both null or both not null
+    return to->equals(*otherPtr.to);
+  }
+
+  [[nodiscard]] std::string toString() const override {
+    if (to) {
+      return to->toString() + "*";
+    }
+    return "nullptr*";
   }
 };
 
+// --- ArrayType ---
 class ArrayType : public Type {
 public:
   const Type *elementType;
@@ -64,14 +92,29 @@ public:
   explicit ArrayType(const Type *elem) : Type(Kind::Array), elementType(elem) {}
 
   [[nodiscard]] bool equals(const Type &other) const override {
-    return other.kind == Kind::Array &&
-           elementType->equals(
-               *dynamic_cast<const ArrayType &>(other).elementType);
+    if (other.kind != Kind::Array)
+      return false;
+    const auto &otherArray = dynamic_cast<const ArrayType &>(other);
+    if (!elementType || !otherArray.elementType)
+      return !elementType && !otherArray.elementType;
+    return elementType->equals(*otherArray.elementType);
   }
   void set_len(size_t len) { length = len; }
   [[nodiscard]] size_t get_len() const { return length; }
+
+  [[nodiscard]] std::string toString() const override {
+    std::string len_str;
+    if (length > 0 || (elementType != nullptr)) {
+      len_str = std::to_string(length);
+    }
+    if (elementType) {
+      return elementType->toString() + "[" + len_str + "]";
+    }
+    return "nullptr_element_type[" + len_str + "]";
+  }
 };
 
+// --- StructType ---
 class StructType : public Type {
 public:
   std::vector<std::pair<std::string, const Type *>> fields;
@@ -88,28 +131,54 @@ public:
     return other.kind == Kind::Struct &&
            name == dynamic_cast<const StructType &>(other).name;
   }
+
+  [[nodiscard]] std::string toString() const override {
+    std::ostringstream oss;
+    oss << "struct " << name << " { ";
+    for (size_t i = 0; i < fields.size(); ++i) {
+      oss << fields[i].first << ": ";
+      if (fields[i].second) {
+        oss << fields[i].second->toString();
+      } else {
+        oss << "nullptr_field_type";
+      }
+      if (i < fields.size() - 1) {
+        oss << "; ";
+      }
+    }
+    oss << " }";
+    return oss.str();
+  }
 };
 
+// --- NamedType ---
 class NamedType : public Type {
 public:
   std::string name;
-  Type *type{};
+  Type *type{}; // Pointer to the actual type definition (could be nullptr if
+                // unresolved)
 
   explicit NamedType(std::string name)
       : Type(Kind::Named), name(std::move(name)) {}
 
-  void set_type(Type *t) {
-    type = t;
-  }
+  void set_type(Type *t) { type = t; }
   [[nodiscard]] bool equals(const Type &other) const override {
     return other.kind == Kind::Named &&
            name == dynamic_cast<const NamedType &>(other).name;
   }
+
+  [[nodiscard]] std::string toString() const override {
+    if (type) {
+      return name + " (alias for " + type->toString() + ")";
+    }
+    return name;
+  }
 };
 
+// --- FunctionType ---
 class FunctionType : public Type {
 public:
-  std::string name;
+  std::string name; // Name of the function
   const Type *returnType;
   std::vector<const Type *> paramTypes;
 
@@ -121,77 +190,58 @@ public:
   [[nodiscard]] bool equals(const Type &other) const override {
     if (other.kind != Kind::Function)
       return false;
-    return name == dynamic_cast<const FunctionType &>(other).name;
+    const auto &otherFunc = dynamic_cast<const FunctionType &>(other);
+    if (name != otherFunc.name)
+      return false;
+    if (!returnType || !otherFunc.returnType) { // check nullity
+      if (returnType != otherFunc.returnType)
+        return false; // one is null, other isn't
+    } else if (!returnType->equals(*otherFunc.returnType)) {
+      return false;
+    }
+    if (paramTypes.size() != otherFunc.paramTypes.size())
+      return false;
+    for (size_t i = 0; i < paramTypes.size(); ++i) {
+      if (!paramTypes[i] || !otherFunc.paramTypes[i]) { // check nullity
+        if (paramTypes[i] != otherFunc.paramTypes[i])
+          return false;
+      } else if (!paramTypes[i]->equals(*otherFunc.paramTypes[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  [[nodiscard]] std::string toString() const override {
+    std::ostringstream oss;
+    oss << name << "("; // Using the 'name' field as the function's name
+    for (size_t i = 0; i < paramTypes.size(); ++i) {
+      if (paramTypes[i]) {
+        oss << paramTypes[i]->toString();
+      } else {
+        oss << "nullptr_param_type";
+      }
+      if (i < paramTypes.size() - 1) {
+        oss << ", ";
+      }
+    }
+    oss << ") -> ";
+    if (returnType) {
+      oss << returnType->toString();
+    } else {
+      oss << "nullptr_return_type";
+    }
+    return oss.str();
   }
 };
 
-static std::shared_ptr<Type> from_type(const TypeAnnotation *annotation) {
-  if (auto builtin = dynamic_cast<const BuiltinTypeAnnotation *>(annotation)) {
-    return from_type(builtin);
-  } else if (auto struct_ =
-                 dynamic_cast<const StructTypeAnnotation *>(annotation)) {
-    return from_type(struct_);
-  } else if (auto named =
-                 dynamic_cast<const NamedTypeAnnotation *>(annotation)) {
-    return from_type(named);
-  } else if (auto pointer =
-                 dynamic_cast<const PointerTypeAnnotation *>(annotation)) {
-    return from_type(pointer);
-  } else if (auto array =
-                 dynamic_cast<const ArrayTypeAnnotation *>(annotation)) {
-    return from_type(array);
-  } else {
-    throw std::runtime_error("Unknown type annotation");
-  }
-}
-static std::shared_ptr<BuiltinType>
-from_type(const BuiltinTypeAnnotation *type_annotation) {
-  switch (type_annotation->get_type()) {
-  case Builtin::Int:
-    return std::make_shared<BuiltinType>(INT_T);
-  case Builtin::Bool:
-    return std::make_shared<BuiltinType>(BOOL_T);
-  case Builtin::String:
-    return std::make_shared<BuiltinType>(STRING_T);
-  case Builtin::Char:
-    return std::make_shared<BuiltinType>(CHAR_T);
-  case Builtin::Void:
-    return std::make_shared<BuiltinType>(VOID_T);
-  case Builtin::Unknown:
-    throw std::runtime_error("gg");
-  }
-}
-static std::shared_ptr<StructType>
-from_type(const StructTypeAnnotation *type_annotation) {
-  return std::make_shared<StructType>(
-      StructType{type_annotation->get_name().data()});
-}
-static std::shared_ptr<NamedType>
-from_type(const NamedTypeAnnotation *type_annotation) {
-  return std::make_shared<NamedType>(
-      NamedType{type_annotation->get_name().data()});
-}
-static std::shared_ptr<ArrayType>
-from_type(const ArrayTypeAnnotation *type_annotation) {
-  return std::make_shared<ArrayType>(
-      ArrayType{from_type(type_annotation->get_type()).get()});
-}
-static std::shared_ptr<PointerType>
-from_type(const PointerTypeAnnotation *type_annotation) {
-  return std::make_shared<PointerType>(
-      PointerType{from_type(type_annotation->get_type()).get()});
-}
-static std::shared_ptr<FunctionType>
-from_type(const FunctionDeclaration *func_decl) {
-  std::vector<const Type *> params{};
-  for (const auto &item : func_decl->get_parameter_declarations()) {
-    params.push_back(from_type(item->get_type()).get());
-  }
-  return std::make_shared<FunctionType>(
-      FunctionType{func_decl->get_name().data(),
-                   from_type(func_decl->get_return_type()).get(), params});
-}
+// Global type instances (these will work with the new toString methods)
+constexpr BuiltinType INT_T{BuiltinType::BuiltinKind::Int};
+constexpr BuiltinType BOOL_T{BuiltinType::BuiltinKind::Bool};
+constexpr BuiltinType CHAR_T{BuiltinType::BuiltinKind::Char};
+constexpr BuiltinType STRING_T{BuiltinType::BuiltinKind::String};
+constexpr BuiltinType VOID_T{BuiltinType::BuiltinKind::Void};
 
 } // namespace type
 
-#endif // DEFS_TYPE_H
+#endif

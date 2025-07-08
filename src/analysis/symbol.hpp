@@ -3,9 +3,11 @@
 
 #include "../alloc/arena.hpp"
 #include "../defs/source_location.hpp"
+#include "../defs/type.hpp"
 #include <format>
 #include <functional>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -23,12 +25,14 @@ private:
   bool initialized;
 
   SourceLocation location;
+  std::shared_ptr<type::Type> type;
 
 public:
   explicit Symbol(std::string_view name, SourceLocation loc, Kind kind,
-                  size_t id, bool initialized)
+                  size_t id, bool initialized,
+                  const std::shared_ptr<type::Type> &type)
       : name(name), location(std::move(loc)), kind(kind), id(id),
-        initialized(initialized) {}
+        initialized(initialized), type(type) {}
 
   [[nodiscard]] std::string_view get_name() const { return name; }
 
@@ -59,22 +63,25 @@ class VariableSymbol : public Symbol {
 
 public:
   explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id,
-                          bool initialized)
-      : Symbol(name, loc, Kind::Variable, id, initialized) {}
+                          bool initialized,
+                          const std::shared_ptr<type::Type> &type)
+      : Symbol(name, loc, Kind::Variable, id, initialized, type) {}
 };
 
 class FunctionSymbol : public Symbol {
 public:
   explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id,
                           bool initialized)
-      : Symbol(name, loc, Kind::Function, id, initialized) {}
+      : Symbol(name, loc, Kind::Function, id, initialized,
+               std::make_shared<type::BuiltinType>(type::INT_T)) {}
 };
 
 class StructSymbol : public Symbol {
 public:
   explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id,
                         bool initialized)
-      : Symbol(name, loc, Kind::Struct, id, initialized) {}
+      : Symbol(name, loc, Kind::Struct, id, initialized,
+               std::make_shared<type::BuiltinType>(type::INT_T)) {}
 };
 
 class Scope {

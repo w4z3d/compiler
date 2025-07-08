@@ -16,10 +16,12 @@ void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
   symbol_table.enter_scope(std::format("Scope_{}", decl.get_name()));
 
   // Add parameter symbols
-  for (const auto &param : decl.get_parameter_declarations()) {
+  for (auto &param : decl.get_parameter_declarations()) {
     auto vs = VariableSymbol{param->get_name(), param->get_location(),
-                             symbol_table.next_id(), true};
+                             symbol_table.next_id(), true,
+                             from_type_annotation(param->get_type())};
     symbol_table.define(vs);
+    param->set_symbol(std::make_shared<Symbol>(vs));
   }
 
   const auto body = decl.get_body();
@@ -57,9 +59,8 @@ void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
           std::format("Unresolved reference {}", var_l_val->get_name()));
       diagnostics->add_source_context(
           source_manager->get_line(var_l_val->get_location().start_line()));
-    }
-    else if (!lookup->get().is_initialized() &&
-        stmt.get_op() != AssignmentOperator::Equals) {
+    } else if (!lookup->get().is_initialized() &&
+               stmt.get_op() != AssignmentOperator::Equals) {
       diagnostics->emit_error(
           var_l_val->get_location(),
           std::format("Referencing uninitialized variable {} ",
@@ -84,7 +85,7 @@ void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
 
 void semantic::SemanticVisitor::visit(VariableLValue &val) {
   auto lookup = symbol_table.lookup(val.get_name());
-  if(!lookup) {
+  if (!lookup) {
     diagnostics->emit_error(
         val.get_location(),
         std::format("Unresolved reference {}", val.get_name()));
@@ -103,7 +104,8 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
     initialized = true;
   }
   auto vs = VariableSymbol{stmt.get_identifier(), stmt.get_location(),
-                           symbol_table.next_id(), initialized};
+                           symbol_table.next_id(), initialized,
+                           from_type_annotation(stmt.get_type())};
   if (!symbol_table.define(vs)) {
     const auto previous_def = symbol_table.lookup(stmt.get_identifier());
     diagnostics->emit_error(
@@ -298,7 +300,8 @@ constexpr std::uint32_t MAX_INT = 0x80000000;
 
 void semantic::SemanticVisitor::visit(NumericExpr &expr) {
   const auto value = expr.try_parse<std::uint32_t>();
-  if (!value || (expr.get_base() == NumericExpr::Base::Decimal && value > MAX_INT)) {
+  if (!value ||
+      (expr.get_base() == NumericExpr::Base::Decimal && value > MAX_INT)) {
     diagnostics->emit_error(
         expr.get_location(),
         std::format("Integer literal out of bounds {}", expr.get_value()));

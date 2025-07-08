@@ -11,6 +11,7 @@ struct BasicBlock {
 private:
   std::size_t block_id;
   std::vector<IRInstruction> instructions{};
+  std::vector<BasicBlock *> predecessors{};
   std::optional<BasicBlock *> successor_true;
   std::optional<BasicBlock *> successor_false;
 
@@ -29,6 +30,10 @@ public:
   void add_instruction(const IRInstruction &instruction) {
     instructions.push_back(instruction);
   }
+
+  void add_instruction_front(IRInstruction &&instruction) {
+    instructions.insert(instructions.begin(), std::move(instruction));
+  }
   [[nodiscard]] const std::optional<BasicBlock *> &get_successor_true() const {
     return successor_true;
   }
@@ -40,6 +45,14 @@ public:
   }
   void set_successor_false(const std::optional<BasicBlock *> &successorFalse) {
     successor_false = successorFalse;
+  }
+
+  void add_predecessor(BasicBlock *predecessor) {
+    predecessors.push_back(predecessor);
+  }
+
+  [[nodiscard]] const std::vector<BasicBlock *> &get_predecessors() const {
+    return predecessors;
   }
   [[nodiscard]] size_t get_id() const { return block_id; }
 

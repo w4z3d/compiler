@@ -37,6 +37,10 @@ private:
   translate_neg_r_instruction(mir::MachineInstruction *instruction);
 
   static std::string
+  translate_inc_r_instruction(mir::MachineInstruction *instruction);
+  static std::string
+  translate_dec_r_instruction(mir::MachineInstruction *instruction);
+  static std::string
   translate_pseudo_label_instruction(mir::MachineInstruction *instruction);
 
   static std::string

@@ -367,6 +367,23 @@ void MIRGenerator::generate_bb(mir::MachineFunction &function,
           mir::MachineInstruction::MachineOpcode::RET);
       function.add_instruction(ret_inst);
     } break;
+    case Opcode::INC: {
+      const auto target_reg = mir::MachineOperand{mir::VirtualRegister{
+          ir_instruction.get_result().value().numeral, 32}};
+      const auto src =
+          std::visit(ir_op_to_m_op, ir_instruction.get_operands().at(0).value);
+      const auto move_instr = arena.create<mir::MachineInstruction>(
+          mir::MachineInstruction::MachineOpcode::MOV_RR,
+          std::vector<mir::MachineOperand>{src},
+          std::vector<mir::MachineOperand>{target_reg});
+      function.add_instruction(move_instr);
+
+      const auto neg_r_instruction = arena.create<mir::MachineInstruction>(
+          mir::MachineInstruction::MachineOpcode::INC_R,
+          std::vector<mir::MachineOperand>{target_reg});
+      function.add_instruction(neg_r_instruction);
+
+    } break;
     case Opcode::LT: {
       const auto src =
           std::visit(ir_op_to_m_op, ir_instruction.get_operands().at(1).value);

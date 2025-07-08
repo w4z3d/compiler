@@ -1,5 +1,6 @@
 #include "analysis/liveness.hpp"
 #include "analysis/semantics.hpp"
+#include "analysis/type_check.hpp"
 #include "code_gen/interference_graph.hpp"
 #include "code_gen/register_alloc.hpp"
 #include "code_gen/target/target.hpp"
@@ -34,10 +35,6 @@ int main(int argc, char *argv[]) {
 
   const auto unit{parser->parse_translation_unit()};
 
-  // ClangStylePrintVisitor visitor{};
-  //  unit->accept(visitor);
-  //  std::cout << visitor.get_content() << std::endl;
-
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     return 42;
@@ -48,11 +45,19 @@ int main(int argc, char *argv[]) {
     diagnostics->print_all();
     return 7;
   }
+
+  type_check::TypeVisitor type_check_visitor{diagnostics, source_manager};
+  unit->accept(type_check_visitor);
+
+  ClangStylePrintVisitor visitor{};
+  unit->accept(visitor);
+  std::cout << visitor.get_content() << std::endl;
+
   IntermediateRepresentation representation{};
   IRBuilder builder{representation, diagnostics, source_manager};
   unit->accept(builder);
 
-  // std::cout << representation.to_string() << std::endl;
+  std::cout << representation.to_string() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
@@ -78,7 +83,7 @@ int main(int argc, char *argv[]) {
                                program.get_functions().begin()->second, target};
   reg_alloc.allocate();
 
-  // std::cout << mir::to_string(program) << std::endl;
+  std::cout << mir::to_string(program) << std::endl;
 
   // Opt passes
   MIROptPhase mir_opt_phase{{new MIRPeepholePass{}}};
@@ -89,7 +94,7 @@ int main(int argc, char *argv[]) {
   const auto asm_string = gen.generate_program(program);
 
   std::cout << "Generated Assembly:" << std::endl;
-  // std::cout << asm_string << std::endl;
+  std::cout << asm_string << std::endl;
   std::cout << "Writing file" << std::endl;
   io::write_file("🤣.s", asm_string);
   system(std::format("gcc 🤣.s -o {}", argv[2]).c_str());

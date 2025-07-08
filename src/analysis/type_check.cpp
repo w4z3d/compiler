@@ -55,7 +55,7 @@ void type_check::TypeVisitor::visit(Expression &expr) {
   ASTVisitor::visit(expr);
 }
 void type_check::TypeVisitor::visit(NumericExpr &expr) {
-  ASTVisitor::visit(expr);
+  // expr.set_resolved_type(std::make_shared<type::Type>(type::INT_T));
 }
 void type_check::TypeVisitor::visit(CallExpr &expr) { ASTVisitor::visit(expr); }
 void type_check::TypeVisitor::visit(StringLiteralExpr &expr) {

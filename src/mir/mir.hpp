@@ -121,6 +121,9 @@ public:
 
     NEG_R, // out:dest = -in:dest
 
+    INC_R, // out:dest = ++in:src
+    DEC_R, // out:dest = --in:src
+
     CMP,
 
     JMP,
@@ -306,6 +309,10 @@ inline std::string to_string(MachineInstruction::MachineOpcode opcode) {
     return "STORE_MEM_IMM";
   case MachineInstruction::MachineOpcode::DEF_LABEL:
     return "LABEL";
+  case MachineInstruction::MachineOpcode::INC_R:
+    return "INC_R";
+  case MachineInstruction::MachineOpcode::DEC_R:
+    return "DEC_R";
   case MachineInstruction::MachineOpcode::CMP:
     return "CMP";
   case MachineInstruction::MachineOpcode::JMP:

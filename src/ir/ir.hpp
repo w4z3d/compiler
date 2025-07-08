@@ -39,6 +39,7 @@ struct Operand {
 };
 
 enum class Opcode {
+
   // Arithmetic
   ADD,
   SUB,
@@ -46,6 +47,17 @@ enum class Opcode {
   DIV,
   MOD,
   NEG,
+  SHR,
+  SHL,
+  XOR,
+  B_OR,
+  B_AND,
+  L_OR,
+  L_AND,
+  // Non bin_op
+  INC,
+  DEC,
+
   // Conditions
   LT,
   LE,
@@ -53,9 +65,12 @@ enum class Opcode {
   GE,
   EQ,
   NE,
+
   // Control Flow
   RET,
   JMP,
+  CALL,
+
   // E
   STORE,
   PHI
@@ -73,6 +88,14 @@ static Opcode from_unary_op(UnaryOperator un_op) {
   }
 }
 
+static Opcode from_unary_mut_op(UnaryMutationStatement::Op op) {
+  switch (op) {
+  case UnaryMutationStatement::Op::PostDecrement:
+    return Opcode::DEC;
+  case UnaryMutationStatement::Op::PostIncrement:
+    return Opcode::INC;
+  }
+}
 static Opcode from_assmt_op(AssignmentOperator a_op) {
   switch (a_op) {
   case AssignmentOperator::Plus:
@@ -88,10 +111,15 @@ static Opcode from_assmt_op(AssignmentOperator a_op) {
   case AssignmentOperator::Equals:
     throw std::runtime_error("hmmm, ist halt jetzt konvention ?");
   case AssignmentOperator::LShift:
+    return Opcode::SHL;
   case AssignmentOperator::RShift:
+    return Opcode::SHR;
   case AssignmentOperator::BitwiseAnd:
+    return Opcode::B_AND;
   case AssignmentOperator::BitwiseXor:
+    return Opcode::XOR;
   case AssignmentOperator::BitwiseOr:
+    return Opcode::B_OR;
   case AssignmentOperator::Unknown:
     throw std::runtime_error("not implemented yet");
   }
@@ -122,12 +150,19 @@ static Opcode from_binary_op(BinaryOperator bin_op) {
   case BinaryOperator::GreaterThanOrEqual:
     return Opcode::GE;
   case BinaryOperator::LogicalAnd:
+    return Opcode::L_AND;
   case BinaryOperator::LogicalOr:
+    return Opcode::L_OR;
   case BinaryOperator::BitwiseAnd:
+    return Opcode::B_AND;
   case BinaryOperator::BitwiseOr:
+    return Opcode::B_OR;
   case BinaryOperator::BitwiseXor:
+    return Opcode::XOR;
   case BinaryOperator::ShiftLeft:
+    return Opcode::SHL;
   case BinaryOperator::ShiftRight:
+    return Opcode::SHR;
   case BinaryOperator::FieldAccess:
   case BinaryOperator::PointerAccess: // Muss das überhaupt noch binop sein???
   case BinaryOperator::Unknown:
@@ -150,6 +185,24 @@ static std::string opcode_to_string(Opcode opcode) {
     return "MOD";
   case Opcode::NEG:
     return "NEG";
+  case Opcode::INC:
+    return "INC";
+  case Opcode::DEC:
+    return "DEC";
+  case Opcode::B_AND:
+    return "B_AND";
+  case Opcode::B_OR:
+    return "B_OR";
+  case Opcode::L_AND:
+    return "L_AND";
+  case Opcode::L_OR:
+    return "L_OR";
+  case Opcode::XOR:
+    return "XOR";
+  case Opcode::SHL:
+    return "SHL";
+  case Opcode::SHR:
+    return "SHR";
   case Opcode::LT:
     return "LT";
   case Opcode::LE:
@@ -170,15 +223,17 @@ static std::string opcode_to_string(Opcode opcode) {
     return "STORE";
   case Opcode::PHI:
     return "PHI";
+  case Opcode::CALL:
+    return "CALL";
   }
 }
 
 class IRInstruction {
 private:
-  const Opcode opcode;
-  const std::vector<Operand> operands;
-  const std::optional<Var> result; // aka defined var
-  std::unordered_set<Var> use{};   // used vars
+  Opcode opcode;
+  std::vector<Operand> operands;
+  std::optional<Var> result;     // aka defined var
+  std::unordered_set<Var> use{}; // used vars
 
 public:
   IRInstruction(const Opcode op, const std::vector<Operand> &ops,
