@@ -3,7 +3,6 @@
 
 #include "../graph_coloring/graph_coloring.hpp"
 #include "../ir/ir.hpp"
-#include "../mir/mir.hpp"
 #include "yapper.hpp"
 #include <ranges>
 
@@ -24,7 +23,7 @@ public:
       std::unordered_map<size_t, std::list<std::unordered_set<size_t>>> &live,
       MIRRegisterMap &rmap, mir::MachineFunction &function)
       : block_to_live(live), rmap(rmap), function(function),
-        graph(UndirectedGraph{rmap.get_size() + 16}) {}// TODO: not hardcoded
+        graph(UndirectedGraph{rmap.get_size() + 16}) {} // TODO: not hardcoded
   void construct();
   std::unordered_map<size_t, size_t> color();
 

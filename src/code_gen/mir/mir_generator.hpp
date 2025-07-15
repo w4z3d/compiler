@@ -1,0 +1,4 @@
+#ifndef MIR_MIR_GENERATOR
+#define MIR_MIR_GENERATOR
+
+#endif // !MIR_MIR_GENERATOR
