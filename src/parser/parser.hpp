@@ -1,5 +1,6 @@
-#ifndef PARSER_PARSER_H
-#define PARSER_PARSER_H
+#ifndef SRC_PARSER_PARSER_HPP
+#define SRC_PARSER_PARSER_HPP
+
 #include "../alloc/arena.hpp"
 #include "../defs/ast.hpp"
 #include "../lexer/lexer.hpp"
@@ -7,6 +8,7 @@
 #include <cstddef>
 #include <exception>
 #include <optional>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -30,6 +32,7 @@ private:
   std::shared_ptr<SourceManager> source_manager;
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::vector<token::Token> token_buffer;
+  std::unordered_set<std::string> typenames;
 
   [[nodiscard]] token::Token peek(std::size_t n = 0) {
     while (token_buffer.size() <= n) {
@@ -50,6 +53,10 @@ private:
   }
 
   bool is_next(const token::TokenKind token) { return peek().kind == token; }
+
+  inline bool is_typename(std::string_view name) {
+    return typenames.contains(std::string(name));
+  }
 
   token::Token next_token() {
     if (token_buffer.empty()) {
@@ -97,6 +104,7 @@ private:
     }
   }
 
+  LValue *expr_to_lvalue(Expression *expr);
   FunctionDeclaration *parse_function_declaration();
   ParameterDeclaration *parse_parameter_declaration();
   Typedef *parse_typedef();
@@ -149,4 +157,8 @@ public:
         source_manager(std::move(source_manager)), arena(arena::Arena{}) {}
 };
 
-#endif
+#endif // SRC_PARSER_PARSER_HPP
+#ifndef SRC_PARSER_PARSER_HPP
+#define SRC_PARSER_PARSER_HPP
+
+#endif // SRC_PARSER_PARSER_HPP

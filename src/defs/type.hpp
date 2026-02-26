@@ -37,8 +37,10 @@ public:
       : Type(Kind::Builtin), builtinKind(k) {}
   [[nodiscard]] BuiltinKind get_kind() const { return builtinKind; }
   [[nodiscard]] bool equals(const Type &other) const override {
-    return other.kind == Kind::Builtin &&
-           builtinKind == dynamic_cast<const BuiltinType &>(other).builtinKind;
+    if (other.kind != Kind::Builtin)
+      return false;
+    const auto *o = dynamic_cast<const BuiltinType *>(&other);
+    return o && builtinKind == o->builtinKind;
   }
 
   [[nodiscard]] std::string toString() const override {
@@ -235,13 +237,31 @@ public:
   }
 };
 
-// Global type instances (these will work with the new toString methods)
-constexpr BuiltinType INT_T{BuiltinType::BuiltinKind::Int};
-constexpr BuiltinType BOOL_T{BuiltinType::BuiltinKind::Bool};
-constexpr BuiltinType CHAR_T{BuiltinType::BuiltinKind::Char};
-constexpr BuiltinType STRING_T{BuiltinType::BuiltinKind::String};
-constexpr BuiltinType VOID_T{BuiltinType::BuiltinKind::Void};
+inline const BuiltinType *int_t() {
+  static BuiltinType t{BuiltinType::BuiltinKind::Int};
+  return &t;
+}
+inline const BuiltinType *bool_t() {
+  static BuiltinType t{BuiltinType::BuiltinKind::Bool};
+  return &t;
+}
+inline const BuiltinType *char_t() {
+  static BuiltinType t{BuiltinType::BuiltinKind::Char};
+  return &t;
+};
+inline const BuiltinType *string_t() {
+  static BuiltinType t{BuiltinType::BuiltinKind::String};
+  return &t;
+};
+inline const BuiltinType *void_t() {
+  static BuiltinType t{BuiltinType::BuiltinKind::Void};
+  return &t;
+};
 
 } // namespace type
 
 #endif
+#ifndef SRC_DEFS_TYPE_HPP
+#define SRC_DEFS_TYPE_HPP
+
+#endif // SRC_DEFS_TYPE_HPP

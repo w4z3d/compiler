@@ -159,7 +159,8 @@ Expression *Parser::parse_exp_head() {
   } else {
     throw ParseError(
         std::format("Expected Expression, but next token was {}", peek().text),
-        SourceLocation{lexer.get_file_name(), peek().span.start, peek().span.end});
+        SourceLocation{lexer.get_file_name(), peek().span.start,
+                       peek().span.end});
   }
 }
 
@@ -377,14 +378,26 @@ Statement *Parser::parse_statement() {
 
 bool Parser::is_var_decl_stmt() {
   const auto next_token = peek().kind;
-  return next_token == token::TokenKind::Int ||
-         next_token == token::TokenKind::Bool ||
-         next_token == token::TokenKind::Void ||
-         next_token == token::TokenKind::String ||
-         next_token == token::TokenKind::Char ||
-         next_token == token::TokenKind::Struct ||
-         check_sequence(
-             {token::TokenKind::Identifier, token::TokenKind::Identifier});
+
+  if (next_token == token::TokenKind::Int ||
+      next_token == token::TokenKind::Bool ||
+      next_token == token::TokenKind::Void ||
+      next_token == token::TokenKind::String ||
+      next_token == token::TokenKind::Char ||
+      next_token == token::TokenKind::Struct) {
+    return true;
+  }
+
+  if (next_token == token::TokenKind::Identifier && is_typename(peek().text)) {
+    return true;
+  }
+
+  if (check_sequence(
+          {token::TokenKind::Identifier, token::TokenKind::Identifier})) {
+    return true;
+  }
+
+  return false;
 }
 
 bool Parser::is_lv() {
@@ -402,53 +415,58 @@ bool Parser::is_lv() {
   return false;
 }
 
+LValue *Parser::expr_to_lvalue(Expression *expr) {
+  if (auto *var = dynamic_cast<VarExpr *>(expr)) {
+    return arena.create<VariableLValue>(var->get_variable_name(),
+                                        var->get_location());
+  } else if (auto *field = dynamic_cast<FieldAccessExpr *>(expr)) {
+    return arena.create<FieldAccessLValue>(expr_to_lvalue(field->get_struct()),
+                                           field->get_field(),
+                                           field->get_location());
+  } else if (auto *arr = dynamic_cast<ArrayAccessExpr *>(expr)) {
+    return arena.create<ArrayAccessLValue>(expr_to_lvalue(arr->get_array()),
+                                           arr->get_index(),
+                                           arr->get_location());
+  } else if (auto *ptr = dynamic_cast<PointerAccessExpr *>(expr)) {
+    return arena.create<PointerAccessLValue>(
+        expr_to_lvalue(ptr->get_struct_pointer()), ptr->get_field(),
+        ptr->get_location());
+  } else if (auto *unary = dynamic_cast<UnaryOperatorExpression *>(expr)) {
+    if (unary->get_operator_kind() == UnaryOperator::Deref) {
+      return arena.create<DereferenceLValue>(
+          expr_to_lvalue(unary->get_expression()), unary->get_location());
+    }
+    throw ParseError("invalid lvalue: non-dereference unary",
+                     expr->get_location());
+  } else {
+    throw ParseError("invalid lvalue", expr->get_location());
+  }
+}
 Statement *Parser::parse_simple_stmt() {
   if (is_var_decl_stmt()) {
     return parse_var_decl_stmt();
-  } else if (is_lv()) {
-    const auto lv = parse_lvalue();
-    if (is_next(token::TokenKind::PlusPlus) ||
-        is_next(token::TokenKind::MinusMinus)) {
-      UnaryMutationStatement::Op op;
-      if (is_next(token::TokenKind::PlusPlus)) {
-        op = UnaryMutationStatement::Op::PostIncrement;
-        expect(token::TokenKind::PlusPlus);
-      } else if (is_next(token::TokenKind::MinusMinus)) {
-        op = UnaryMutationStatement::Op::PostDecrement;
-        expect(token::TokenKind::MinusMinus);
-      } else {
-        throw std::runtime_error("bro was tust du ???");
-      }
-
-      const auto stmt =
-          arena.create<UnaryMutationStatement>(lv, op, lv->get_location());
-      return stmt;
-    } else {
-      const auto next_token = peek();
-      const auto assmtOp = assmtOpFromToken(next_token.kind);
-      if (assmtOp != AssignmentOperator::Unknown) {
-        expect(next_token.kind);
-        const auto expr = parse_expression();
-        const auto stmt = arena.create<AssignmentStatement>(lv, assmtOp, expr,
-                                                            lv->get_location());
-        return stmt;
-      } else {
-        throw ParseError(std::format("Expected one of <simple> ::= \n| <lv> "
-                                     "<asnop> <exp>\n| <lv> ++\n| <lv> --\n,"
-                                     " but next token was {}",
-                                     next_token.text),
-                         SourceLocation{lexer.get_file_name(),
-                                        next_token.span.start,
-                                        next_token.span.end});
-      }
-    }
   }
-  // has to be expr
-  else {
-    const auto expr = parse_expression();
-    const auto stmt =
-        arena.create<ExpressionStatement>(expr, expr->get_location());
-    return stmt;
+
+  Expression *expr = parse_expression();
+
+  if (token::assignment_ops.contains(peek().kind)) {
+    LValue *lv = expr_to_lvalue(expr);
+    auto op = assmtOpFromToken(peek().kind);
+    expect(peek().kind);
+    auto *rhs = parse_expression();
+    return arena.create<AssignmentStatement>(lv, op, rhs, expr->get_location());
+  } else if (is_next(token::TokenKind::PlusPlus)) {
+    LValue *lv = expr_to_lvalue(expr);
+    expect(token::TokenKind::PlusPlus);
+    return arena.create<UnaryMutationStatement>(
+        lv, UnaryMutationStatement::Op::PostIncrement, expr->get_location());
+  } else if (is_next(token::TokenKind::MinusMinus)) {
+    LValue *lv = expr_to_lvalue(expr);
+    expect(token::TokenKind::MinusMinus);
+    return arena.create<UnaryMutationStatement>(
+        lv, UnaryMutationStatement::Op::PostDecrement, expr->get_location());
+  } else {
+    return arena.create<ExpressionStatement>(expr, expr->get_location());
   }
 }
 
@@ -537,10 +555,9 @@ CompoundStmt *Parser::parse_compound_statement() {
   const auto l_brace = expect(token::TokenKind::LBrace);
   std::vector<Statement *> statements{};
   // TODO:
-  do {
+  while (!check_sequence({token::TokenKind::RBrace})) {
     statements.push_back(parse_statement());
-  } while (!check_sequence({token::TokenKind::RBrace}));
-
+  }
   const auto r_brace = expect(token::TokenKind::RBrace);
   const auto compStmt = arena.create<CompoundStmt>(
       statements, SourceLocation{lexer.get_file_name(), l_brace->span.start,
@@ -617,6 +634,7 @@ Typedef *Parser::parse_typedef() {
   const auto typedef_ = arena.create<Typedef>(
       tp, name->text,
       SourceLocation{lexer.get_file_name(), td->span.start, semi->span.end});
+  typenames.insert(std::string(name->text));
   return typedef_;
 }
 
@@ -628,6 +646,7 @@ StructDeclaration *Parser::parse_struct_decl() {
     const auto struct_ = arena.create<StructDeclaration>(
         name->text,
         SourceLocation{lexer.get_file_name(), str->span.start, semi->span.end});
+    typenames.insert(std::string(name->text));
     return struct_;
   } else {
     expect(token::TokenKind::LBrace);
@@ -645,7 +664,7 @@ StructDeclaration *Parser::parse_struct_decl() {
     const auto struct_ = arena.create<StructDeclaration>(
         name->text, fields,
         SourceLocation{lexer.get_file_name(), str->span.start, semi->span.end});
-
+    typenames.insert(std::string(name->text));
     return struct_;
   }
 }

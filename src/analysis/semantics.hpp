@@ -1,6 +1,7 @@
 #ifndef ANALYSIS_SEMANTICS_H
 #define ANALYSIS_SEMANTICS_H
 
+#include <memory>
 #include <utility>
 
 #include "../defs/ast.hpp"
@@ -11,7 +12,7 @@ namespace semantic {
 
 class SemanticVisitor : public ASTVisitor {
 private:
-  SymbolTable symbol_table{};
+  std::shared_ptr<SymbolTable> symbol_table;
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
 
@@ -21,9 +22,11 @@ private:
 
 public:
   explicit SemanticVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
-                           std::shared_ptr<SourceManager> source_manager)
+                           std::shared_ptr<SourceManager> source_manager,
+                           std::shared_ptr<SymbolTable> symbol_table)
       : diagnostics(std::move(diagnostics)),
-        source_manager(std::move(source_manager)) {}
+        source_manager(std::move(source_manager)),
+        symbol_table(std::move(symbol_table)) {}
 
   void visit(TranslationUnit &unit) override;
   void visit(CompoundStmt &stmt) override;
@@ -63,3 +66,7 @@ public:
 
 } // namespace semantic
 #endif // !ANALYSIS_SEMANTICS_H
+#ifndef SRC_ANALYSIS_SEMANTICS_HPP
+#define SRC_ANALYSIS_SEMANTICS_HPP
+
+#endif // SRC_ANALYSIS_SEMANTICS_HPP

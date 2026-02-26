@@ -7,6 +7,7 @@
 #include "type.hpp"
 #include <charconv>
 #include <format>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -944,34 +945,43 @@ public:
   virtual void visit(TranslationUnit &unit) {}
 };
 
-static std::shared_ptr<type::BuiltinType>
+inline const type::BuiltinType *
 from_type(const BuiltinTypeAnnotation *type_annotation) {
   switch (type_annotation->get_type()) {
   case Builtin::Int:
-    return std::make_shared<type::BuiltinType>(type::INT_T);
+    return type::int_t();
   case Builtin::Bool:
-    return std::make_shared<type::BuiltinType>(type::BOOL_T);
+    return type::bool_t();
   case Builtin::String:
-    return std::make_shared<type::BuiltinType>(type::STRING_T);
+    return type::string_t();
   case Builtin::Char:
-    return std::make_shared<type::BuiltinType>(type::CHAR_T);
+    return type::char_t();
   case Builtin::Void:
-    return std::make_shared<type::BuiltinType>(type::VOID_T);
+    return type::void_t();
   case Builtin::Unknown:
     throw std::runtime_error("gg");
   }
 }
-static std::shared_ptr<type::StructType>
+inline const type::Type *from_type_annotation(const TypeAnnotation *annotation);
+
+inline const type::StructType *
 from_type(const StructTypeAnnotation *type_annotation) {
-  return std::make_shared<type::StructType>(
-      type::StructType{type_annotation->get_name().data()});
+  return new type::StructType{type_annotation->get_name().data()};
 }
-static std::shared_ptr<type::NamedType>
+inline const type::NamedType *
 from_type(const NamedTypeAnnotation *type_annotation) {
-  return std::make_shared<type::NamedType>(
-      type::NamedType{type_annotation->get_name().data()});
+  return new type::NamedType{type_annotation->get_name().data()};
 }
-static std::shared_ptr<type::Type>
+inline const type::PointerType *
+from_type(const PointerTypeAnnotation *type_annotation) {
+  return new type::PointerType{
+      from_type_annotation(type_annotation->get_type())};
+}
+inline const type::ArrayType *
+from_type(const ArrayTypeAnnotation *type_annotation) {
+  return new type::ArrayType(from_type_annotation(type_annotation->get_type()));
+}
+inline const type::Type *
 from_type_annotation(const TypeAnnotation *annotation) {
   if (auto builtin = dynamic_cast<const BuiltinTypeAnnotation *>(annotation)) {
     return from_type(builtin);
@@ -981,8 +991,27 @@ from_type_annotation(const TypeAnnotation *annotation) {
   } else if (auto named =
                  dynamic_cast<const NamedTypeAnnotation *>(annotation)) {
     return from_type(named);
+  } else if (auto named =
+                 dynamic_cast<const PointerTypeAnnotation *>(annotation)) {
+    return from_type(named);
+  } else if (auto named =
+                 dynamic_cast<const ArrayTypeAnnotation *>(annotation)) {
+    return from_type(named);
   } else {
-    throw std::runtime_error("Unknown type annotation");
+    throw std::runtime_error("Unknown type annotation " +
+                             annotation->toString());
   }
 }
 #endif // !DEFS_AST_H
+#ifndef SRC_DEFS_AST_HPP
+#define SRC_DEFS_AST_HPP
+
+#endif // SRC_DEFS_AST_HPP
+#ifndef SRC_DEFS_AST_HPP
+#define SRC_DEFS_AST_HPP
+
+#endif // SRC_DEFS_AST_HPP
+#ifndef SRC_DEFS_AST_HPP
+#define SRC_DEFS_AST_HPP
+
+#endif // SRC_DEFS_AST_HPP

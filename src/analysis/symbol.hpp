@@ -25,12 +25,12 @@ private:
   bool initialized;
 
   SourceLocation location;
-  std::shared_ptr<type::Type> type;
+  const type::Type *type;
 
 public:
   explicit Symbol(std::string_view name, SourceLocation loc, Kind kind,
                   size_t id, bool initialized,
-                  const std::shared_ptr<type::Type> &type)
+                  const type::Type *type = type::int_t())
       : name(name), location(std::move(loc)), kind(kind), id(id),
         initialized(initialized), type(type) {}
 
@@ -43,6 +43,7 @@ public:
   [[nodiscard]] Kind get_kind() const { return kind; }
 
   [[nodiscard]] size_t get_id() const { return id; }
+  [[nodiscard]] const type::Type *get_type() const { return type; }
 
   void set_id(size_t id_) { id = id_; }
 
@@ -63,25 +64,24 @@ class VariableSymbol : public Symbol {
 
 public:
   explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id,
-                          bool initialized,
-                          const std::shared_ptr<type::Type> &type)
+                          bool initialized, const type::Type *type)
       : Symbol(name, loc, Kind::Variable, id, initialized, type) {}
 };
 
 class FunctionSymbol : public Symbol {
 public:
+  const type::Type *return_type;
   explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id,
-                          bool initialized)
-      : Symbol(name, loc, Kind::Function, id, initialized,
-               std::make_shared<type::BuiltinType>(type::INT_T)) {}
+                          bool initialized, const type::Type *return_type)
+      : Symbol(name, loc, Kind::Function, id, initialized, return_type),
+        return_type(return_type) {}
 };
 
 class StructSymbol : public Symbol {
 public:
   explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id,
                         bool initialized)
-      : Symbol(name, loc, Kind::Struct, id, initialized,
-               std::make_shared<type::BuiltinType>(type::INT_T)) {}
+      : Symbol(name, loc, Kind::Struct, id, initialized, type::int_t()) {}
 };
 
 class Scope {
@@ -157,6 +157,7 @@ private:
   Scope *current_scope;
   arena::Arena arena;
   size_t id_counter = 0;
+  std::unordered_map<size_t, Symbol *> id_to_symbol;
 
 public:
   explicit SymbolTable() : arena(arena::Arena{}) {
@@ -179,8 +180,23 @@ public:
     return false;
   }
 
-  bool define(const Symbol &symbol) { return current_scope->define(symbol); }
+  bool define(const Symbol &symbol) {
+    if (!current_scope->define(symbol))
+      return false;
+    // Register in id map — lookup the stored copy, not the param
+    auto stored = current_scope->lookup_local(symbol.get_name());
+    if (stored)
+      id_to_symbol[symbol.get_id()] = &stored->get();
+    return true;
+  }
 
+  // Add this
+  std::optional<std::reference_wrapper<Symbol>> lookup_by_id(size_t id) {
+    auto it = id_to_symbol.find(id);
+    if (it != id_to_symbol.end())
+      return *it->second;
+    return std::nullopt;
+  }
   size_t next_id() { return id_counter++; }
 
   [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
@@ -214,3 +230,11 @@ private:
 };
 
 #endif // !ANALYSIS_SYMBOL_H
+#ifndef SRC_ANALYSIS_SYMBOL_HPP
+#define SRC_ANALYSIS_SYMBOL_HPP
+
+#endif // SRC_ANALYSIS_SYMBOL_HPP
+#ifndef SRC_ANALYSIS_SYMBOL_HPP
+#define SRC_ANALYSIS_SYMBOL_HPP
+
+#endif // SRC_ANALYSIS_SYMBOL_HPP

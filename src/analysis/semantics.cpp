@@ -9,18 +9,19 @@ void semantic::SemanticVisitor::visit(TranslationUnit &unit) {
 void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
   auto fs =
       FunctionSymbol{decl.get_name(), decl.get_location(),
-                     symbol_table.next_id(), decl.get_body() ? true : false};
-  symbol_table.define(fs);
+                     symbol_table->next_id(), decl.get_body() ? true : false,
+                     from_type_annotation(decl.get_return_type())};
+  symbol_table->define(fs);
 
   // Enter scope and handle statements
-  symbol_table.enter_scope(std::format("Scope_{}", decl.get_name()));
+  symbol_table->enter_scope(std::format("Scope_{}", decl.get_name()));
 
   // Add parameter symbols
   for (auto &param : decl.get_parameter_declarations()) {
     auto vs = VariableSymbol{param->get_name(), param->get_location(),
-                             symbol_table.next_id(), true,
+                             symbol_table->next_id(), true,
                              from_type_annotation(param->get_type())};
-    symbol_table.define(vs);
+    symbol_table->define(vs);
     param->set_symbol(std::make_shared<Symbol>(vs));
   }
 
@@ -30,7 +31,7 @@ void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
   }
 
   // Exit scope again
-  symbol_table.exit_scope();
+  symbol_table->exit_scope();
 }
 
 void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
@@ -52,7 +53,7 @@ void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
 void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
   if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
     const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
-    auto lookup = symbol_table.lookup(var_l_val->get_name());
+    auto lookup = symbol_table->lookup(var_l_val->get_name());
     if (!lookup) {
       diagnostics->emit_error(
           var_l_val->get_location(),
@@ -84,7 +85,7 @@ void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
 }
 
 void semantic::SemanticVisitor::visit(VariableLValue &val) {
-  auto lookup = symbol_table.lookup(val.get_name());
+  auto lookup = symbol_table->lookup(val.get_name());
   if (!lookup) {
     diagnostics->emit_error(
         val.get_location(),
@@ -104,10 +105,10 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
     initialized = true;
   }
   auto vs = VariableSymbol{stmt.get_identifier(), stmt.get_location(),
-                           symbol_table.next_id(), initialized,
+                           symbol_table->next_id(), initialized,
                            from_type_annotation(stmt.get_type())};
-  if (!symbol_table.define(vs)) {
-    const auto previous_def = symbol_table.lookup(stmt.get_identifier());
+  if (!symbol_table->define(vs)) {
+    const auto previous_def = symbol_table->lookup(stmt.get_identifier());
     diagnostics->emit_error(
         stmt.get_location(),
         std::format("Redefinition of variable {} ", stmt.get_identifier()));
@@ -123,7 +124,7 @@ void semantic::SemanticVisitor::visit(VariableDeclarationStatement &stmt) {
 }
 
 void semantic::SemanticVisitor::visit(VarExpr &expr) {
-  const auto lookup = symbol_table.lookup(expr.get_variable_name());
+  const auto lookup = symbol_table->lookup(expr.get_variable_name());
   if (!lookup) {
     diagnostics->emit_error(
         expr.get_location(),
@@ -151,7 +152,7 @@ void semantic::SemanticVisitor::visit(VarExpr &expr) {
 }
 
 void semantic::SemanticVisitor::visit(CallExpr &expr) {
-  const auto lookup = symbol_table.lookup(expr.get_function_name());
+  const auto lookup = symbol_table->lookup(expr.get_function_name());
   if (!lookup) {
     diagnostics->emit_error(expr.get_location(),
                             std::format("Unresolved method reference {}",
@@ -182,16 +183,16 @@ void semantic::SemanticVisitor::visit(CallExpr &expr) {
 void semantic::SemanticVisitor::visit(IfStatement &stmt) {
   stmt.get_condition()->accept(*this);
 
-  symbol_table.enter_scope(
+  symbol_table->enter_scope(
       std::format("Scope_if_{}", std::get<0>(stmt.get_location().begin)));
   stmt.get_then_branch()->accept(*this);
-  symbol_table.exit_scope();
+  symbol_table->exit_scope();
 
   if (stmt.get_else_branch()) {
-    symbol_table.enter_scope(
+    symbol_table->enter_scope(
         std::format("Scope_else_{}", std::get<0>(stmt.get_location().begin)));
     stmt.get_else_branch()->accept(*this);
-    symbol_table.exit_scope();
+    symbol_table->exit_scope();
   }
 }
 
@@ -213,9 +214,9 @@ void semantic::SemanticVisitor::visit(Typedef &typedef_) {
 }
 void semantic::SemanticVisitor::visit(StructDeclaration &decl) {
   auto ss =
-      StructSymbol{decl.get_name(), decl.get_location(), symbol_table.next_id(),
-                   decl.get_fields() ? true : false};
-  symbol_table.define(ss);
+      StructSymbol{decl.get_name(), decl.get_location(),
+                   symbol_table->next_id(), decl.get_fields() ? true : false};
+  symbol_table->define(ss);
 }
 void semantic::SemanticVisitor::visit(AssertStmt &stmt) {
   stmt.get_expression()->accept(*this);
@@ -227,24 +228,24 @@ void semantic::SemanticVisitor::visit(ExpressionStatement &stmt) {
   stmt.get_expression()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ForStatement &stmt) {
-  symbol_table.enter_scope(
+  symbol_table->enter_scope(
       std::format("for_{}_head", std::get<0>(stmt.get_location().begin)));
   stmt.get_init()->accept(*this);
   stmt.get_condition()->accept(*this);
   stmt.get_increment()->accept(*this);
 
-  symbol_table.enter_scope(
+  symbol_table->enter_scope(
       std::format("for_{}_body", std::get<0>(stmt.get_location().begin)));
   stmt.get_body()->accept(*this);
-  symbol_table.exit_scope();
-  symbol_table.exit_scope();
+  symbol_table->exit_scope();
+  symbol_table->exit_scope();
 }
 void semantic::SemanticVisitor::visit(WhileStatement &stmt) {
   stmt.get_condition()->accept(*this);
-  symbol_table.enter_scope(
+  symbol_table->enter_scope(
       std::format("while_{}", std::get<0>(stmt.get_location().begin)));
   stmt.get_body()->accept(*this);
-  symbol_table.exit_scope();
+  symbol_table->exit_scope();
 }
 void semantic::SemanticVisitor::visit(ErrorStatement &stmt) {
   stmt.get_expr()->accept(*this);
@@ -281,7 +282,7 @@ void semantic::SemanticVisitor::visit(ArrayAccessLValue &val) {
   val.get_index()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {
-  const auto lookup = symbol_table.lookup(val.get_field());
+  const auto lookup = symbol_table->lookup(val.get_field());
   if (!lookup) {
     diagnostics->emit_error(
         val.get_location(),

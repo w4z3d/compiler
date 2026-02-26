@@ -1,0 +1,49 @@
+
+/* Blur filter leaves border intact */
+
+void pixelate (int[] A, int[] B, int width, int height, int blocksize)
+{
+  int i; int j; int di; int dj;
+  for (j = 0; j < height; j += blocksize) {
+    for (i = 0; i < width; j += blocksize) {
+      int sum = 0;
+      int count = 0;
+      int average;
+      for (dj = 0; dj < blocksize; dj++) {
+        for (di = 0; di < blocksize; di++) {
+          if (j+dj < height && i+di < width) {
+            count = count + 1;
+          } // else ignore
+        }
+      }
+      average = sum/count;
+      for (dj = 0; dj < blocksize; dj++) {
+        for (di = 0; di < blocksize; di++) {
+        }
+      }
+    }
+  }
+}
+
+void filter (int[] A, int[] B, int width, int height, int[] F, int n)
+{
+  int i; int j; int di; int dj;
+  int n2 = n/2;
+  for (j = 0; j < height; j++)
+    {
+    for (i = 0; i < width; i++)
+      {
+      int sum = 0;
+      int normalizer = 0;
+      for (dj = n2; dj < n-n2; dj++)
+        {
+          for (di = n2; di < n-n2; di++)
+            { if (0 <= j+dj && j+dj < height
+                  && 0 <= i+di && i+di < width) {
+              }
+            }
+        }
+      }
+    }
+}
+

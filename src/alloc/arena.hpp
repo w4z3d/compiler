@@ -1,12 +1,14 @@
-#ifndef ALLOC_ARENA_H
-#define ALLOC_ARENA_H
+#ifndef SRC_ALLOC_ARENA_HPP
+#define SRC_ALLOC_ARENA_HPP
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 namespace arena {
@@ -66,12 +68,14 @@ public:
     return new_block.data.get();
   }
 
-  template <typename T, typename... Args>
-  [[nodiscard]] T *create(Args &&...args) {
+  std::vector<std::function<void()>> destructors;
+
+  template <typename T, typename... Args> T *create(Args &&...args) {
     void *mem = allocate(sizeof(T));
-    if (!mem)
-      return nullptr;
-    return new (mem) T(std::forward<Args>(args)...);
+    T *obj = new (mem) T(std::forward<Args>(args)...);
+    if constexpr (!std::is_trivially_destructible_v<T>)
+      destructors.push_back([obj] { obj->~T(); });
+    return obj;
   }
 
   // Reset but dont free
@@ -84,12 +88,6 @@ public:
       // Move ownership
       blocks_.push_back(std::move(first_block));
     }
-  }
-
-  void clear() noexcept {
-    std::cout << "Freeing arena of " << used() << " bytes" << std::endl;
-    blocks_.clear();
-    blocks_.emplace_back(block_size_);
   }
 
   [[nodiscard]] std::size_t size() const noexcept {
@@ -108,7 +106,14 @@ public:
     return total;
   }
 
-  ~Arena() { clear(); };
+  ~Arena() {
+    std::cout << "Freeing arena of " << used() << " bytes" << std::endl;
+    for (const auto &destructor : std::ranges::reverse_view(destructors)) {
+      destructor();
+    }
+    blocks_.clear();
+    blocks_.emplace_back(block_size_);
+  };
 
   Arena(const Arena &) = delete;
   Arena &operator=(const Arena &) = delete;
@@ -117,4 +122,8 @@ public:
 };
 } // namespace arena
 
-#endif // !DEBUG
+#endif // SRC_ALLOC_ARENA_HPP
+#ifndef SRC_ALLOC_ARENA_HPP
+#define SRC_ALLOC_ARENA_HPP
+
+#endif // SRC_ALLOC_ARENA_HPP

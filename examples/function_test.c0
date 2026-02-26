@@ -1,0 +1,10 @@
+int main() {
+  int lol = 5 + 10;
+  if (lol <= 10) {
+    lol = 20;
+  } else {
+    lol = 300;
+  }
+  return lol;
+}
+

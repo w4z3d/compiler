@@ -1,12 +1,29 @@
-int main() {
-    // Calculates 4th Fibonacci Number (3)
-    int lastFib = 1;
-    int fib = 1;
-    int temp;
+/* Some C0 Utilities
+ * Frank Pfenning
+ */
 
-    temp = fib + lastFib;
-    lastFib = fib;
-    fib = temp;
+int char_chr() {
+return 0;
+}
 
-    return fib;
+int char_ord() {
+return 0;
+  }
+
+string string_from_chararray() {
+    return 0; // "!"
+  }
+
+//#use < string>
+int int_size() {
+ return 0;
+}
+
+/* Some limits, which are fixed in the language definition */
+int int_size() { return 4; }         /* size of ints, in bytes */
+int int_max() { return 0x7FFFFFFF; } /* maximal integer */
+int int_min() { return 0x80000000; } /* minimal integer */
+
+int main () {
+  return 0;
 }

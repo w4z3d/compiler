@@ -1,4 +1,7 @@
 build/
 .cache/
 .idea/
-
+.DS_Store
+**/.DS_Store
+compile_commands.json
+*.s

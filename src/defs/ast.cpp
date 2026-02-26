@@ -62,14 +62,23 @@ void TernaryExpression::accept(struct ASTVisitor &visitor) {
   visitor.visit(*this);
 }
 
-
 void TranslationUnit::accept(ASTVisitor &visitor) { visitor.visit(*this); }
 
-void BuiltinTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void NamedTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void StructTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void PointerTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
-void ArrayTypeAnnotation::accept(struct ASTVisitor &visitor) { visitor.visit(*this); }
+void BuiltinTypeAnnotation::accept(struct ASTVisitor &visitor) {
+  visitor.visit(*this);
+}
+void NamedTypeAnnotation::accept(struct ASTVisitor &visitor) {
+  visitor.visit(*this);
+}
+void StructTypeAnnotation::accept(struct ASTVisitor &visitor) {
+  visitor.visit(*this);
+}
+void PointerTypeAnnotation::accept(struct ASTVisitor &visitor) {
+  visitor.visit(*this);
+}
+void ArrayTypeAnnotation::accept(struct ASTVisitor &visitor) {
+  visitor.visit(*this);
+}
 
 void VariableLValue::accept(struct ASTVisitor &visitor) {
   visitor.visit(*this);
@@ -274,6 +283,7 @@ BinaryOperator binOpFromToken(token::TokenKind token) {
   case token::TokenKind::Percent:
     return BinaryOperator::Modulo;
   case token::TokenKind::Equals:
+  case token::TokenKind::EqualEqual:
     return BinaryOperator::Equal;
   case token::TokenKind::BangEqual:
     return BinaryOperator::NotEqual;
