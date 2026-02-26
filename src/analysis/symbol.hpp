@@ -20,7 +20,7 @@ public:
 
 private:
   size_t id;
-  std::string_view name;
+  std::string name;
   Kind kind;
   bool initialized;
 
@@ -230,6 +230,10 @@ private:
 };
 
 #endif // !ANALYSIS_SYMBOL_H
+#ifndef SRC_ANALYSIS_SYMBOL_HPP
+#define SRC_ANALYSIS_SYMBOL_HPP
+
+#endif // SRC_ANALYSIS_SYMBOL_HPP
 #ifndef SRC_ANALYSIS_SYMBOL_HPP
 #define SRC_ANALYSIS_SYMBOL_HPP
 

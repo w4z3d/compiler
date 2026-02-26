@@ -51,6 +51,7 @@ void semantic::SemanticVisitor::visit(CompoundStmt &stmt) {
 }
 
 void semantic::SemanticVisitor::visit(AssignmentStatement &stmt) {
+  stmt.get_lvalue()->accept(*this);
   if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
     const auto var_l_val = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
     auto lookup = symbol_table->lookup(var_l_val->get_name());
@@ -258,6 +259,7 @@ void semantic::SemanticVisitor::visit(UnaryOperatorExpression &expr) {
 }
 void semantic::SemanticVisitor::visit(ArrayAccessExpr &expr) {
   expr.get_array()->accept(*this);
+  expr.get_index()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(PointerAccessExpr &expr) {
   expr.get_struct_pointer()->accept(*this);
@@ -266,11 +268,9 @@ void semantic::SemanticVisitor::visit(FieldAccessExpr &expr) {
   expr.get_struct()->accept(*this);
   // TODO: Check for struct reference? somehow i guess
 }
-void semantic::SemanticVisitor::visit(AllocExpression &expr) {
-  // TODO: Typechecking here
-}
+void semantic::SemanticVisitor::visit(AllocExpression &expr) {}
 void semantic::SemanticVisitor::visit(AllocArrayExpression &expr) {
-  // TODO: Typechecking here too
+  expr.get_size()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(TernaryExpression &expr) {
   expr.get_condition()->accept(*this);
@@ -278,7 +278,12 @@ void semantic::SemanticVisitor::visit(TernaryExpression &expr) {
   expr.get_else()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ArrayAccessLValue &val) {
+  fprintf(stderr, "visiting ArrayAccessLValue\n");
   val.get_base()->accept(*this);
+  fprintf(stderr, "base symbol after visit: %p\n",
+          (void *)dynamic_cast<VariableLValue *>(val.get_base())
+              ->get_symbol()
+              .get());
   val.get_index()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {

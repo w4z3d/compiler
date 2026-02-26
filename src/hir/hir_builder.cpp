@@ -186,7 +186,6 @@ void HIRBuilder::build_store(hir::Value *value, hir::Value *ptr) {
 hir::Value *HIRBuilder::build_gep(hir::type::Type *base_type, hir::Value *ptr,
                                   const std::vector<hir::Value *> &indices,
                                   std::string_view name) {
-  assert(ptr->type->is_pointer() && "gep base must be a pointer");
 
   std::vector<hir::Value *> uses;
   uses.push_back(ptr);

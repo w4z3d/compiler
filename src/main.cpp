@@ -5,6 +5,7 @@
 #include "defs/ast_printer.hpp"
 #include "hir/hir.hpp"
 #include "hir/hir_builder_visitor.hpp"
+#include "hir/opt/optimization_pipeline.hpp"
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
@@ -51,6 +52,11 @@ int main(int argc, char *argv[]) {
 
   std::cout << module.to_dot() << std::endl;
 
+  std::cout << "\n\n\n ============ Optimizing =============\n" << std::endl;
+
+  OptPipeline::optimize(module);
+
+  std::cout << module.to_dot() << std::endl;
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     system("pause");

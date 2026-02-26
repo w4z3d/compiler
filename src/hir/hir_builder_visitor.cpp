@@ -242,6 +242,7 @@ void HIRBuilderVisitor::visit(VariableDeclarationStatement &stmt) {
 }
 void HIRBuilderVisitor::visit(VarExpr &expr) {
   auto symbol = expr.get_symbol();
+  assert(symbol && "Symbol is nullptr");
   // Always use SSA — read_variable handles cross-block cases
   // and inserts phi nodes where needed
   hir::Value *val = read_variable(symbol->get_id(), current_block);
@@ -295,6 +296,34 @@ void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
         assert(false && "unhandled compound assignment");
       }
       write_variable(symbol_id, current_block, result);
+    }
+  } else if (stmt.get_lvalue()->get_kind() == LValue::Kind::Array) {
+    auto *arr_lval = dynamic_cast<ArrayAccessLValue *>(stmt.get_lvalue());
+
+    auto *base_lval = arr_lval->get_base();
+    while (base_lval->get_kind() == LValue::Kind::Array) {
+      base_lval = dynamic_cast<ArrayAccessLValue *>(base_lval)->get_base();
+    }
+    if (auto *var_lval = dynamic_cast<VariableLValue *>(base_lval)) {
+
+      auto sym = var_lval->get_symbol();
+
+      assert(sym && "Symbol pointer is null");
+
+      // sym->get_type() is e.g. ArrayType(bool) — get the element type
+      auto *arr_type = dynamic_cast<const type::ArrayType *>(sym->get_type());
+      auto *elem_type = lower_type(arr_type->elementType);
+
+      // Now emit the GEP + store
+      hir::Value *base =
+          read_variable(var_lval->get_symbol()->get_id(), current_block);
+      arr_lval->get_index()->accept(*this);
+      auto *index = pop_stack();
+
+      auto *ptr = builder.build_gep(elem_type, base, {index});
+      builder.build_store(rhs_var, ptr);
+    } else {
+      std::cerr << "Array LVar does not contain Var L Var" << std::endl;
     }
   }
 }
@@ -490,28 +519,19 @@ void HIRBuilderVisitor::visit(NumericExpr &expr) {
 void HIRBuilderVisitor::visit(CallExpr &expr) {
   const auto symbol = symbol_table->lookup(expr.get_function_name());
   assert(symbol && "Could not find function symbol");
-  // Evaluate arguments left to right
   std::vector<hir::Value *> args;
   for (const auto &arg : expr.get_params()) {
     arg->accept(*this);
     args.push_back(pop_stack());
   }
 
-  // Look up the callee function
-  for (const auto &function : module.functions) {
-    std::cout << "Function " << function->to_string() << " "
-              << function->function_type->return_type->to_string() << std::endl;
-    std::cout << "Searching for " << expr.get_function_name() << " "
-              << symbol->get().get_type()->toString() << std::endl;
-  }
   hir::Function *callee = module.get_function(expr.get_function_name());
   assert(callee && "unknown function");
 
-  // Build the call
   hir::Value *result = builder.build_call(callee, args);
 
-  // Push result if non-void (so the caller can use it)
-  value_stack.push(result);
+  if (!result->type->is_void())
+    value_stack.push(result);
 }
 void HIRBuilderVisitor::visit(StringLiteralExpr &expr) {
   ASTVisitor::visit(expr);
@@ -586,7 +606,20 @@ void HIRBuilderVisitor::visit(UnaryOperatorExpression &expr) {
   ASTVisitor::visit(expr);
 }
 void HIRBuilderVisitor::visit(ArrayAccessExpr &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_array()->accept(*this);
+  auto *base = pop_stack();
+
+  expr.get_index()->accept(*this);
+  auto *index = pop_stack();
+
+  hir::type::Type *elem_type;
+  if (auto *arr_ty = dynamic_cast<hir::type::ArrayType *>(base->type)) {
+    elem_type = arr_ty->inner_type;
+  }
+  auto *ptr = builder.build_gep(elem_type, base, {index});
+  auto *val = builder.build_load(elem_type, ptr);
+
+  value_stack.push(val);
 }
 void HIRBuilderVisitor::visit(PointerAccessExpr &expr) {
   ASTVisitor::visit(expr);
@@ -596,7 +629,7 @@ void HIRBuilderVisitor::visit(FieldAccessExpr &expr) {
 }
 size_t HIRBuilderVisitor::size_of(hir::type::Type *type) {
   if (auto *int_type = dynamic_cast<hir::type::IntegerType *>(type)) {
-    return int_type->width / 8; // bits to bytes
+    return (int_type->width + 7) / 8;
   } else if (type->is_pointer()) {
     return 8; // 64-bit pointers
   } else if (auto *struct_type = dynamic_cast<hir::type::StructType *>(type)) {
@@ -625,7 +658,20 @@ void HIRBuilderVisitor::visit(AllocExpression &expr) {
   value_stack.push(ptr);
 }
 void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
-  ASTVisitor::visit(expr);
+  auto *ty = lower_type(from_type_annotation(expr.get_type()));
+  expr.get_size()->accept(*this);
+  auto *size_val = pop_stack();
+
+  std::cout << "AllocArray size of type is " << size_of(ty) << " for type "
+            << ty->to_string() << std::endl;
+
+  auto *size_const = module.const_int(types.i32(), size_of(ty));
+  auto *mul = builder.build_mul(size_const, size_val);
+  auto *malloc_fn = module.add_function(
+      "malloc", types.get_function(types.i32(), {types.i32()}, false));
+  hir::Value *ptr = builder.build_call(malloc_fn, {mul});
+
+  value_stack.push(ptr);
 }
 void HIRBuilderVisitor::visit(TernaryExpression &expr) {
   expr.get_condition()->accept(*this);
