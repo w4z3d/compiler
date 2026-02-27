@@ -5,7 +5,6 @@
 #include "defs/ast_printer.hpp"
 #include "hir/hir.hpp"
 #include "hir/hir_builder_visitor.hpp"
-#include "hir/opt/optimization_pipeline.hpp"
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
 #include "parser/parser.hpp"
@@ -50,7 +49,7 @@ int main(int argc, char *argv[]) {
   HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics};
   unit->accept(hir_visitor);
 
-  // std::cout << module.to_dot() << std::endl;
+  std::cout << module.to_dot() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();

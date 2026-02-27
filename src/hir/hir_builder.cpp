@@ -166,7 +166,6 @@ hir::Value *HIRBuilder::build_alloca(hir::type::Type *allocated_type,
 
 hir::Value *HIRBuilder::build_load(hir::type::Type *loaded_type,
                                    hir::Value *ptr, std::string_view name) {
-  assert(ptr->type->is_pointer() && "load operand must be a pointer");
   auto *instruction = arena.create<hir::Instruction>(
       hir::Opcode::Load, loaded_type, std::vector<hir::Value *>{ptr});
   instruction->name = name;

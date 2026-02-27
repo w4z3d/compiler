@@ -2,7 +2,6 @@
 #include "hir_builder.hpp"
 #include <cassert>
 #include <cstdint>
-#include <map>
 hir::type::Type *HIRBuilderVisitor::lower_type(const type::Type *ast_type) {
   assert(ast_type && "null ast type");
   switch (ast_type->kind) {
@@ -193,8 +192,6 @@ void HIRBuilderVisitor::visit(IfStatement &stmt) {
     builder.build_br(merge_bb);
   }
 
-  // Seal merge_bb only after both branches are done
-  // so all predecessors are known
   set_insert_point(merge_bb);
   seal_block(merge_bb);
 }
@@ -207,8 +204,6 @@ void HIRBuilderVisitor::visit(VariableDeclarationStatement &stmt) {
     hir::Value *init_val = pop_stack();
     write_variable(sym->get_id(), current_block, init_val);
   } else {
-    // Uninitialized — write undef so read_variable never goes to predecessors
-    // looking for a definition that doesn't exist
     hir::type::Type *hir_type = lower_type(sym->get_type());
     write_variable(sym->get_id(), current_block, module.get_undef(hir_type));
   }
@@ -283,11 +278,9 @@ void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
 
       assert(sym && "Symbol pointer is null");
 
-      // sym->get_type() is e.g. ArrayType(bool) — get the element type
       auto *arr_type = dynamic_cast<const type::ArrayType *>(sym->get_type());
       auto *elem_type = lower_type(arr_type->elementType);
 
-      // Now emit the GEP + store
       hir::Value *base =
           read_variable(var_lval->get_symbol()->get_id(), current_block);
       arr_lval->get_index()->accept(*this);
@@ -318,17 +311,13 @@ void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
   hir::type::FunctionType *fn_type =
       types.get_function(ret_type, param_types, false);
 
-  // Add function to module — this also creates the entry block
   current_function = module.add_function(std::string(decl.get_name()), fn_type);
 
-  // Entry block is already created by Function constructor
   hir::BasicBlock *entry = current_function->entry();
   set_insert_point(entry);
 
-  // Seal entry block immediately — it has no predecessors
   seal_block(entry);
 
-  // Write function arguments into SSA map
   for (size_t i = 0; i < decl.get_parameter_declarations().size(); i++) {
     auto sym = decl.get_parameter_declarations()[i]->get_symbol();
     assert(sym && "parameter has no symbol!");
@@ -339,23 +328,16 @@ void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
     write_variable(sym->get_id(), entry, arg);
   }
 
-  // Visit the function body
   decl.get_body()->accept(*this);
-
-  // If the last block has no terminator and return type is void,
-  // insert an implicit ret
   if (!current_block->terminator()) {
     if (ret_type->is_void()) {
       builder.build_ret(nullptr);
     } else {
-      // Non-void function missing return — type checker should have
-      // caught this, but emit undef ret defensively
       diagnostics->emit_warning({}, "non-void function may not return a value");
       builder.build_ret(module.get_undef(ret_type));
     }
   }
 
-  // Clean up SSA state for next function
   reset_ssa_state();
 }
 void HIRBuilderVisitor::visit(TranslationUnit &unit) {
@@ -412,7 +394,6 @@ void HIRBuilderVisitor::visit(ExpressionStatement &stmt) {
   ASTVisitor::visit(stmt);
 }
 void HIRBuilderVisitor::visit(ForStatement &stmt) {
-  // --- Initializer runs in current block ---
   if (stmt.get_init()) {
     stmt.get_init()->accept(*this);
   }
@@ -422,13 +403,9 @@ void HIRBuilderVisitor::visit(ForStatement &stmt) {
   hir::BasicBlock *inc_bb = current_function->append_block("for.inc");
   hir::BasicBlock *merge_bb = current_function->append_block("for.merge");
 
-  // --- Jump from current block into condition ---
   cond_bb->predecessors.push_back(current_block);
   builder.build_br(cond_bb);
 
-  // --- Condition block ---
-  // cond_bb has two predecessors: entry and inc_bb (back edge)
-  // so we cannot seal it yet — seal after inc_bb is built
   cond_bb->predecessors.push_back(inc_bb); // back edge from increment
   set_insert_point(cond_bb);
 
@@ -445,12 +422,10 @@ void HIRBuilderVisitor::visit(ForStatement &stmt) {
     merge_bb->predecessors.push_back(cond_bb);
     builder.build_cond_br(cond, body_bb, merge_bb);
   } else {
-    // No condition — infinite loop, always jump to body
     body_bb->predecessors.push_back(cond_bb);
     builder.build_br(body_bb);
   }
 
-  // --- Body block ---
   set_insert_point(body_bb);
   seal_block(body_bb); // only one predecessor: cond_bb
   stmt.get_body()->accept(*this);
@@ -459,24 +434,49 @@ void HIRBuilderVisitor::visit(ForStatement &stmt) {
     builder.build_br(inc_bb);
   }
 
-  // --- Increment block ---
   set_insert_point(inc_bb);
   seal_block(
       inc_bb); // only one predecessor: body (or current_block after body)
   if (stmt.get_increment()) {
     stmt.get_increment()->accept(*this);
-    // Increment is a statement so nothing on stack to pop
   }
   builder.build_br(cond_bb);
 
-  // --- Now seal cond_bb — all predecessors known ---
   seal_block(cond_bb);
 
-  // --- Continue after loop ---
   set_insert_point(merge_bb);
   seal_block(merge_bb);
 }
-void HIRBuilderVisitor::visit(WhileStatement &stmt) { ASTVisitor::visit(stmt); }
+void HIRBuilderVisitor::visit(WhileStatement &stmt) {
+
+  auto *condition_block = current_function->append_block("while.cond");
+  auto *body_block = current_function->append_block("while.body");
+  auto *merge_block = current_function->append_block("while.merge");
+
+  condition_block->predecessors.push_back(current_block);
+  builder.build_br(condition_block);
+
+  set_insert_point(condition_block);
+  stmt.get_condition()->accept(*this);
+  auto *cond = pop_stack();
+
+  body_block->predecessors.push_back(condition_block);
+  builder.build_cond_br(cond, body_block, merge_block);
+
+  set_insert_point(body_block);
+  seal_block(body_block);
+  stmt.get_body()->accept(*this);
+  if (!current_block->terminator()) {
+    condition_block->predecessors.push_back(body_block);
+    builder.build_br(condition_block);
+  }
+  seal_block(condition_block);
+
+  merge_block->predecessors.push_back(condition_block);
+  merge_block->predecessors.push_back(body_block);
+  set_insert_point(merge_block);
+  seal_block(merge_block);
+}
 void HIRBuilderVisitor::visit(ErrorStatement &stmt) { ASTVisitor::visit(stmt); }
 void HIRBuilderVisitor::visit(NumericExpr &expr) {
 
@@ -506,6 +506,8 @@ void HIRBuilderVisitor::visit(CallExpr &expr) {
 }
 void HIRBuilderVisitor::visit(StringLiteralExpr &expr) {
   ASTVisitor::visit(expr);
+  // TODO: Alloc char array, then immediately load. (Idk if this is stack
+  // allocatable but iirc not)
 }
 void HIRBuilderVisitor::visit(CharLiteralExpr &expr) {
   ASTVisitor::visit(expr);
@@ -514,9 +516,11 @@ void HIRBuilderVisitor::visit(BoolConstExpr &expr) {
   auto *bool_ = module.const_bool(expr.get_value());
   value_stack.push(bool_);
 }
-void HIRBuilderVisitor::visit(NullExpr &expr) { ASTVisitor::visit(expr); }
+void HIRBuilderVisitor::visit(NullExpr &expr) {
+  value_stack.push(module.const_int(types.i64(), 0));
+}
 void HIRBuilderVisitor::visit(ParenthesisExpression &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_expression()->accept(*this);
 }
 void HIRBuilderVisitor::visit(BinaryOperatorExpression &expr) {
   expr.get_left_expression()->accept(*this);
@@ -574,7 +578,26 @@ void HIRBuilderVisitor::visit(BinaryOperatorExpression &expr) {
   value_stack.push(result);
 }
 void HIRBuilderVisitor::visit(UnaryOperatorExpression &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_expression()->accept(*this);
+  auto *expr_val = pop_stack();
+
+  hir::Value *result;
+  switch (expr.get_operator_kind()) {
+  case UnaryOperator::Neg:
+    result = builder.build_neg(expr_val);
+    break;
+  case UnaryOperator::Deref:
+    result = builder.build_load(expr_val->type, expr_val);
+    break;
+  case UnaryOperator::BitwiseNot:
+  case UnaryOperator::LogicalNot:
+    result = builder.build_not(expr_val);
+    break;
+  default:
+    result = module.get_undef(expr_val->type);
+    break;
+  }
+  value_stack.push(result);
 }
 void HIRBuilderVisitor::visit(ArrayAccessExpr &expr) {
   expr.get_array()->accept(*this);
@@ -620,11 +643,14 @@ void HIRBuilderVisitor::visit(AllocExpression &expr) {
       lower_type(from_type_annotation(expr.get_type()));
   size_t size = size_of(alloc_type);
 
-  // Generate: call malloc(size)
-  auto *malloc_fn = module.add_function(
-      "malloc", types.get_function(types.i32(), {types.i32()}, false));
+  auto *malloc = module.get_function("malloc");
+  if (!malloc) {
+    malloc = module.add_function(
+        "malloc", types.get_function(types.i32(), {types.i32()}, false));
+    malloc->is_extern = true;
+  }
   hir::Value *size_val = module.const_int(types.i32(), size);
-  hir::Value *ptr = builder.build_call(malloc_fn, {size_val});
+  hir::Value *ptr = builder.build_call(malloc, {size_val});
 
   value_stack.push(ptr);
 }
@@ -635,9 +661,14 @@ void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
 
   auto *size_const = module.const_int(types.i32(), size_of(ty));
   auto *mul = builder.build_mul(size_const, size_val);
-  auto *malloc_fn = module.add_function(
-      "malloc", types.get_function(types.i32(), {types.i32()}, false));
-  hir::Value *ptr = builder.build_call(malloc_fn, {mul});
+
+  auto *malloc = module.get_function("malloc");
+  if (!malloc) {
+    malloc = module.add_function(
+        "malloc", types.get_function(types.i32(), {types.i32()}, false));
+    malloc->is_extern = true;
+  }
+  hir::Value *ptr = builder.build_call(malloc, {mul});
 
   value_stack.push(ptr);
 }

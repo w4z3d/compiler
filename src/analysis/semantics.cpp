@@ -210,9 +210,7 @@ void semantic::SemanticVisitor::visit(BinaryOperatorExpression &expr) {
 }
 
 void semantic::SemanticVisitor::visit(FieldAccessLValue &val) {}
-void semantic::SemanticVisitor::visit(Typedef &typedef_) {
-  ASTVisitor::visit(typedef_);
-}
+void semantic::SemanticVisitor::visit(Typedef &typedef_) {}
 void semantic::SemanticVisitor::visit(StructDeclaration &decl) {
   auto ss =
       StructSymbol{decl.get_name(), decl.get_location(),
