@@ -278,12 +278,7 @@ void semantic::SemanticVisitor::visit(TernaryExpression &expr) {
   expr.get_else()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(ArrayAccessLValue &val) {
-  fprintf(stderr, "visiting ArrayAccessLValue\n");
   val.get_base()->accept(*this);
-  fprintf(stderr, "base symbol after visit: %p\n",
-          (void *)dynamic_cast<VariableLValue *>(val.get_base())
-              ->get_symbol()
-              .get());
   val.get_index()->accept(*this);
 }
 void semantic::SemanticVisitor::visit(PointerAccessLValue &val) {

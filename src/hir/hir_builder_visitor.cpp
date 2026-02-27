@@ -2,6 +2,7 @@
 #include "hir_builder.hpp"
 #include <cassert>
 #include <cstdint>
+#include <map>
 hir::type::Type *HIRBuilderVisitor::lower_type(const type::Type *ast_type) {
   assert(ast_type && "null ast type");
   switch (ast_type->kind) {
@@ -54,13 +55,8 @@ void HIRBuilderVisitor::write_variable(size_t symbol_id, hir::BasicBlock *bb,
 // Read the current SSA value for a symbol in a block
 hir::Value *HIRBuilderVisitor::read_variable(size_t symbol_id,
                                              hir::BasicBlock *bb) {
-  // Check local definitions first
-  auto def_it = current_defs.find(symbol_id);
-  if (def_it != current_defs.end()) {
-    auto bb_it = def_it->second.find(bb);
-    if (bb_it != def_it->second.end()) {
-      return bb_it->second;
-    }
+  if (current_defs.count(symbol_id) && current_defs[symbol_id].count(bb)) {
+    return current_defs[symbol_id][bb];
   }
   // Not found locally — search predecessors
   return read_variable_recursive(symbol_id, bb);
@@ -71,57 +67,44 @@ hir::Value *HIRBuilderVisitor::read_variable_recursive(size_t symbol_id,
   hir::Value *result = nullptr;
 
   if (!sealed_blocks.count(bb)) {
-    // Block not sealed yet — place incomplete phi
-    if (!incomplete_phis[bb].count(symbol_id)) {
-      // Create phi without incoming values yet
-      // Save and restore insert point since we're inserting at block top
-      auto *saved_block = current_block;
-      builder.set_insert_point(bb);
+    auto *saved_block = current_block;
+    builder.set_insert_point(bb);
 
-      hir::PhiNode *phi = builder.build_phi(type_of_symbol(symbol_id));
+    hir::PhiNode *phi = builder.build_phi(type_of_symbol(symbol_id));
 
-      // Restore insert point
-      builder.set_insert_point(saved_block);
+    builder.set_insert_point(saved_block);
 
-      incomplete_phis[bb][symbol_id] = phi;
-      write_variable(symbol_id, bb, phi);
-    }
-    result = incomplete_phis[bb][symbol_id];
-
+    incomplete_phis[bb][symbol_id] = phi;
+    write_variable(symbol_id, bb, phi);
+    result = phi;
+  } else if (bb->predecessors.size() == 1) {
+    const auto &preds = bb->predecessors;
+    result = read_variable(symbol_id, preds[0]);
   } else {
     const auto &preds = bb->predecessors;
+    auto *saved_block = current_block;
+    builder.set_insert_point(bb);
 
-    if (preds.empty()) {
-      diagnostics->emit_warning(SourceLocation{},
-                                "variable '" + std::to_string(symbol_id) +
-                                    "' may be uninitialized");
-      result = module.get_undef(type_of_symbol(symbol_id));
-
-    } else if (preds.size() == 1) {
-      // Single predecessor — just recurse
-      result = read_variable(symbol_id, preds[0]);
-
-    } else {
-      // Multiple predecessors — insert phi and fill operands
-      auto *saved_block = current_block;
-      builder.set_insert_point(bb);
-
-      hir::PhiNode *phi = builder.build_phi(type_of_symbol(symbol_id));
-      builder.set_insert_point(saved_block);
-      write_variable(symbol_id, bb, phi);
-
-      phi->operands.reserve(preds.size());
-      for (hir::BasicBlock *pred : preds) {
-        hir::Value *incoming = read_variable(symbol_id, pred);
-        phi->add_incoming(incoming, pred);
-      }
-
-      result = try_remove_trivial_phi(phi);
-    }
+    hir::PhiNode *phi = builder.build_phi(type_of_symbol(symbol_id));
+    builder.set_insert_point(saved_block);
+    result = phi;
+    write_variable(symbol_id, bb, phi);
+    result = add_phi_operands(symbol_id, phi, bb->predecessors);
+    write_variable(symbol_id, bb, result);
   }
 
   write_variable(symbol_id, bb, result);
   return result;
+}
+
+hir::Value *HIRBuilderVisitor::add_phi_operands(
+    size_t var, hir::PhiNode *phi,
+    const std::vector<hir::BasicBlock *> &predecessors) {
+  phi->operands.reserve(predecessors.size());
+  for (const auto &pred : predecessors) {
+    phi->add_incoming(read_variable(var, pred), pred);
+  }
+  return try_remove_trivial_phi(phi);
 }
 
 void HIRBuilderVisitor::seal_block(hir::BasicBlock *bb) {
@@ -130,12 +113,8 @@ void HIRBuilderVisitor::seal_block(hir::BasicBlock *bb) {
 
   if (incomplete_phis.count(bb)) {
     for (auto &[symbol_id, phi] : incomplete_phis[bb]) {
-      phi->operands.reserve(phi->operands.size() + bb->predecessors.size());
-      for (hir::BasicBlock *pred : bb->predecessors) {
-        hir::Value *incoming = read_variable(symbol_id, pred);
-        phi->add_incoming(incoming, pred);
-      }
-      try_remove_trivial_phi(phi);
+      hir::Value *result = add_phi_operands(symbol_id, phi, bb->predecessors);
+      write_variable(symbol_id, bb, result);
     }
     incomplete_phis.erase(bb);
   }
@@ -148,36 +127,30 @@ hir::Value *HIRBuilderVisitor::try_remove_trivial_phi(hir::PhiNode *phi) {
 
   for (auto &use : phi->operands) {
     hir::Value *op = use.value;
-    if (op == same || op == phi)
+    if (op == same || op == phi) // Unique value or self reference
       continue;
     if (same != nullptr)
-      return phi; // merges two distinct values, not trivial
+      return phi; // merges two values, not trivial
     same = op;
   }
 
   if (same == nullptr)
-    same = module.get_undef(phi->type);
+    same =
+        module.get_undef(phi->type); // Phi is unreachable or in the start block
 
-  // Collect users before modifying
-  std::vector<hir::Instruction *> users;
+  std::vector<hir::PhiNode *> phi_users;
   for (auto *use : phi->users) {
-    if (use->user != phi)
-      users.push_back(use->user);
+    if (use->user != phi && use->user->opcode == hir::Opcode::Phi) {
+      if (auto *p = dynamic_cast<hir::PhiNode *>(use->user))
+        phi_users.push_back(p);
+    }
   }
-
   phi->replace_all_uses_with(same);
   phi->erase_from_parent();
   // Update current_defs to replace the removed phi
-  for (auto &[sym_id, block_map] : current_defs) {
-    for (auto &[bb, val] : block_map) {
-      if (val == phi)
-        val = same;
-    }
-  }
   // Recursively try to simplify phi users
-  for (auto *user : users) {
-    if (auto *user_phi = dynamic_cast<hir::PhiNode *>(user))
-      try_remove_trivial_phi(user_phi);
+  for (auto *user : phi_users) {
+    try_remove_trivial_phi(user);
   }
 
   return same;
@@ -359,8 +332,6 @@ void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
   for (size_t i = 0; i < decl.get_parameter_declarations().size(); i++) {
     auto sym = decl.get_parameter_declarations()[i]->get_symbol();
     assert(sym && "parameter has no symbol!");
-    std::cerr << "param " << i << ": " << sym->get_name()
-              << " id=" << sym->get_id() << "\n";
 
     hir::Argument *arg = current_function->arguments[i];
     arg->name = std::string(sym->get_name());
@@ -661,9 +632,6 @@ void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
   auto *ty = lower_type(from_type_annotation(expr.get_type()));
   expr.get_size()->accept(*this);
   auto *size_val = pop_stack();
-
-  std::cout << "AllocArray size of type is " << size_of(ty) << " for type "
-            << ty->to_string() << std::endl;
 
   auto *size_const = module.const_int(types.i32(), size_of(ty));
   auto *mul = builder.build_mul(size_const, size_val);

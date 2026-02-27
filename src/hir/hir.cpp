@@ -26,12 +26,13 @@ void Use::set(Value *new_value) {
 // ============================================================
 void Value::replace_all_uses_with(Value *other) {
   assert(other != this && "cannot replace with self");
+  assert(other && "Tried to replace user with nullptr");
   // Copy because set() modifies users during iteration
   auto users_copy = users;
   for (Use *use : users_copy) {
+    assert(use && "Nullptr in value user");
     use->set(other);
   }
-  assert(users.empty() && "users should be empty after replace_all_uses_with");
 }
 
 // ============================================================

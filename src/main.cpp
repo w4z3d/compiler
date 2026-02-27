@@ -42,21 +42,16 @@ int main(int argc, char *argv[]) {
   type_check::TypeVisitor type_check_visitor{diagnostics, source_manager};
   unit->accept(type_check_visitor);
 
-  ClangStylePrintVisitor visitor{};
-  unit->accept(visitor);
-  std::cout << visitor.get_content() << std::endl;
+  // ClangStylePrintVisitor visitor{};
+  // unit->accept(visitor);
+  // std::cout << visitor.get_content() << std::endl;
 
   hir::Module module{};
   HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics};
   unit->accept(hir_visitor);
 
-  std::cout << module.to_dot() << std::endl;
+  // std::cout << module.to_dot() << std::endl;
 
-  std::cout << "\n\n\n ============ Optimizing =============\n" << std::endl;
-
-  OptPipeline::optimize(module);
-
-  std::cout << module.to_dot() << std::endl;
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     system("pause");

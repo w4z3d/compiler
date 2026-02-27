@@ -49,6 +49,9 @@ private:
   hir::Value *read_variable(size_t symbol_id, hir::BasicBlock *bb);
   hir::Value *read_variable_recursive(size_t symbol_id, hir::BasicBlock *bb);
   hir::Value *try_remove_trivial_phi(hir::PhiNode *phi);
+  hir::Value *
+  add_phi_operands(size_t variable, hir::PhiNode *phi,
+                   const std::vector<hir::BasicBlock *> &predecessors);
   void seal_block(hir::BasicBlock *bb);
 
   // Type helpers
@@ -62,8 +65,6 @@ private:
   }
 
   inline hir::Value *pop_stack() {
-    std::cout << "popping " << value_stack.top()->to_string() << " from stack "
-              << std::endl;
     if (value_stack.empty()) {
       std::cerr << "ERROR: value stack underflow — "
                    "a visit method forgot to push a value\n";
@@ -155,6 +156,10 @@ private:
   void visit(PointerAccessLValue &val) override;
   void visit(ArrayAccessLValue &val) override;
 };
+
+#endif // SRC_HIR_HIR_BUILDER_VISITOR_HPP
+#ifndef SRC_HIR_HIR_BUILDER_VISITOR_HPP
+#define SRC_HIR_HIR_BUILDER_VISITOR_HPP
 
 #endif // SRC_HIR_HIR_BUILDER_VISITOR_HPP
 #ifndef SRC_HIR_HIR_BUILDER_VISITOR_HPP
