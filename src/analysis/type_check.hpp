@@ -11,9 +11,10 @@ class TypeVisitor : public ASTVisitor {
 private:
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
+
 public:
   explicit TypeVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
-                           std::shared_ptr<SourceManager> source_manager)
+                       std::shared_ptr<SourceManager> source_manager)
       : diagnostics(std::move(diagnostics)),
         source_manager(std::move(source_manager)) {}
 

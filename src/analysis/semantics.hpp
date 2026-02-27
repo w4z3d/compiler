@@ -66,7 +66,3 @@ public:
 
 } // namespace semantic
 #endif // !ANALYSIS_SEMANTICS_H
-#ifndef SRC_ANALYSIS_SEMANTICS_HPP
-#define SRC_ANALYSIS_SEMANTICS_HPP
-
-#endif // SRC_ANALYSIS_SEMANTICS_HPP

@@ -252,23 +252,3 @@ public:
 
 } // namespace hir
 #endif // SRC_HIR_HIR_HPP
-#ifndef SRC_HIR_HIR_HPP
-#define SRC_HIR_HIR_HPP
-
-#endif // SRC_HIR_HIR_HPP
-#ifndef SRC_HIR_HIR_HPP
-#define SRC_HIR_HIR_HPP
-
-#endif // SRC_HIR_HIR_HPP
-#ifndef SRC_HIR_HIR_HPP
-#define SRC_HIR_HIR_HPP
-
-#endif // SRC_HIR_HIR_HPP
-#ifndef SRC_HIR_HIR_HPP
-#define SRC_HIR_HIR_HPP
-
-#endif // SRC_HIR_HIR_HPP
-#ifndef SRC_HIR_HIR_HPP
-#define SRC_HIR_HIR_HPP
-
-#endif // SRC_HIR_HIR_HPP

@@ -123,7 +123,3 @@ public:
 } // namespace arena
 
 #endif // SRC_ALLOC_ARENA_HPP
-#ifndef SRC_ALLOC_ARENA_HPP
-#define SRC_ALLOC_ARENA_HPP
-
-#endif // SRC_ALLOC_ARENA_HPP

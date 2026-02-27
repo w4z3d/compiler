@@ -261,7 +261,3 @@ inline const BuiltinType *void_t() {
 } // namespace type
 
 #endif
-#ifndef SRC_DEFS_TYPE_HPP
-#define SRC_DEFS_TYPE_HPP
-
-#endif // SRC_DEFS_TYPE_HPP

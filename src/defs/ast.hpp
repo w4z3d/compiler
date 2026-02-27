@@ -1003,15 +1003,3 @@ from_type_annotation(const TypeAnnotation *annotation) {
   }
 }
 #endif // !DEFS_AST_H
-#ifndef SRC_DEFS_AST_HPP
-#define SRC_DEFS_AST_HPP
-
-#endif // SRC_DEFS_AST_HPP
-#ifndef SRC_DEFS_AST_HPP
-#define SRC_DEFS_AST_HPP
-
-#endif // SRC_DEFS_AST_HPP
-#ifndef SRC_DEFS_AST_HPP
-#define SRC_DEFS_AST_HPP
-
-#endif // SRC_DEFS_AST_HPP
