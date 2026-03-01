@@ -11,12 +11,14 @@ class TypeVisitor : public ASTVisitor {
 private:
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
+  std::unordered_set<const type::Type *> known_types;
+  arena::Arena arena;
 
 public:
   explicit TypeVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
                        std::shared_ptr<SourceManager> source_manager)
       : diagnostics(std::move(diagnostics)),
-        source_manager(std::move(source_manager)) {}
+        source_manager(std::move(source_manager)), arena(arena::Arena{}) {}
 
   void visit(Typedef &typedef_) override;
   void visit(Declaration &decl) override;

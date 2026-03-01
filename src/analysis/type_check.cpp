@@ -1,7 +1,8 @@
 #include "type_check.hpp"
+#include <memory>
 
 void type_check::TypeVisitor::visit(Typedef &typedef_) {
-  ASTVisitor::visit(typedef_);
+  known_types.insert(from_type_annotation(typedef_.get_type()));
 }
 void type_check::TypeVisitor::visit(Declaration &decl) {
   ASTVisitor::visit(decl);
@@ -13,7 +14,9 @@ void type_check::TypeVisitor::visit(ParameterDeclaration &decl) {
   ASTVisitor::visit(decl);
 }
 void type_check::TypeVisitor::visit(StructDeclaration &decl) {
-  ASTVisitor::visit(decl);
+  auto struct_type =
+      arena.create<type::StructType>(std::string(decl.get_name()));
+  known_types.insert(struct_type);
 }
 void type_check::TypeVisitor::visit(Statement &stmt) {
   ASTVisitor::visit(stmt);
