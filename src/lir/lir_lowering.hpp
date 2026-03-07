@@ -28,6 +28,12 @@ struct LIRLowering {
   lir::BasicBlock *lower_block_from_operand(hir::Value *value);
   lir::CmpPredicate convert_predicate(hir::ICmpPredicate pred);
   inline lir::BasicBlock *get_mbb(hir::BasicBlock *bb) { return block_map[bb]; }
+
+  void eliminate_phis(hir::Function *hir_function);
+  void sequentialize_copies(
+      lir::Function *func,
+      std::vector<std::pair<lir::Register, lir::Operand>> &copies,
+      std::vector<lir::Instruction *> &result);
 };
 
 #endif // !SRC_LIR_LIR_LOWERING_HPP

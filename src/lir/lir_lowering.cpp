@@ -1,5 +1,6 @@
 #include "lir_lowering.hpp"
 #include "lir.hpp"
+#include <unordered_set>
 #include <utility>
 
 void LIRLowering::lower_module(hir::Module &hir_module) {
@@ -25,6 +26,8 @@ void LIRLowering::lower_function(hir::Function *hir_function) {
     builder.set_insert_point(block_map[bb]);
     lower_block(bb);
   }
+
+  eliminate_phis(hir_function);
 }
 
 void LIRLowering::lower_block(hir::BasicBlock *hir_bb) {
@@ -179,5 +182,137 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   }
   default:
     assert(false && "unhandled opcode in lowering");
+  }
+}
+
+void LIRLowering::eliminate_phis(hir::Function *hir_function) {
+  std::unordered_map<hir::BasicBlock *,
+                     std::vector<std::pair<lir::Register, lir::Operand>>>
+      copies_per_pred;
+
+  for (auto *bb : hir_function->blocks) {
+    for (auto *inst : bb->instructions) {
+      if (inst->opcode != hir::Opcode::Phi)
+        continue;
+
+      auto *phi = dynamic_cast<hir::PhiNode *>(inst);
+      auto dst = vreg_map[phi];
+
+      for (size_t i = 0; i < phi->incoming_blocks.size(); i++) {
+        auto *incoming_bb = phi->incoming_blocks[i];
+        auto *incoming_val = phi->incoming_from(incoming_bb);
+        auto src = lower_operand(incoming_val);
+
+        if (src.is_reg() && src.get_reg() == dst)
+          continue;
+
+        copies_per_pred[incoming_bb].emplace_back(dst, src);
+      }
+    }
+  }
+
+  for (auto &[hir_pred, copies] : copies_per_pred) {
+    auto *pred_mbb = block_map[hir_pred];
+
+    std::vector<lir::Instruction *> sequentialized;
+    sequentialize_copies(current_function, copies, sequentialized);
+
+    // Insert before terminator
+    auto &instrs = pred_mbb->instructions;
+    auto term_it = instrs.end();
+    if (!instrs.empty() && instrs.back()->is_terminator())
+      term_it = std::prev(instrs.end());
+
+    instrs.insert(term_it, sequentialized.begin(), sequentialized.end());
+  }
+}
+
+void LIRLowering::sequentialize_copies(
+    lir::Function *func,
+    std::vector<std::pair<lir::Register, lir::Operand>> &copies,
+    std::vector<lir::Instruction *> &result) {
+
+  std::unordered_set<unsigned> is_dst;
+  for (auto &[dst, src] : copies)
+    is_dst.insert(dst.id);
+
+  // Repeatedly emit copies whose dst is not a src of remaining copies
+  std::vector<bool> emitted(copies.size(), false);
+  bool progress = true;
+
+  while (progress) {
+    progress = false;
+    for (size_t i = 0; i < copies.size(); i++) {
+      if (emitted[i])
+        continue;
+
+      auto &[dst, src] = copies[i];
+
+      bool blocked = false;
+      for (size_t j = 0; j < copies.size(); j++) {
+        if (j == i || emitted[j])
+          continue;
+        if (copies[j].second.is_reg() && copies[j].second.get_reg() == dst) {
+          blocked = true;
+          break;
+        }
+      }
+
+      if (!blocked) {
+        auto *copy = new lir::Instruction();
+        copy->opcode = lir::Opcode::Copy;
+        copy->num_defs = 1;
+        copy->operands.push_back(lir::Operand::from_reg(dst));
+        copy->operands.push_back(src);
+        result.push_back(copy);
+        emitted[i] = true;
+        progress = true;
+      }
+    }
+  }
+
+  // Remaining copies form cycles, break each with one temp
+  for (size_t i = 0; i < copies.size(); i++) {
+    if (emitted[i])
+      continue;
+
+    auto tmp = builder.new_vreg();
+    auto &[dst, src] = copies[i];
+
+    auto *save = new lir::Instruction();
+    save->opcode = lir::Opcode::Copy;
+    save->num_defs = 1;
+    save->operands.push_back(lir::Operand::from_reg(tmp));
+    save->operands.push_back(lir::Operand::from_reg(dst));
+    result.push_back(save);
+
+    auto *copy = new lir::Instruction();
+    copy->opcode = lir::Opcode::Copy;
+    copy->num_defs = 1;
+    copy->operands.push_back(lir::Operand::from_reg(dst));
+    copy->operands.push_back(src);
+    result.push_back(copy);
+    emitted[i] = true;
+
+    // Follow the cycle: find who needs the value we saved
+    unsigned saved_id = dst.id;
+    for (size_t j = 0; j < copies.size(); j++) {
+      if (emitted[j])
+        continue;
+      if (copies[j].second.is_reg() &&
+          copies[j].second.get_reg().id == saved_id) {
+        copies[j].second = lir::Operand::from_reg(tmp);
+        // Now this copy is unblocked — emit it
+        auto *c = new lir::Instruction();
+        c->opcode = lir::Opcode::Copy;
+        c->num_defs = 1;
+        c->operands.push_back(lir::Operand::from_reg(copies[j].first));
+        c->operands.push_back(copies[j].second);
+        result.push_back(c);
+        emitted[j] = true;
+        saved_id = copies[j].first.id;
+        j = 0;
+      }
+    }
   }
 }
