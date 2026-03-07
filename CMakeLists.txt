@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28.1)
 project(compiler)
-
+enable_testing()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -13,4 +13,6 @@ file(GLOB_RECURSE SOURCES "src/*.cpp" "include/*.hpp")
 
 # Add target
 add_executable(compiler ${SOURCES})
+
+add_subdirectory(tests)
 
