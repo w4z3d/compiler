@@ -8,6 +8,8 @@
 
 namespace hir::type {
 
+struct IntegerType;
+
 struct Type {
   enum class Kind { Void, Integer, Float, Pointer, Struct, Array, Function };
 
@@ -22,11 +24,14 @@ struct Type {
   [[nodiscard]] bool is_struct() const { return kind() == Kind::Struct; };
   [[nodiscard]] bool is_array() const { return kind() == Kind::Array; };
   [[nodiscard]] bool is_function() const { return kind() == Kind::Function; };
+
+  [[nodiscard]] inline virtual size_t size_of() const = 0;
 };
 
 struct VoidType : Type {
   [[nodiscard]] Kind kind() const override { return Kind::Void; }
   [[nodiscard]] std::string to_string() const override { return "void"; }
+  [[nodiscard]] inline size_t size_of() const override { return 8; };
 };
 
 struct IntegerType : Type {
@@ -37,11 +42,15 @@ struct IntegerType : Type {
   [[nodiscard]] std::string to_string() const override {
     return "i" + std::to_string(width);
   }
+  [[nodiscard]] inline size_t size_of() const override {
+    return (width + 7) / 8;
+  };
 };
 
 struct PointerType : Type {
   [[nodiscard]] Kind kind() const override { return Kind::Pointer; }
   [[nodiscard]] std::string to_string() const override { return "ptr"; }
+  [[nodiscard]] inline size_t size_of() const override { return 8; };
 };
 
 struct FloatType : Type {
@@ -53,6 +62,9 @@ struct FloatType : Type {
   [[nodiscard]] std::string to_string() const override {
     return "f" + std::to_string(width);
   }
+  [[nodiscard]] inline size_t size_of() const override {
+    return (width + 7) / 8;
+  };
 };
 
 struct ArrayType : Type {
@@ -66,6 +78,9 @@ struct ArrayType : Type {
   [[nodiscard]] std::string to_string() const override {
     return "[" + std::to_string(count) + "x" + inner_type->to_string() + "]";
   }
+  [[nodiscard]] inline size_t size_of() const override {
+    return count * inner_type->size_of();
+  };
 };
 struct FunctionType : Type {
   Type *return_type;

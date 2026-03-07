@@ -1,4 +1,5 @@
 #include "hir_type.hpp"
+#include <cassert>
 #include <sstream>
 
 namespace hir::type {

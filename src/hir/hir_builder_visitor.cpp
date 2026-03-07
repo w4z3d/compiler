@@ -621,27 +621,10 @@ void HIRBuilderVisitor::visit(PointerAccessExpr &expr) {
 void HIRBuilderVisitor::visit(FieldAccessExpr &expr) {
   ASTVisitor::visit(expr);
 }
-size_t HIRBuilderVisitor::size_of(hir::type::Type *type) {
-  if (auto *int_type = dynamic_cast<hir::type::IntegerType *>(type)) {
-    return (int_type->width + 7) / 8;
-  } else if (type->is_pointer()) {
-    return 8; // 64-bit pointers
-  } else if (auto *struct_type = dynamic_cast<hir::type::StructType *>(type)) {
-    size_t total = 0;
-    for (auto *field_type : struct_type->fields) {
-      // Simple: no padding/alignment
-      total += size_of(field_type);
-    }
-    return total;
-  } else if (auto *array_type = dynamic_cast<hir::type::ArrayType *>(type)) {
-    return array_type->count * size_of(array_type->inner_type);
-  }
-  assert(false && "cannot compute size of type");
-}
 void HIRBuilderVisitor::visit(AllocExpression &expr) {
   hir::type::Type *alloc_type =
       lower_type(from_type_annotation(expr.get_type()));
-  size_t size = size_of(alloc_type);
+  size_t size = alloc_type->size_of();
 
   auto *malloc = module.get_function("malloc");
   if (!malloc) {
@@ -659,7 +642,7 @@ void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
   expr.get_size()->accept(*this);
   auto *size_val = pop_stack();
 
-  auto *size_const = module.const_int(types.i32(), size_of(ty));
+  auto *size_const = module.const_int(types.i32(), ty->size_of());
   auto *mul = builder.build_mul(size_const, size_val);
 
   auto *malloc = module.get_function("malloc");
