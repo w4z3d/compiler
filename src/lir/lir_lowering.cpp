@@ -1,5 +1,6 @@
 #include "lir_lowering.hpp"
 #include "lir.hpp"
+#include <utility>
 
 void LIRLowering::lower_module(hir::Module &hir_module) {
   for (const auto &function : hir_module.functions) {
@@ -54,14 +55,14 @@ lir::CmpPredicate LIRLowering::convert_predicate(hir::ICmpPredicate pred) {
   case hir::ICmpPredicate::UGE:
     return lir::CmpPredicate::UGE;
   }
-  __builtin_unreachable();
+  std::unreachable();
 }
 
 lir::BasicBlock *LIRLowering::lower_block_from_operand(hir::Value *value) {
   if (auto *arg = dynamic_cast<hir::BasicBlock *>(value)) {
     return get_mbb(arg);
   }
-  __builtin_unreachable();
+  std::unreachable();
 }
 
 lir::Operand LIRLowering::lower_operand(hir::Value *val) {
