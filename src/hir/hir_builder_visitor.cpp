@@ -163,9 +163,9 @@ void HIRBuilderVisitor::visit(IfStatement &stmt) {
                               module.const_int(types.i32(), 0), "cond");
   }
 
-  hir::BasicBlock *then_bb = current_function->append_block("if.then");
-  hir::BasicBlock *else_bb = current_function->append_block("if.else");
-  hir::BasicBlock *merge_bb = current_function->append_block("if.merge");
+  hir::BasicBlock *then_bb = current_function->append_block();
+  hir::BasicBlock *else_bb = current_function->append_block();
+  hir::BasicBlock *merge_bb = current_function->append_block();
 
   then_bb->predecessors.push_back(current_block);
   else_bb->predecessors.push_back(current_block);
@@ -398,10 +398,10 @@ void HIRBuilderVisitor::visit(ForStatement &stmt) {
     stmt.get_init()->accept(*this);
   }
 
-  hir::BasicBlock *cond_bb = current_function->append_block("for.cond");
-  hir::BasicBlock *body_bb = current_function->append_block("for.body");
-  hir::BasicBlock *inc_bb = current_function->append_block("for.inc");
-  hir::BasicBlock *merge_bb = current_function->append_block("for.merge");
+  hir::BasicBlock *cond_bb = current_function->append_block();
+  hir::BasicBlock *body_bb = current_function->append_block();
+  hir::BasicBlock *inc_bb = current_function->append_block();
+  hir::BasicBlock *merge_bb = current_function->append_block();
 
   cond_bb->predecessors.push_back(current_block);
   builder.build_br(cond_bb);
@@ -449,9 +449,9 @@ void HIRBuilderVisitor::visit(ForStatement &stmt) {
 }
 void HIRBuilderVisitor::visit(WhileStatement &stmt) {
 
-  auto *condition_block = current_function->append_block("while.cond");
-  auto *body_block = current_function->append_block("while.body");
-  auto *merge_block = current_function->append_block("while.merge");
+  auto *condition_block = current_function->append_block();
+  auto *body_block = current_function->append_block();
+  auto *merge_block = current_function->append_block();
 
   condition_block->predecessors.push_back(current_block);
   builder.build_br(condition_block);
@@ -659,9 +659,9 @@ void HIRBuilderVisitor::visit(TernaryExpression &expr) {
   expr.get_condition()->accept(*this);
   const auto condition = pop_stack();
 
-  hir::BasicBlock *then_bb = current_function->append_block("if.then");
-  hir::BasicBlock *else_bb = current_function->append_block("if.else");
-  hir::BasicBlock *merge_bb = current_function->append_block("if.merge");
+  hir::BasicBlock *then_bb = current_function->append_block();
+  hir::BasicBlock *else_bb = current_function->append_block();
+  hir::BasicBlock *merge_bb = current_function->append_block();
 
   then_bb->predecessors.push_back(current_block);
   else_bb->predecessors.push_back(current_block);

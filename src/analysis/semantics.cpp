@@ -27,6 +27,7 @@ void semantic::SemanticVisitor::visit(FunctionDeclaration &decl) {
 
   const auto body = decl.get_body();
   if (body) {
+    symbol_table->lookup(decl.get_name()).value().get().set_initialized(true);
     body->accept(*this);
   }
 

@@ -10,6 +10,9 @@ void LIRLowering::lower_module(hir::Module &hir_module) {
 }
 
 void LIRLowering::lower_function(hir::Function *hir_function) {
+  vreg_map.clear();
+  block_map.clear();
+
   current_function = module.add_function(hir_function->name);
   builder.set_function(current_function);
 
@@ -61,6 +64,33 @@ lir::CmpPredicate LIRLowering::convert_predicate(hir::ICmpPredicate pred) {
   std::unreachable();
 }
 
+static lir::Opcode convert_binop(hir::Opcode op) {
+  switch (op) {
+  case hir::Opcode::Add:
+    return lir::Opcode::Add;
+  case hir::Opcode::Sub:
+    return lir::Opcode::Sub;
+  case hir::Opcode::Mul:
+    return lir::Opcode::Mul;
+  case hir::Opcode::SDiv:
+    return lir::Opcode::SDiv;
+  case hir::Opcode::And:
+    return lir::Opcode::And;
+  case hir::Opcode::Or:
+    return lir::Opcode::Or;
+  case hir::Opcode::Xor:
+    return lir::Opcode::Xor;
+  case hir::Opcode::Shl:
+    return lir::Opcode::Shl;
+  case hir::Opcode::AShr:
+    return lir::Opcode::AShr;
+  case hir::Opcode::LShr:
+    return lir::Opcode::LShr;
+  default:
+    std::unreachable();
+  }
+}
+
 lir::BasicBlock *LIRLowering::lower_block_from_operand(hir::Value *value) {
   if (auto *arg = dynamic_cast<hir::BasicBlock *>(value)) {
     return get_mbb(arg);
@@ -73,39 +103,35 @@ lir::Operand LIRLowering::lower_operand(hir::Value *val) {
     return lir::Operand::from_imm(ci->signed_value());
   if (auto *bb = dynamic_cast<hir::BasicBlock *>(val))
     return lir::Operand::from_block(get_mbb(bb));
+  if (auto *instr = dynamic_cast<hir::Instruction *>(val))
+    return lir::Operand::from_reg(vreg_map[val]);
 
-  auto it = vreg_map.find(val);
-  assert(it != vreg_map.end() && "value not found in vreg_map");
-  return lir::Operand::from_reg(it->second);
+  auto it = vreg_map[val];
+  return lir::Operand::from_reg(it);
 }
 
 void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   switch (hir_instr->opcode) {
-  case hir::Opcode::Add: {
-    auto dst = builder.emit_binop(lir::Opcode::Add,
+  case hir::Opcode::Add:
+  case hir::Opcode::Sub:
+  case hir::Opcode::Mul:
+  case hir::Opcode::SDiv:
+  case hir::Opcode::And:
+  case hir::Opcode::Or:
+  case hir::Opcode::Xor:
+  case hir::Opcode::Shl:
+  case hir::Opcode::AShr:
+  case hir::Opcode::LShr: {
+    auto dst = builder.emit_binop(convert_binop(hir_instr->opcode),
                                   lower_operand(hir_instr->operand(0)),
                                   lower_operand(hir_instr->operand(1)));
     vreg_map[hir_instr] = dst;
     return;
   }
-  case hir::Opcode::Sub: {
-    auto dst = builder.emit_binop(lir::Opcode::Sub,
-                                  lower_operand(hir_instr->operand(0)),
-                                  lower_operand(hir_instr->operand(1)));
-    vreg_map[hir_instr] = dst;
-    return;
-  }
-  case hir::Opcode::Mul: {
-    auto dst = builder.emit_binop(lir::Opcode::Mul,
-                                  lower_operand(hir_instr->operand(0)),
-                                  lower_operand(hir_instr->operand(1)));
-    vreg_map[hir_instr] = dst;
-    return;
-  }
-  case hir::Opcode::SDiv: {
-    auto dst = builder.emit_binop(lir::Opcode::SDiv,
-                                  lower_operand(hir_instr->operand(0)),
-                                  lower_operand(hir_instr->operand(1)));
+  case hir::Opcode::Neg:
+  case hir::Opcode::Not: {
+    auto dst = builder.emit_unop(lir::Opcode::Neg,
+                                 lower_operand(hir_instr->operand(0)));
     vreg_map[hir_instr] = dst;
     return;
   }
@@ -129,8 +155,6 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::CondBr: {
-    auto cond = lower_operand(hir_instr->operand(0));
-    builder.emit_cmp(lir::CmpPredicate::NE, cond, lir::Operand::from_imm(0));
     builder.emit_cond_jump(lir::CmpPredicate::NE,
                            lower_block_from_operand(hir_instr->operand(1)),
                            lower_block_from_operand(hir_instr->operand(2)));
@@ -181,6 +205,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   default:
+    std::cout << "Unhandled opcode " + (hir_instr->to_string()) << std::endl;
     assert(false && "unhandled opcode in lowering");
   }
 }
