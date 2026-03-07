@@ -5,8 +5,11 @@
 #include <cassert>
 #include <cstdint>
 #include <list>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
+
 namespace hir {
 
 struct Value;

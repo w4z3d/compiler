@@ -2,6 +2,7 @@
 #define SRC_HIR_HIR_TYPE_HPP
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
