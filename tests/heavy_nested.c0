@@ -1,0 +1,141 @@
+int heavy(int a, int b, int c, int d) {
+    int r = 0;
+    for (int i = 0; i < a; i += 1) {
+        for (int j = 0; j < b; j += 1) {
+            for (int k = 0; k < c; k += 1) {
+                if (i + j > k) {
+                    if (j + k > i) {
+                        if (i + k > j) {
+                            r = r + i * j + k;
+                            if (r > 1000) {
+                                r = r / 3;
+                            } else {
+                                r = r + 7;
+                            }
+                        } else {
+                            r = r - k;
+                            if (r < 0) {
+                                r = 0 - r;
+                            } else {
+                                r = r + 1;
+                            }
+                        }
+                    } else {
+                        r = r + j;
+                        for (int m = 0; m < d; m += 1) {
+                            if (m + i > j) {
+                                r = r + m;
+                            } else {
+                                r = r - 1;
+                            }
+                        }
+                    }
+                } else {
+                    r = r - i;
+                    if (r + j > k * 2) {
+                        for (int m = 0; m < d; m += 1) {
+                            r = r + m * k;
+                            if (r > 5000) {
+                                r = r / 5;
+                            } else {
+                                r = r + 3;
+                            }
+                        }
+                    } else {
+                        r = r + k * j;
+                    }
+                }
+            }
+            if (r > 10000) {
+                r = r / 7;
+            } else {
+                r = r + 13;
+            }
+        }
+        if (r > 50000) {
+            r = r / 11;
+        } else {
+            r = r + 17;
+        }
+    }
+    return r;
+}
+
+int compute(int x, int y) {
+    int a = 0;
+    int b = 0;
+    for (int i = 0; i < x; i += 1) {
+        a = heavy(i, x - i, y, i + 1);
+        b = heavy(x - i, i, i + 1, y);
+        if (a > b) {
+            for (int j = 0; j < y; j += 1) {
+                a = a + heavy(j, i, x, y);
+                if (a > 100000) {
+                    a = a / 13;
+                } else {
+                    a = a + b;
+                }
+            }
+        } else {
+            for (int j = 0; j < y; j += 1) {
+                b = b + heavy(i, j, y, x);
+                if (b > 100000) {
+                    b = b / 17;
+                } else {
+                    b = b + a;
+                }
+            }
+        }
+    }
+    return a + b;
+}
+
+int fold1(int n) {
+    int r = 0;
+    for (int i = 0; i < n; i += 1) {
+        for (int j = 0; j < n; j += 1) {
+            if (i * j > n) {
+                r = r + i - j;
+                if (r < 0) { r = 0 - r; } else { r = r + 1; }
+            } else {
+                r = r + j - i;
+                if (r > n * n) { r = r / n; } else { r = r + n; }
+            }
+        }
+    }
+    return r;
+}
+
+int fold2(int n) {
+    int r = 1;
+    for (int i = 1; i < n; i += 1) {
+        for (int j = 1; j < n; j += 1) {
+            for (int k = 1; k < n; k += 1) {
+                if (i * j * k > n * n) {
+                    r = r + i + j + k;
+                    if (r > 99999) { r = r / 7; } else { r = r + 3; }
+                } else {
+                    r = r - i + j - k;
+                    if (r < 1) { r = 1; } else { r = r + 2; }
+                }
+            }
+        }
+    }
+    return r;
+}
+
+int main() {
+    int x = compute(10, 5);
+    int y = fold1(50);
+    int z = fold2(20);
+    int w = 0;
+    for (int i = 0; i < 100; i += 1) {
+        w = w + heavy(i, 100 - i, 50, 25);
+        if (w > 1000000) {
+            w = w / 19;
+        } else {
+            w = w + x + y + z;
+        }
+    }
+    return w;
+}

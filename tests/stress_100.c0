@@ -1,0 +1,704 @@
+int main() {
+  int r = 0;
+  for (int i0 = 0; i0 < 10; i0 += 1) {
+    if (r > 0) {
+      r = r / 3;
+    } else {
+      r = r + i0;
+    }
+  for (int i1 = 0; i1 < 10; i1 += 1) {
+    if (r > 100) {
+      r = r / 3;
+    } else {
+      r = r + i1;
+    }
+  for (int i2 = 0; i2 < 10; i2 += 1) {
+    if (r > 200) {
+      r = r / 3;
+    } else {
+      r = r + i2;
+    }
+  for (int i3 = 0; i3 < 10; i3 += 1) {
+    if (r > 300) {
+      r = r / 3;
+    } else {
+      r = r + i3;
+    }
+  for (int i4 = 0; i4 < 10; i4 += 1) {
+    if (r > 400) {
+      r = r / 3;
+    } else {
+      r = r + i4;
+    }
+  for (int i5 = 0; i5 < 10; i5 += 1) {
+    if (r > 500) {
+      r = r / 3;
+    } else {
+      r = r + i5;
+    }
+  for (int i6 = 0; i6 < 10; i6 += 1) {
+    if (r > 600) {
+      r = r / 3;
+    } else {
+      r = r + i6;
+    }
+  for (int i7 = 0; i7 < 10; i7 += 1) {
+    if (r > 700) {
+      r = r / 3;
+    } else {
+      r = r + i7;
+    }
+  for (int i8 = 0; i8 < 10; i8 += 1) {
+    if (r > 800) {
+      r = r / 3;
+    } else {
+      r = r + i8;
+    }
+  for (int i9 = 0; i9 < 10; i9 += 1) {
+    if (r > 900) {
+      r = r / 3;
+    } else {
+      r = r + i9;
+    }
+  for (int i10 = 0; i10 < 10; i10 += 1) {
+    if (r > 1000) {
+      r = r / 3;
+    } else {
+      r = r + i10;
+    }
+  for (int i11 = 0; i11 < 10; i11 += 1) {
+    if (r > 1100) {
+      r = r / 3;
+    } else {
+      r = r + i11;
+    }
+  for (int i12 = 0; i12 < 10; i12 += 1) {
+    if (r > 1200) {
+      r = r / 3;
+    } else {
+      r = r + i12;
+    }
+  for (int i13 = 0; i13 < 10; i13 += 1) {
+    if (r > 1300) {
+      r = r / 3;
+    } else {
+      r = r + i13;
+    }
+  for (int i14 = 0; i14 < 10; i14 += 1) {
+    if (r > 1400) {
+      r = r / 3;
+    } else {
+      r = r + i14;
+    }
+  for (int i15 = 0; i15 < 10; i15 += 1) {
+    if (r > 1500) {
+      r = r / 3;
+    } else {
+      r = r + i15;
+    }
+  for (int i16 = 0; i16 < 10; i16 += 1) {
+    if (r > 1600) {
+      r = r / 3;
+    } else {
+      r = r + i16;
+    }
+  for (int i17 = 0; i17 < 10; i17 += 1) {
+    if (r > 1700) {
+      r = r / 3;
+    } else {
+      r = r + i17;
+    }
+  for (int i18 = 0; i18 < 10; i18 += 1) {
+    if (r > 1800) {
+      r = r / 3;
+    } else {
+      r = r + i18;
+    }
+  for (int i19 = 0; i19 < 10; i19 += 1) {
+    if (r > 1900) {
+      r = r / 3;
+    } else {
+      r = r + i19;
+    }
+  for (int i20 = 0; i20 < 10; i20 += 1) {
+    if (r > 2000) {
+      r = r / 3;
+    } else {
+      r = r + i20;
+    }
+  for (int i21 = 0; i21 < 10; i21 += 1) {
+    if (r > 2100) {
+      r = r / 3;
+    } else {
+      r = r + i21;
+    }
+  for (int i22 = 0; i22 < 10; i22 += 1) {
+    if (r > 2200) {
+      r = r / 3;
+    } else {
+      r = r + i22;
+    }
+  for (int i23 = 0; i23 < 10; i23 += 1) {
+    if (r > 2300) {
+      r = r / 3;
+    } else {
+      r = r + i23;
+    }
+  for (int i24 = 0; i24 < 10; i24 += 1) {
+    if (r > 2400) {
+      r = r / 3;
+    } else {
+      r = r + i24;
+    }
+  for (int i25 = 0; i25 < 10; i25 += 1) {
+    if (r > 2500) {
+      r = r / 3;
+    } else {
+      r = r + i25;
+    }
+  for (int i26 = 0; i26 < 10; i26 += 1) {
+    if (r > 2600) {
+      r = r / 3;
+    } else {
+      r = r + i26;
+    }
+  for (int i27 = 0; i27 < 10; i27 += 1) {
+    if (r > 2700) {
+      r = r / 3;
+    } else {
+      r = r + i27;
+    }
+  for (int i28 = 0; i28 < 10; i28 += 1) {
+    if (r > 2800) {
+      r = r / 3;
+    } else {
+      r = r + i28;
+    }
+  for (int i29 = 0; i29 < 10; i29 += 1) {
+    if (r > 2900) {
+      r = r / 3;
+    } else {
+      r = r + i29;
+    }
+  for (int i30 = 0; i30 < 10; i30 += 1) {
+    if (r > 3000) {
+      r = r / 3;
+    } else {
+      r = r + i30;
+    }
+  for (int i31 = 0; i31 < 10; i31 += 1) {
+    if (r > 3100) {
+      r = r / 3;
+    } else {
+      r = r + i31;
+    }
+  for (int i32 = 0; i32 < 10; i32 += 1) {
+    if (r > 3200) {
+      r = r / 3;
+    } else {
+      r = r + i32;
+    }
+  for (int i33 = 0; i33 < 10; i33 += 1) {
+    if (r > 3300) {
+      r = r / 3;
+    } else {
+      r = r + i33;
+    }
+  for (int i34 = 0; i34 < 10; i34 += 1) {
+    if (r > 3400) {
+      r = r / 3;
+    } else {
+      r = r + i34;
+    }
+  for (int i35 = 0; i35 < 10; i35 += 1) {
+    if (r > 3500) {
+      r = r / 3;
+    } else {
+      r = r + i35;
+    }
+  for (int i36 = 0; i36 < 10; i36 += 1) {
+    if (r > 3600) {
+      r = r / 3;
+    } else {
+      r = r + i36;
+    }
+  for (int i37 = 0; i37 < 10; i37 += 1) {
+    if (r > 3700) {
+      r = r / 3;
+    } else {
+      r = r + i37;
+    }
+  for (int i38 = 0; i38 < 10; i38 += 1) {
+    if (r > 3800) {
+      r = r / 3;
+    } else {
+      r = r + i38;
+    }
+  for (int i39 = 0; i39 < 10; i39 += 1) {
+    if (r > 3900) {
+      r = r / 3;
+    } else {
+      r = r + i39;
+    }
+  for (int i40 = 0; i40 < 10; i40 += 1) {
+    if (r > 4000) {
+      r = r / 3;
+    } else {
+      r = r + i40;
+    }
+  for (int i41 = 0; i41 < 10; i41 += 1) {
+    if (r > 4100) {
+      r = r / 3;
+    } else {
+      r = r + i41;
+    }
+  for (int i42 = 0; i42 < 10; i42 += 1) {
+    if (r > 4200) {
+      r = r / 3;
+    } else {
+      r = r + i42;
+    }
+  for (int i43 = 0; i43 < 10; i43 += 1) {
+    if (r > 4300) {
+      r = r / 3;
+    } else {
+      r = r + i43;
+    }
+  for (int i44 = 0; i44 < 10; i44 += 1) {
+    if (r > 4400) {
+      r = r / 3;
+    } else {
+      r = r + i44;
+    }
+  for (int i45 = 0; i45 < 10; i45 += 1) {
+    if (r > 4500) {
+      r = r / 3;
+    } else {
+      r = r + i45;
+    }
+  for (int i46 = 0; i46 < 10; i46 += 1) {
+    if (r > 4600) {
+      r = r / 3;
+    } else {
+      r = r + i46;
+    }
+  for (int i47 = 0; i47 < 10; i47 += 1) {
+    if (r > 4700) {
+      r = r / 3;
+    } else {
+      r = r + i47;
+    }
+  for (int i48 = 0; i48 < 10; i48 += 1) {
+    if (r > 4800) {
+      r = r / 3;
+    } else {
+      r = r + i48;
+    }
+  for (int i49 = 0; i49 < 10; i49 += 1) {
+    if (r > 4900) {
+      r = r / 3;
+    } else {
+      r = r + i49;
+    }
+  for (int i50 = 0; i50 < 10; i50 += 1) {
+    if (r > 5000) {
+      r = r / 3;
+    } else {
+      r = r + i50;
+    }
+  for (int i51 = 0; i51 < 10; i51 += 1) {
+    if (r > 5100) {
+      r = r / 3;
+    } else {
+      r = r + i51;
+    }
+  for (int i52 = 0; i52 < 10; i52 += 1) {
+    if (r > 5200) {
+      r = r / 3;
+    } else {
+      r = r + i52;
+    }
+  for (int i53 = 0; i53 < 10; i53 += 1) {
+    if (r > 5300) {
+      r = r / 3;
+    } else {
+      r = r + i53;
+    }
+  for (int i54 = 0; i54 < 10; i54 += 1) {
+    if (r > 5400) {
+      r = r / 3;
+    } else {
+      r = r + i54;
+    }
+  for (int i55 = 0; i55 < 10; i55 += 1) {
+    if (r > 5500) {
+      r = r / 3;
+    } else {
+      r = r + i55;
+    }
+  for (int i56 = 0; i56 < 10; i56 += 1) {
+    if (r > 5600) {
+      r = r / 3;
+    } else {
+      r = r + i56;
+    }
+  for (int i57 = 0; i57 < 10; i57 += 1) {
+    if (r > 5700) {
+      r = r / 3;
+    } else {
+      r = r + i57;
+    }
+  for (int i58 = 0; i58 < 10; i58 += 1) {
+    if (r > 5800) {
+      r = r / 3;
+    } else {
+      r = r + i58;
+    }
+  for (int i59 = 0; i59 < 10; i59 += 1) {
+    if (r > 5900) {
+      r = r / 3;
+    } else {
+      r = r + i59;
+    }
+  for (int i60 = 0; i60 < 10; i60 += 1) {
+    if (r > 6000) {
+      r = r / 3;
+    } else {
+      r = r + i60;
+    }
+  for (int i61 = 0; i61 < 10; i61 += 1) {
+    if (r > 6100) {
+      r = r / 3;
+    } else {
+      r = r + i61;
+    }
+  for (int i62 = 0; i62 < 10; i62 += 1) {
+    if (r > 6200) {
+      r = r / 3;
+    } else {
+      r = r + i62;
+    }
+  for (int i63 = 0; i63 < 10; i63 += 1) {
+    if (r > 6300) {
+      r = r / 3;
+    } else {
+      r = r + i63;
+    }
+  for (int i64 = 0; i64 < 10; i64 += 1) {
+    if (r > 6400) {
+      r = r / 3;
+    } else {
+      r = r + i64;
+    }
+  for (int i65 = 0; i65 < 10; i65 += 1) {
+    if (r > 6500) {
+      r = r / 3;
+    } else {
+      r = r + i65;
+    }
+  for (int i66 = 0; i66 < 10; i66 += 1) {
+    if (r > 6600) {
+      r = r / 3;
+    } else {
+      r = r + i66;
+    }
+  for (int i67 = 0; i67 < 10; i67 += 1) {
+    if (r > 6700) {
+      r = r / 3;
+    } else {
+      r = r + i67;
+    }
+  for (int i68 = 0; i68 < 10; i68 += 1) {
+    if (r > 6800) {
+      r = r / 3;
+    } else {
+      r = r + i68;
+    }
+  for (int i69 = 0; i69 < 10; i69 += 1) {
+    if (r > 6900) {
+      r = r / 3;
+    } else {
+      r = r + i69;
+    }
+  for (int i70 = 0; i70 < 10; i70 += 1) {
+    if (r > 7000) {
+      r = r / 3;
+    } else {
+      r = r + i70;
+    }
+  for (int i71 = 0; i71 < 10; i71 += 1) {
+    if (r > 7100) {
+      r = r / 3;
+    } else {
+      r = r + i71;
+    }
+  for (int i72 = 0; i72 < 10; i72 += 1) {
+    if (r > 7200) {
+      r = r / 3;
+    } else {
+      r = r + i72;
+    }
+  for (int i73 = 0; i73 < 10; i73 += 1) {
+    if (r > 7300) {
+      r = r / 3;
+    } else {
+      r = r + i73;
+    }
+  for (int i74 = 0; i74 < 10; i74 += 1) {
+    if (r > 7400) {
+      r = r / 3;
+    } else {
+      r = r + i74;
+    }
+  for (int i75 = 0; i75 < 10; i75 += 1) {
+    if (r > 7500) {
+      r = r / 3;
+    } else {
+      r = r + i75;
+    }
+  for (int i76 = 0; i76 < 10; i76 += 1) {
+    if (r > 7600) {
+      r = r / 3;
+    } else {
+      r = r + i76;
+    }
+  for (int i77 = 0; i77 < 10; i77 += 1) {
+    if (r > 7700) {
+      r = r / 3;
+    } else {
+      r = r + i77;
+    }
+  for (int i78 = 0; i78 < 10; i78 += 1) {
+    if (r > 7800) {
+      r = r / 3;
+    } else {
+      r = r + i78;
+    }
+  for (int i79 = 0; i79 < 10; i79 += 1) {
+    if (r > 7900) {
+      r = r / 3;
+    } else {
+      r = r + i79;
+    }
+  for (int i80 = 0; i80 < 10; i80 += 1) {
+    if (r > 8000) {
+      r = r / 3;
+    } else {
+      r = r + i80;
+    }
+  for (int i81 = 0; i81 < 10; i81 += 1) {
+    if (r > 8100) {
+      r = r / 3;
+    } else {
+      r = r + i81;
+    }
+  for (int i82 = 0; i82 < 10; i82 += 1) {
+    if (r > 8200) {
+      r = r / 3;
+    } else {
+      r = r + i82;
+    }
+  for (int i83 = 0; i83 < 10; i83 += 1) {
+    if (r > 8300) {
+      r = r / 3;
+    } else {
+      r = r + i83;
+    }
+  for (int i84 = 0; i84 < 10; i84 += 1) {
+    if (r > 8400) {
+      r = r / 3;
+    } else {
+      r = r + i84;
+    }
+  for (int i85 = 0; i85 < 10; i85 += 1) {
+    if (r > 8500) {
+      r = r / 3;
+    } else {
+      r = r + i85;
+    }
+  for (int i86 = 0; i86 < 10; i86 += 1) {
+    if (r > 8600) {
+      r = r / 3;
+    } else {
+      r = r + i86;
+    }
+  for (int i87 = 0; i87 < 10; i87 += 1) {
+    if (r > 8700) {
+      r = r / 3;
+    } else {
+      r = r + i87;
+    }
+  for (int i88 = 0; i88 < 10; i88 += 1) {
+    if (r > 8800) {
+      r = r / 3;
+    } else {
+      r = r + i88;
+    }
+  for (int i89 = 0; i89 < 10; i89 += 1) {
+    if (r > 8900) {
+      r = r / 3;
+    } else {
+      r = r + i89;
+    }
+  for (int i90 = 0; i90 < 10; i90 += 1) {
+    if (r > 9000) {
+      r = r / 3;
+    } else {
+      r = r + i90;
+    }
+  for (int i91 = 0; i91 < 10; i91 += 1) {
+    if (r > 9100) {
+      r = r / 3;
+    } else {
+      r = r + i91;
+    }
+  for (int i92 = 0; i92 < 10; i92 += 1) {
+    if (r > 9200) {
+      r = r / 3;
+    } else {
+      r = r + i92;
+    }
+  for (int i93 = 0; i93 < 10; i93 += 1) {
+    if (r > 9300) {
+      r = r / 3;
+    } else {
+      r = r + i93;
+    }
+  for (int i94 = 0; i94 < 10; i94 += 1) {
+    if (r > 9400) {
+      r = r / 3;
+    } else {
+      r = r + i94;
+    }
+  for (int i95 = 0; i95 < 10; i95 += 1) {
+    if (r > 9500) {
+      r = r / 3;
+    } else {
+      r = r + i95;
+    }
+  for (int i96 = 0; i96 < 10; i96 += 1) {
+    if (r > 9600) {
+      r = r / 3;
+    } else {
+      r = r + i96;
+    }
+  for (int i97 = 0; i97 < 10; i97 += 1) {
+    if (r > 9700) {
+      r = r / 3;
+    } else {
+      r = r + i97;
+    }
+  for (int i98 = 0; i98 < 10; i98 += 1) {
+    if (r > 9800) {
+      r = r / 3;
+    } else {
+      r = r + i98;
+    }
+  for (int i99 = 0; i99 < 10; i99 += 1) {
+    if (r > 9900) {
+      r = r / 3;
+    } else {
+      r = r + i99;
+    }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  }
+  return r;
+}

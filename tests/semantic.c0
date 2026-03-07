@@ -1,0 +1,107 @@
+int compute(int a, int b, int c) {
+    int result = 0;
+    int temp = a * b + c;
+
+    if (temp > 100) {
+        if (a > b) {
+            result = temp - a;
+            if (result > 50) {
+                result = result / 2;
+            } else {
+                result = result * 3;
+                if (c > 10) {
+                    result = result + c;
+                } else {
+                    result = result - c;
+                }
+            }
+        } else {
+            result = temp - b;
+            if (c > 0) {
+                for (int i = 0; i < c; i += 1) {
+                    result = result + i;
+                    if (result > 1000) {
+                        result = result / 4;
+                    } else {
+                        result = result + 1;
+                    }
+                }
+            } else {
+                result = 42;
+            }
+        }
+    } else {
+        if (temp + 100 < 0) {
+            result = 0 - temp;
+            for (int i = 0; i < 10; i += 1) {
+                if (i < 5) {
+                    result = result + a;
+                } else {
+                    result = result - b;
+                }
+                for (int j = 0; j < 3; j += 1) {
+                    result = result + j;
+                }
+            }
+        } else {
+            for (int i = 0; i < a; i += 1) {
+                for (int j = 0; j < b; j += 1) {
+                    if (i + j > c) {
+                        result = result + 1;
+                    } else {
+                        if (i * j > c) {
+                            result = result + 2;
+                        } else {
+                            result = result - 1;
+                        }
+                    }
+                }
+                if (result > 500) {
+                    result = result / 2;
+                } else {
+                    result = result + 10;
+                }
+            }
+        }
+    }
+
+    if (result < 0) {
+        result = 0 - result;
+    } else {
+        if (result > 10000) {
+            result = result / 100;
+        } else {
+            result = result + 1;
+        }
+    }
+
+    return result;
+}
+
+int main() {
+    int x = compute(5, 10, 3);
+    int y = compute(0 - 20, 7, 15);
+    int z = 0;
+
+    if (x > y) {
+        for (int i = 0; i < x - y; i += 1) {
+            z = z + 1;
+            if (z > 100) {
+                z = z / 2;
+            } else {
+                z = z + x;
+            }
+        }
+    } else {
+        for (int i = 0; i < y - x; i += 1) {
+            z = z - 1;
+            if (z + 100 < 0) {
+                z = z + 50;
+            } else {
+                z = z - y;
+            }
+        }
+    }
+
+    return z + x + y;
+}
