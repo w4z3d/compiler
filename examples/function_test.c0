@@ -1,10 +1,16 @@
-int main() {
-  int lol = 5 + 10;
-  if (lol <= 10) {
-    lol = 20;
-  } else {
-    lol = 300;
+int factorial(int n) {
+
+  int result = 0;
+  for(int i = 0; i < n; i++) {
+    result = result * i;
   }
-  return lol;
+  return result;
 }
+
+
+int main() {
+  int x = 10;
+  return factorial(x);
+}
+
 

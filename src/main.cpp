@@ -14,13 +14,12 @@
 
 int main(int argc, char *argv[]) {
   const auto file = io::read_file(argv[1]);
-  // std::cout << file.content << std::endl;
 
   const auto diagnostics = std::make_shared<DiagnosticEmitter>();
   const auto source_manager =
       std::make_shared<SourceManager>(file.content, file.name);
-  auto *lexer = new Lexer{file.name, file.content};
-  auto *parser = new Parser{*lexer, diagnostics, source_manager};
+  auto lexer = std::make_unique<Lexer>(file.name, file.content);
+  auto parser = std::make_unique<Parser>(*lexer, diagnostics, source_manager);
 
   const auto unit{parser->parse_translation_unit()};
 
@@ -38,12 +37,14 @@ int main(int argc, char *argv[]) {
     return 7;
   }
 
-  type_check::TypeVisitor type_check_visitor{diagnostics, source_manager};
+  type_check::TypeVisitor type_check_visitor{diagnostics, source_manager,
+                                              symbol_table};
   unit->accept(type_check_visitor);
 
-  // ClangStylePrintVisitor visitor{};
-  // unit->accept(visitor);
-  // std::cout << visitor.get_content() << std::endl;
+  if (diagnostics->has_errors()) {
+    diagnostics->print_all();
+    return 7;
+  }
 
   hir::Module module{};
   HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics};
@@ -53,12 +54,8 @@ int main(int argc, char *argv[]) {
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
-    system("pause");
     return 7;
   }
-
-  delete parser;
-  delete lexer;
 
   return 0;
 }

@@ -196,9 +196,9 @@ struct BasicBlock : Value {
 struct Argument : Value {
   Function *parent;
   size_t arg_index;
-  Argument(type::Type *type, const std::string &name, Function *parent,
+  Argument(type::Type *type, std::string_view name, Function *parent,
            size_t index)
-      : Value(type, std::move(name)), parent(parent), arg_index(index) {}
+      : Value(type, name), parent(parent), arg_index(index) {}
 };
 
 struct Function : Value {

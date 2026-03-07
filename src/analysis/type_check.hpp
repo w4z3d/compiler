@@ -11,14 +11,34 @@ class TypeVisitor : public ASTVisitor {
 private:
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
-  std::unordered_set<const type::Type *> known_types;
-  arena::Arena arena;
+  std::shared_ptr<SymbolTable> symbol_table;
+
+  std::unordered_map<std::string, const type::StructType *> struct_types;
+  std::unordered_map<std::string, const type::Type *> typedef_types;
+
+  const type::Type *current_return_type = nullptr;
+
+  const type::Type *resolve_type(const TypeAnnotation *annotation);
+
+  const type::Type *resolve_underlying(const type::Type *t);
+
+  static bool is_small_type(const type::Type *t);
+
+  bool types_equal(const type::Type *a, const type::Type *b);
+
+  void type_error(const SourceLocation &loc, const std::string &message);
+
+  static const type::Type *expr_type(const Expression &expr);
+
+  const type::Type *lvalue_type(const LValue &val);
 
 public:
   explicit TypeVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
-                       std::shared_ptr<SourceManager> source_manager)
+                       std::shared_ptr<SourceManager> source_manager,
+                       std::shared_ptr<SymbolTable> symbol_table)
       : diagnostics(std::move(diagnostics)),
-        source_manager(std::move(source_manager)), arena(arena::Arena{}) {}
+        source_manager(std::move(source_manager)),
+        symbol_table(std::move(symbol_table)) {}
 
   void visit(Typedef &typedef_) override;
   void visit(Declaration &decl) override;
