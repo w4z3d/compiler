@@ -1,0 +1,9 @@
+int main() {
+  int x = 100;
+  int count = 0;
+  while (x > 1) {
+    x = x / 2;
+    count += 1;
+  }
+  return count;
+}

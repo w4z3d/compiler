@@ -1,0 +1,15 @@
+int main() {
+  bool a = true;
+  bool b = false;
+  bool c = a && b;
+  bool d = a || b;
+  bool e = !a;
+  bool f = !b;
+  int result = 0;
+  if (a) result += 1;
+  if (!c) result += 10;
+  if (d) result += 100;
+  if (!e) result += 1000;
+  if (f) result += 10000;
+  return result;
+}

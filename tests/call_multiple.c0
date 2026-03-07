@@ -1,0 +1,13 @@
+int square(int x) {
+  return x * x;
+}
+
+int cube(int x) {
+  return x * square(x);
+}
+
+int main() {
+  int a = square(5);
+  int b = cube(3);
+  return a + b;
+}

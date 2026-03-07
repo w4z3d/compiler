@@ -1,0 +1,13 @@
+int abs(int x) {
+  return x >= 0 ? x : 0 - x;
+}
+
+int max(int a, int b) {
+  return a > b ? a : b;
+}
+
+int main() {
+  int a = abs(0 - 42);
+  int b = max(10, 20);
+  return a + b;
+}

@@ -1,0 +1,8 @@
+int nothing() {
+  return 0;
+}
+
+int main() {
+  nothing();
+  return 0;
+}

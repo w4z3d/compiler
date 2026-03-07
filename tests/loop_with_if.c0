@@ -1,0 +1,12 @@
+int main() {
+  int even_sum = 0;
+  int odd_sum = 0;
+  for (int i = 0; i < 20; i += 1) {
+    if (i % 2 == 0) {
+      even_sum += i;
+    } else {
+      odd_sum += i;
+    }
+  }
+  return even_sum - odd_sum;
+}

@@ -1,0 +1,16 @@
+int bool_to_int(bool b) {
+  if (b) { return 1; }
+  return 0;
+}
+
+int main() {
+  int result = 0;
+  result += bool_to_int(5 == 5);
+  result += bool_to_int(5 != 3);
+  result += bool_to_int(3 < 5);
+  result += bool_to_int(5 > 3);
+  result += bool_to_int(3 <= 3);
+  result += bool_to_int(5 >= 5);
+  result += bool_to_int(!(3 > 5));
+  return result;
+}
