@@ -6,8 +6,8 @@
 
 struct LIRBuilder {
 
-  static int next_block_id;
-  static int next_vreg_id;
+  int next_block_id = 0;
+  int next_vreg_id = 0;
 
   arena::Arena &arena;
 
@@ -23,7 +23,7 @@ struct LIRBuilder {
   }
 
   lir::BasicBlock *create_block(std::string label);
-  [[nodiscard]] inline static lir::Register new_vreg() {
+  [[nodiscard]] inline lir::Register new_vreg() {
     return lir::Register::vreg(next_vreg_id++);
   }
 

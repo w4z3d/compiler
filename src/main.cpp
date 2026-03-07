@@ -7,6 +7,8 @@
 #include "hir/hir_builder_visitor.hpp"
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
+#include "lir/lir.hpp"
+#include "lir/lir_lowering.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
 #include <iostream>
@@ -38,7 +40,7 @@ int main(int argc, char *argv[]) {
   }
 
   type_check::TypeVisitor type_check_visitor{diagnostics, source_manager,
-                                              symbol_table};
+                                             symbol_table};
   unit->accept(type_check_visitor);
 
   if (diagnostics->has_errors()) {
@@ -51,6 +53,12 @@ int main(int argc, char *argv[]) {
   unit->accept(hir_visitor);
 
   std::cout << module.to_dot() << std::endl;
+
+  lir::Module lir_module{};
+  LIRLowering lowering{lir_module};
+  lowering.lower_module(module);
+
+  std::cout << lir_module.to_string() << std::endl;
 
   if (diagnostics->has_errors()) {
     diagnostics->print_all();

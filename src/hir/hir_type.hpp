@@ -90,6 +90,7 @@ struct FunctionType : Type {
       : return_type(ret), param_types(std::move(params)) {}
   [[nodiscard]] Kind kind() const override { return Kind::Function; }
   [[nodiscard]] std::string to_string() const override;
+  [[nodiscard]] inline size_t size_of() const override { return 0; };
 };
 
 struct StructType : Type {
@@ -100,6 +101,13 @@ struct StructType : Type {
   explicit StructType(std::string n) : name(std::move(n)) {}
   [[nodiscard]] Kind kind() const override { return Kind::Struct; }
   [[nodiscard]] std::string to_string() const override { return "%" + name; }
+  [[nodiscard]] inline size_t size_of() const override {
+    size_t size = 0;
+    for (auto *field : fields) {
+      size += field->size_of();
+    }
+    return size;
+  };
 };
 
 struct TypeContext {

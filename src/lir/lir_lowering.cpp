@@ -1,14 +1,14 @@
 #include "lir_lowering.hpp"
 #include "lir.hpp"
 
-void LIRLowering::lower_module(hir::Module *hir_module) {
-  for (const auto &function : hir_module->functions) {
+void LIRLowering::lower_module(hir::Module &hir_module) {
+  for (const auto &function : hir_module.functions) {
     LIRLowering::lower_function(function.get());
   }
 }
 
 void LIRLowering::lower_function(hir::Function *hir_function) {
-  current_function = module->add_function(hir_function->name);
+  current_function = module.add_function(hir_function->name);
   builder.set_function(current_function);
 
   for (auto *bb : hir_function->blocks) {
@@ -16,7 +16,7 @@ void LIRLowering::lower_function(hir::Function *hir_function) {
   }
   // Map function arguments to vregs
   for (auto *arg : hir_function->arguments) {
-    auto vreg = LIRBuilder::new_vreg();
+    auto vreg = builder.new_vreg();
     vreg_map[arg] = vreg;
     current_function->param_regs.push_back(vreg);
   }
@@ -31,7 +31,7 @@ void LIRLowering::lower_block(hir::BasicBlock *hir_bb) {
     LIRLowering::lower_instruction(instr);
   }
 }
-static lir::CmpPredicate convert_predicate(hir::ICmpPredicate pred) {
+lir::CmpPredicate LIRLowering::convert_predicate(hir::ICmpPredicate pred) {
   switch (pred) {
   case hir::ICmpPredicate::EQ:
     return lir::CmpPredicate::EQ;
@@ -171,8 +171,11 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     vreg_map[hir_instr] = ptr;
     return;
   }
-  case hir::Opcode::Phi:
+  case hir::Opcode::Phi: {
+    auto dst = builder.new_vreg();
+    vreg_map[hir_instr] = dst;
     return;
+  }
   default:
     assert(false && "unhandled opcode in lowering");
   }
