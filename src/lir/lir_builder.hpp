@@ -29,6 +29,8 @@ struct LIRBuilder {
   }
 
   // Convenience emitters — these emit into the given block
+  void emit_raw(lir::Instruction *instr) const;
+
   void emit_jump(lir::BasicBlock *target);
   void emit_cond_jump(lir::CmpPredicate pred, lir::BasicBlock *true_target,
                       lir::BasicBlock *false_target);

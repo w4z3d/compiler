@@ -2,6 +2,7 @@
 #define SRC_LIR_LIR_LOWERING_HPP
 
 #include "../alloc/arena.hpp"
+#include "../codegen/target.hpp"
 #include "../hir/hir.hpp"
 #include "lir.hpp"
 #include "lir_builder.hpp"
@@ -10,6 +11,7 @@ struct LIRLowering {
   arena::Arena arena;
   lir::Module &module;
   LIRBuilder builder;
+  TargetInfo target_info;
 
   std::unordered_map<hir::Value *, lir::Register> vreg_map;
   std::unordered_map<hir::BasicBlock *, lir::BasicBlock *> block_map;
@@ -17,8 +19,9 @@ struct LIRLowering {
   lir::Function *current_function = nullptr;
   lir::BasicBlock *insert_block = nullptr;
 
-  explicit LIRLowering(lir::Module &module)
-      : arena(arena::Arena{}), builder(LIRBuilder{arena}), module(module) {}
+  explicit LIRLowering(lir::Module &module, TargetInfo target_info)
+      : arena(arena::Arena{}), builder(LIRBuilder{arena}), module(module),
+        target_info(target_info) {}
 
   void lower_module(hir::Module &hir_module);
   void lower_function(hir::Function *hir_function);
@@ -28,6 +31,9 @@ struct LIRLowering {
   lir::BasicBlock *lower_block_from_operand(hir::Value *value);
   lir::CmpPredicate convert_predicate(hir::ICmpPredicate pred);
   inline lir::BasicBlock *get_mbb(hir::BasicBlock *bb) { return block_map[bb]; }
+  void lower_binop(hir::Instruction *hir_instr, lir::Opcode op);
+
+  lir::Operand ensure_reg(lir::Operand op);
 
   void eliminate_phis(hir::Function *hir_function);
   void sequentialize_copies(

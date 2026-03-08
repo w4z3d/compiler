@@ -1,5 +1,8 @@
 #include "lir_builder.hpp"
 #include "lir.hpp"
+
+void LIRBuilder::emit_raw(lir::Instruction *instr) const { insert(instr); }
+
 lir::BasicBlock *LIRBuilder::create_block(std::string block_label) {
   auto *mbb = arena.create<lir::BasicBlock>();
   mbb->label = std::move(block_label);

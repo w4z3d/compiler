@@ -2,6 +2,8 @@
 #include "analysis/semantics.hpp"
 #include "analysis/symbol.hpp"
 #include "analysis/type_check.hpp"
+#include "codegen/aarch64/aarch64_defs.hpp"
+#include "codegen/aarch64/aarch64_emit.hpp"
 #include "codegen/aarch64/precolor_info.hpp"
 #include "codegen/regalloc.hpp"
 #include "defs/ast.hpp"
@@ -15,6 +17,7 @@
 #include "lir/lir_lowering.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
+#include <fstream>
 #include <iostream>
 #include <memory>
 
@@ -59,7 +62,7 @@ int main(int argc, char *argv[]) {
   std::cout << module.to_dot() << std::endl;
 
   lir::Module lir_module{};
-  LIRLowering lowering{lir_module};
+  LIRLowering lowering{lir_module, aarch64::target};
   lowering.lower_module(module);
 
   std::cout << lir_module.to_string() << std::endl;
@@ -81,7 +84,18 @@ int main(int argc, char *argv[]) {
   }
 
   std::cout << lir_module.to_string() << std::endl;
+  aarch64::AsmEmitter emitter(aarch64::target);
+  std::string asm_output = emitter.emit_module(&lir_module);
 
+  // Write to file
+  std::ofstream out("output.s");
+  out << asm_output;
+  out.close();
+
+  // Assemble and link
+  system("as -o output.o output.s");
+  system("ld -o output output.o -lSystem -syslibroot $(xcrun --sdk macosx "
+         "--show-sdk-path) -arch arm64");
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     return 7;

@@ -14,3 +14,21 @@ const char *TargetInfo::reg_name(lir::Register reg) const {
     return aarch64_reg_names[reg.id];
   return "???";
 }
+
+bool TargetInfo::accepts_imm(lir::Opcode op) const {
+
+  switch (op) {
+  case lir::Opcode::Add:
+  case lir::Opcode::Sub:
+  case lir::Opcode::Cmp:
+  case lir::Opcode::And:
+  case lir::Opcode::Or:
+  case lir::Opcode::Xor:
+  case lir::Opcode::Shl:
+  case lir::Opcode::AShr:
+  case lir::Opcode::LShr:
+    return true;
+  default:
+    return false;
+  }
+}

@@ -161,13 +161,13 @@ void build_interference_graph(lir::Function *func, LivenessInfo &info,
     for (auto inst : std::ranges::reverse_view(mbb->instructions)) {
       // Add uses to live set first
       for (auto &op : inst->uses()) {
-        if (op.is_reg() && op.get_reg().is_virtual())
+        if (op.is_reg())
           live.set(op.get_reg().id);
       }
 
       // Each def interferes with everything currently live
       for (auto &def_op : inst->defs()) {
-        if (!def_op.is_reg() || !def_op.get_reg().is_virtual())
+        if (!def_op.is_reg())
           continue;
         unsigned def_id = def_op.get_reg().id;
 
@@ -180,7 +180,7 @@ void build_interference_graph(lir::Function *func, LivenessInfo &info,
 
       // Remove defs from live set
       for (auto &op : inst->defs()) {
-        if (op.is_reg() && op.get_reg().is_virtual())
+        if (op.is_reg())
           live.reset(op.get_reg().id);
       }
     }

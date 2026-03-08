@@ -98,6 +98,13 @@ lir::BasicBlock *LIRLowering::lower_block_from_operand(hir::Value *value) {
   std::unreachable();
 }
 
+lir::Operand LIRLowering::ensure_reg(lir::Operand op) {
+  if (op.is_reg())
+    return op;
+  auto tmp = builder.emit_mov(op);
+  return lir::Operand::from_reg(tmp);
+}
+
 lir::Operand LIRLowering::lower_operand(hir::Value *val) {
   if (auto *ci = dynamic_cast<hir::ConstantInt *>(val))
     return lir::Operand::from_imm(ci->signed_value());
@@ -113,21 +120,35 @@ lir::Operand LIRLowering::lower_operand(hir::Value *val) {
 void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   switch (hir_instr->opcode) {
   case hir::Opcode::Add:
-  case hir::Opcode::Sub:
-  case hir::Opcode::Mul:
-  case hir::Opcode::SDiv:
-  case hir::Opcode::And:
-  case hir::Opcode::Or:
-  case hir::Opcode::Xor:
-  case hir::Opcode::Shl:
-  case hir::Opcode::AShr:
-  case hir::Opcode::LShr: {
-    auto dst = builder.emit_binop(convert_binop(hir_instr->opcode),
-                                  lower_operand(hir_instr->operand(0)),
-                                  lower_operand(hir_instr->operand(1)));
-    vreg_map[hir_instr] = dst;
+    lower_binop(hir_instr, lir::Opcode::Add);
     return;
-  }
+  case hir::Opcode::Sub:
+    lower_binop(hir_instr, lir::Opcode::Sub);
+    return;
+  case hir::Opcode::Mul:
+    lower_binop(hir_instr, lir::Opcode::Mul);
+    return;
+  case hir::Opcode::SDiv:
+    lower_binop(hir_instr, lir::Opcode::SDiv);
+    return;
+  case hir::Opcode::And:
+    lower_binop(hir_instr, lir::Opcode::And);
+    return;
+  case hir::Opcode::Or:
+    lower_binop(hir_instr, lir::Opcode::Or);
+    return;
+  case hir::Opcode::Xor:
+    lower_binop(hir_instr, lir::Opcode::Xor);
+    return;
+  case hir::Opcode::Shl:
+    lower_binop(hir_instr, lir::Opcode::Shl);
+    return;
+  case hir::Opcode::AShr:
+    lower_binop(hir_instr, lir::Opcode::AShr);
+    return;
+  case hir::Opcode::LShr:
+    lower_binop(hir_instr, lir::Opcode::LShr);
+    return;
   case hir::Opcode::Neg:
   case hir::Opcode::Not: {
     auto dst = builder.emit_unop(lir::Opcode::Neg,
@@ -138,6 +159,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   case hir::Opcode::SRem: {
     auto lhs = lower_operand(hir_instr->operand(0));
     auto rhs = lower_operand(hir_instr->operand(1));
+    lhs = ensure_reg(lhs);
+    rhs = ensure_reg(rhs);
     auto quot = builder.emit_binop(lir::Opcode::SDiv, lhs, rhs);
     auto prod =
         builder.emit_binop(lir::Opcode::Mul, lir::Operand::from_reg(quot), rhs);
@@ -166,9 +189,16 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     builder.emit_jump(lower_block_from_operand(hir_instr->operand(0)));
     return;
   case hir::Opcode::Ret:
-    if (hir_instr->operand_count() > 0)
-      builder.emit_ret(lower_operand(hir_instr->operand(0)));
-    else
+    if (hir_instr->operand_count() > 0) {
+      auto ret_register = lir::Operand::from_reg(lir::Register::preg(0));
+      auto *instr = arena.create<lir::Instruction>();
+      instr->opcode = lir::Opcode::Copy;
+      instr->num_defs = 1;
+      instr->operands.push_back(ret_register);
+      instr->operands.push_back(lower_operand(hir_instr->operand(0)));
+      builder.emit_raw(instr);
+      builder.emit_ret(ret_register);
+    } else
       builder.emit_ret();
     return;
   case hir::Opcode::Call: {
@@ -210,6 +240,20 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     std::cout << "Unhandled opcode " + (hir_instr->to_string()) << std::endl;
     assert(false && "unhandled opcode in lowering");
   }
+}
+
+void LIRLowering::lower_binop(hir::Instruction *hir_instr, lir::Opcode op) {
+  auto lhs = lower_operand(hir_instr->operand(0));
+  auto rhs = lower_operand(hir_instr->operand(1));
+
+  // First operand must always be a register
+  lhs = ensure_reg(lhs);
+
+  // Second operand: check if target accepts immediate
+  if (rhs.is_imm() && !target_info.accepts_imm(op))
+    rhs = ensure_reg(rhs);
+
+  vreg_map[hir_instr] = builder.emit_binop(op, lhs, rhs);
 }
 
 void LIRLowering::eliminate_phis(hir::Function *hir_function) {

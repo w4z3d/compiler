@@ -15,6 +15,7 @@ struct TargetInfo {
   size_t num_allocatable;
 
   [[nodiscard]] const char *reg_name(lir::Register reg) const;
+  [[nodiscard]] bool accepts_imm(lir::Opcode op) const;
 };
 
 #endif
