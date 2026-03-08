@@ -16,8 +16,9 @@ unsigned count_vregs(lir::Function *func) {
   for (auto *mbb : func->blocks) {
     for (auto *inst : mbb->instructions) {
       for (auto &op : inst->operands) {
-        if (op.is_reg() && op.get_reg().is_virtual()) {
+        if (op.is_reg()) {
           max_id = std::max(max_id, op.get_reg().id);
+          max_id = max_id + inst->implicit_defs.size();
           found = true;
         }
       }
@@ -31,7 +32,7 @@ static BitSet compute_block_defs(lir::BasicBlock *mbb, unsigned num_vregs) {
   BitSet defs(num_vregs);
   for (auto *inst : mbb->instructions) {
     for (auto &op : inst->defs()) {
-      if (op.is_reg() && op.get_reg().is_virtual())
+      if (op.is_reg())
         defs.set(op.get_reg().id);
     }
   }
@@ -46,13 +47,13 @@ static BitSet compute_block_uses(lir::BasicBlock *mbb, unsigned num_vregs) {
   for (auto *inst : mbb->instructions) {
     // Uses before defs at this instruction
     for (auto &op : inst->uses()) {
-      if (op.is_reg() && op.get_reg().is_virtual()) {
+      if (op.is_reg()) {
         if (!defs.test(op.get_reg().id))
           uses.set(op.get_reg().id);
       }
     }
     for (auto &op : inst->defs()) {
-      if (op.is_reg() && op.get_reg().is_virtual())
+      if (op.is_reg())
         defs.set(op.get_reg().id);
     }
   }
@@ -163,6 +164,13 @@ void build_interference_graph(lir::Function *func, LivenessInfo &info,
       for (auto &op : inst->uses()) {
         if (op.is_reg())
           live.set(op.get_reg().id);
+      }
+      for (auto &implicit_def : inst->implicit_defs) {
+        for (auto live_id : live) {
+          if (live_id != implicit_def.id) {
+            graph.add_edge(implicit_def.id, live_id);
+          }
+        }
       }
 
       // Each def interferes with everything currently live

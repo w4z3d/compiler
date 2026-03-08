@@ -18,14 +18,14 @@ class AsmEmitter {
   std::string wreg(lir::Register reg) {
     assert(reg.is_physical());
     if (reg.id <= 28)
-      return std::format("w{}", reg.id);
+      return std::format("x{}", reg.id);
     if (reg.id == 29)
-      return "w29";
+      return "x29";
     if (reg.id == 30)
-      return "w30";
+      return "x30";
     if (reg.id == 32)
-      return "wzr";
-    return std::format("w{}", reg.id);
+      return "xzr";
+    return std::format("x{}", reg.id);
   }
 
   std::string xreg(lir::Register reg) {
@@ -350,6 +350,10 @@ public:
 
   void emit_function(lir::Function *func) {
     // Export symbol
+    if (func->is_extern) {
+      out << ".extern _" << func->name << "\n";
+      return;
+    }
     out << ".globl _" << func->name << "\n";
     out << "_" << func->name << ":\n";
 

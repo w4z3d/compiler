@@ -67,7 +67,9 @@ void rewrite_registers(lir::Function *func,
     auto &instrs = mbb->instructions;
     instrs.erase(std::remove_if(instrs.begin(), instrs.end(),
                                 [](lir::Instruction *inst) {
-                                  if (!inst->is_copy())
+                                  if (!inst->is_copy() ||
+                                      !inst->operands[0].is_reg() ||
+                                      !inst->operands[1].is_reg())
                                     return false;
                                   return inst->operands[0].get_reg() ==
                                          inst->operands[1].get_reg();

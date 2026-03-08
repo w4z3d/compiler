@@ -1,5 +1,6 @@
 #include "lir_builder.hpp"
 #include "lir.hpp"
+#include <algorithm>
 
 void LIRBuilder::emit_raw(lir::Instruction *instr) const { insert(instr); }
 
@@ -144,15 +145,24 @@ lir::Register LIRBuilder::emit_call(std::string_view callee_name,
   instr->callee = std::string(callee_name);
   function->has_calls = true;
 
-  lir::Register dst = lir::Register::vreg(0);
+  lir::Register dst = lir::Register::preg(0);
   if (has_return) {
-    dst = new_vreg();
     instr->num_defs = 1;
     instr->operands.push_back(lir::Operand::from_reg(dst));
+    for (int i = 0; i < 17; i++) {
+      instr->add_implicit_def(lir::Register::preg(i));
+    }
   }
 
-  for (auto &arg : args) {
-    instr->operands.push_back(arg);
+  for (int i = 0; i < args.size(); i++) {
+    auto caller_saved_register = lir::Operand::from_reg(lir::Register::preg(i));
+    auto *copy_instr = arena.create<lir::Instruction>();
+    copy_instr->opcode = lir::Opcode::Copy;
+    copy_instr->operands.push_back(caller_saved_register);
+    copy_instr->operands.push_back(args[i]);
+    copy_instr->num_defs = 1;
+    emit_raw(copy_instr);
+    instr->operands.push_back(caller_saved_register);
   }
 
   insert(instr);

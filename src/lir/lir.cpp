@@ -173,6 +173,11 @@ std::string Instruction::to_string() const {
     result += uses.to_string() + ", ";
   }
   result += "}";
+  result += "\tImplicit Defs{";
+  for (auto uses : implicit_defs) {
+    result += uses.to_string() + ", ";
+  }
+  result += "}";
   return result;
 }
 

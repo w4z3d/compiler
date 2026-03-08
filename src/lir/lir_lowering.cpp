@@ -14,16 +14,28 @@ void LIRLowering::lower_function(hir::Function *hir_function) {
   block_map.clear();
 
   current_function = module.add_function(hir_function->name);
+  current_function->is_extern = hir_function->is_extern;
+  if (hir_function->is_extern)
+    return;
   builder.set_function(current_function);
 
   for (auto *bb : hir_function->blocks) {
     block_map[bb] = builder.create_block(bb->label);
   }
   // Map function arguments to vregs
-  for (auto *arg : hir_function->arguments) {
-    auto vreg = builder.new_vreg();
-    vreg_map[arg] = vreg;
-    current_function->param_regs.push_back(vreg);
+  builder.set_insert_point(current_function->entry_block());
+  for (int i = 0; i < hir_function->arguments.size(); i++) {
+    auto arg = hir_function->arguments[i];
+    auto arg_reg = lir::Register::preg(i);
+    auto callee_saved_reg = target_info.callee_saved[i];
+    auto *copy = arena.create<lir::Instruction>();
+    copy->opcode = lir::Opcode::Copy;
+    copy->operands.push_back(lir::Operand::from_reg(callee_saved_reg));
+    copy->operands.push_back(lir::Operand::from_reg(arg_reg));
+    copy->num_defs = 1;
+    builder.emit_raw(copy);
+    vreg_map[arg] = callee_saved_reg;
+    current_function->param_regs.push_back(callee_saved_reg);
   }
   for (auto *bb : hir_function->blocks) {
     builder.set_insert_point(block_map[bb]);
@@ -171,9 +183,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   }
   case hir::Opcode::ICmp: {
     auto pred = convert_predicate(hir_instr->predicate.value());
-    builder.emit_cmp(pred, lower_operand(hir_instr->operand(0)),
-                     lower_operand(hir_instr->operand(1)));
-    auto dst = builder.emit_cset(pred);
+    auto dst = builder.emit_cmp(pred, lower_operand(hir_instr->operand(0)),
+                                lower_operand(hir_instr->operand(1)));
     vreg_map[hir_instr] = dst;
     return;
   }
@@ -192,7 +203,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     if (hir_instr->operand_count() > 0) {
       auto ret_register = lir::Operand::from_reg(lir::Register::preg(0));
       auto *instr = arena.create<lir::Instruction>();
-      instr->opcode = lir::Opcode::Copy;
+      instr->opcode = lir::Opcode::Mov;
       instr->num_defs = 1;
       instr->operands.push_back(ret_register);
       instr->operands.push_back(lower_operand(hir_instr->operand(0)));
@@ -224,8 +235,12 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto base = lower_operand(hir_instr->operand(0));
     auto index = lower_operand(hir_instr->operand(1));
     auto size = hir_instr->type_arg->size_of();
-    auto offset = builder.emit_binop(lir::Opcode::Mul, index,
-                                     lir::Operand::from_imm(size));
+    auto size_op = lir::Operand::from_imm(size);
+
+    auto index_reg = ensure_reg(index);
+    auto size_reg = ensure_reg(size_op);
+    auto offset = builder.emit_binop(lir::Opcode::Mul, index_reg, size_reg);
+
     auto ptr = builder.emit_binop(lir::Opcode::Add, base,
                                   lir::Operand::from_reg(offset));
     vreg_map[hir_instr] = ptr;

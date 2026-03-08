@@ -11,6 +11,7 @@
 #include "graph_coloring/graph_coloring.hpp"
 #include "hir/hir.hpp"
 #include "hir/hir_builder_visitor.hpp"
+#include "hir/opt/optimization_pipeline.hpp"
 #include "io/io.hpp"
 #include "lexer/lexer.hpp"
 #include "lir/lir.hpp"
@@ -59,8 +60,13 @@ int main(int argc, char *argv[]) {
   HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics};
   unit->accept(hir_visitor);
 
+  OptPipeline opt{};
+
   std::cout << module.to_dot() << std::endl;
 
+  // for (auto &function : module.functions) {
+  //   opt.optimize(function.get());
+  // }
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
   lowering.lower_module(module);

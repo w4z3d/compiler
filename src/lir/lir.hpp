@@ -167,6 +167,7 @@ enum class CmpPredicate : uint8_t {
 struct Instruction {
   Opcode opcode;
   std::vector<Operand> operands;
+  std::vector<Register> implicit_defs;
   unsigned num_defs = 0;
 
   std::optional<CmpPredicate> predicate; // for Cmp, CSet, CondJump
@@ -178,6 +179,9 @@ struct Instruction {
     assert(i < num_defs);
     return operands[i];
   }
+
+  void add_implicit_def(Register reg) { implicit_defs.push_back(reg); }
+
   [[nodiscard]] const Operand &def(unsigned i = 0) const {
     assert(i < num_defs);
     return operands[i];
@@ -259,6 +263,7 @@ struct Function {
   std::vector<Register> param_regs;
   bool has_return_value = true;
   bool has_calls = false;
+  bool is_extern = false;
 
   [[nodiscard]] BasicBlock *entry_block() const {
     assert(!blocks.empty());
