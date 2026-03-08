@@ -24,6 +24,7 @@ struct LIRBuilder {
 
   lir::BasicBlock *create_block(std::string label);
   [[nodiscard]] inline lir::Register new_vreg() {
+    function->next_vreg_id++;
     return lir::Register::vreg(next_vreg_id++);
   }
 

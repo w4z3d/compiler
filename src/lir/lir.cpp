@@ -162,6 +162,17 @@ std::string Instruction::to_string() const {
     result += operands[i].to_string();
   }
 
+  result += "\tUses{";
+  for (auto uses : uses()) {
+    result += uses.to_string() + ", ";
+  }
+  result += "}";
+
+  result += "\tDefs{";
+  for (auto uses : defs()) {
+    result += uses.to_string() + ", ";
+  }
+  result += "}";
   return result;
 }
 

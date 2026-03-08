@@ -1,6 +1,6 @@
 int main() {
-  int a = 0xFF;
-  int b = 0x0F;
+  int a = 255;
+  int b = 16;
   int c = a & b;
   int d = a | b;
   int e = a ^ b;

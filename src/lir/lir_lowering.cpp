@@ -155,7 +155,9 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::CondBr: {
-    builder.emit_cond_jump(lir::CmpPredicate::NE,
+    auto *condition = dynamic_cast<hir::Instruction *>(hir_instr->operand(0));
+    auto predicate = convert_predicate(condition->predicate.value());
+    builder.emit_cond_jump(predicate,
                            lower_block_from_operand(hir_instr->operand(1)),
                            lower_block_from_operand(hir_instr->operand(2)));
     return;

@@ -1,8 +1,12 @@
+#include "analysis/liveness.hpp"
 #include "analysis/semantics.hpp"
 #include "analysis/symbol.hpp"
 #include "analysis/type_check.hpp"
+#include "codegen/aarch64/precolor_info.hpp"
+#include "codegen/regalloc.hpp"
 #include "defs/ast.hpp"
 #include "defs/ast_printer.hpp"
+#include "graph_coloring/graph_coloring.hpp"
 #include "hir/hir.hpp"
 #include "hir/hir_builder_visitor.hpp"
 #include "io/io.hpp"
@@ -57,6 +61,24 @@ int main(int argc, char *argv[]) {
   lir::Module lir_module{};
   LIRLowering lowering{lir_module};
   lowering.lower_module(module);
+
+  std::cout << lir_module.to_string() << std::endl;
+
+  for (auto *func : lir_module.functions) {
+    // Liveness analysis
+    auto info = liveness::compute_liveness(func);
+
+    // Build interference graph
+    UndirectedGraph graph(info.num_vregs);
+    liveness::build_interference_graph(func, info, graph);
+
+    std::vector<std::pair<size_t, size_t>> precolored = precolor(func);
+    // Graph coloring
+    auto coloring = graph.color(precolored, info.num_vregs);
+
+    // Rewrite vregs → physical registers and remove dead copies
+    regalloc::rewrite_registers(func, coloring);
+  }
 
   std::cout << lir_module.to_string() << std::endl;
 

@@ -41,9 +41,13 @@ public:
     InnerIter iter;
   };
 
-  iterator begin() const { return iterator(0, container.begin()); }
+  [[nodiscard]] iterator begin() const {
+    return iterator(0, container.begin());
+  }
 
-  iterator end() const { return iterator(container.size(), container.end()); }
+  [[nodiscard]] iterator end() const {
+    return iterator(container.size(), container.end());
+  }
 
 private:
   const Container &container;

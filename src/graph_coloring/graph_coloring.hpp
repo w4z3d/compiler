@@ -24,7 +24,7 @@ public:
       : adjacency_list(AdjacencyList{max_nodes}) {}
   // first entry of pair is vertex numeral, second entry is color
   std::unordered_map<size_t, size_t>
-  color(std::vector<std::pair<size_t, size_t>> precolored_nodes,
+  color(const std::vector<std::pair<size_t, size_t>> &precolored_nodes,
         size_t num_nodes);
   void add_edge(const size_t a, const size_t b) {
     adjacency_list.add_edge(a, b);
@@ -35,6 +35,16 @@ public:
   [[nodiscard]] const AdjacencyList &get_adjacent_list() const {
     return adjacency_list;
   }
+
+  inline void merge_nodes(size_t keep, size_t remove) {
+    // Copy all edges from remove to keep
+    for (auto neighbor : adjacency_list[remove]) {
+      if (neighbor != keep)
+        add_edge(keep, neighbor);
+    }
+    adjacency_list.clear_node(remove);
+  }
+  [[nodiscard]] std::string to_string() const;
 };
 
 #endif // COMPILER_GRAPH_COLORING_H

@@ -72,7 +72,7 @@ void UndirectedGraph::greedy_coloring(
 }
 
 std::unordered_map<size_t, size_t> UndirectedGraph::color(
-    const std::vector<std::pair<size_t, size_t>> precolored_nodes,
+    const std::vector<std::pair<size_t, size_t>> &precolored_nodes,
     size_t num_nodes) {
   std::vector<size_t> soe{};
   std::unordered_map<size_t, size_t> var_to_color{};
@@ -87,4 +87,28 @@ std::unordered_map<size_t, size_t> UndirectedGraph::color(
 
   greedy_coloring(soe, var_to_color);
   return var_to_color;
+}
+
+std::string UndirectedGraph::to_string() const {
+  std::string result = "Graph {\n";
+  auto &adj = adjacency_list;
+
+  for (size_t v = 0; v < adj.get_size(); v++) {
+    auto &neighbors = adj[v];
+    if (neighbors.count() == 0)
+      continue;
+
+    result += std::format("  {} -- [", v);
+    bool first = true;
+    for (auto n : neighbors) {
+      if (!first)
+        result += ", ";
+      result += std::format("{}", n);
+      first = false;
+    }
+    result += "]\n";
+  }
+
+  result += "}\n";
+  return result;
 }
