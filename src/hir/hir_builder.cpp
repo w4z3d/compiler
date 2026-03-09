@@ -169,6 +169,7 @@ hir::Value *HIRBuilder::build_load(hir::type::Type *loaded_type,
   auto *instruction = arena.create<hir::Instruction>(
       hir::Opcode::Load, loaded_type, std::vector<hir::Value *>{ptr});
   instruction->name = name;
+  instruction->type_arg = ptr->type;
   return insert(instruction);
 }
 
@@ -176,6 +177,7 @@ void HIRBuilder::build_store(hir::Value *value, hir::Value *ptr) {
   auto *instruction =
       arena.create<hir::Instruction>(hir::Opcode::Store, context.void_t(),
                                      std::vector<hir::Value *>{value, ptr});
+  instruction->type_arg = value->type;
 
   insert(instruction);
 }

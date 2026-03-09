@@ -27,13 +27,17 @@ struct LIRLowering {
   void lower_function(hir::Function *hir_function);
   void lower_block(hir::BasicBlock *hir_bb);
   void lower_instruction(hir::Instruction *hir_instr);
-  lir::Operand lower_operand(hir::Value *value);
-  lir::BasicBlock *lower_block_from_operand(hir::Value *value);
-  lir::CmpPredicate convert_predicate(hir::ICmpPredicate pred);
-  inline lir::BasicBlock *get_mbb(hir::BasicBlock *bb) { return block_map[bb]; }
+  [[nodiscard]] lir::Operand lower_operand(hir::Value *value);
+  [[nodiscard]] lir::BasicBlock *lower_block_from_operand(hir::Value *value);
+  [[nodiscard]] lir::CmpPredicate convert_predicate(hir::ICmpPredicate pred);
+  [[nodiscard]] inline lir::BasicBlock *get_mbb(hir::BasicBlock *bb) {
+    return block_map[bb];
+  }
   void lower_binop(hir::Instruction *hir_instr, lir::Opcode op);
 
-  lir::Operand ensure_reg(lir::Operand op);
+  [[nodiscard]] lir::Operand ensure_reg(lir::Operand op,
+                                        lir::Register::RegClass clazz);
+  [[nodiscard]] lir::Register::RegClass class_from_type(hir::type::Type *type);
 
   void eliminate_phis(hir::Function *hir_function);
   void sequentialize_copies(

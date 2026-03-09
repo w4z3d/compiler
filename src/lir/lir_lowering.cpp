@@ -114,10 +114,23 @@ lir::BasicBlock *LIRLowering::lower_block_from_operand(hir::Value *value) {
   std::unreachable();
 }
 
-lir::Operand LIRLowering::ensure_reg(lir::Operand op) {
+lir::Register::RegClass LIRLowering::class_from_type(hir::type::Type *type) {
+  if (type->is_array() || type->is_pointer() || type->is_function() ||
+      type->is_struct()) {
+    return lir::Register::GPR64;
+  } else if (type->is_float()) {
+    return lir::Register::FPR32;
+  }
+
+  return lir::Register::GPR32;
+}
+
+lir::Operand LIRLowering::ensure_reg(lir::Operand op,
+                                     lir::Register::RegClass clazz) {
   if (op.is_reg())
     return op;
   auto tmp = builder.emit_mov(op);
+  tmp.set_class(clazz);
   return lir::Operand::from_reg(tmp);
 }
 
@@ -175,19 +188,16 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::SRem: {
+    auto reg_class = class_from_type(hir_instr->type);
     auto lhs = lower_operand(hir_instr->operand(0));
     auto rhs = lower_operand(hir_instr->operand(1));
-    lhs = ensure_reg(lhs);
-    rhs = ensure_reg(rhs);
-    if (hir_instr->type->is_pointer()) {
-      lhs.get_reg_mut().set_class(lir::Register::GPR64);
-      rhs.get_reg_mut().set_class(lir::Register::GPR64);
-    }
-    auto quot = builder.emit_binop(lir::Opcode::SDiv, lhs, rhs);
-    auto prod =
-        builder.emit_binop(lir::Opcode::Mul, lir::Operand::from_reg(quot), rhs);
-    auto rem =
-        builder.emit_binop(lir::Opcode::Sub, lhs, lir::Operand::from_reg(prod));
+    lhs = ensure_reg(lhs, reg_class);
+    rhs = ensure_reg(rhs, reg_class);
+    auto quot = builder.emit_binop(lir::Opcode::SDiv, lhs, rhs, reg_class);
+    auto prod = builder.emit_binop(
+        lir::Opcode::Mul, lir::Operand::from_reg(quot), rhs, reg_class);
+    auto rem = builder.emit_binop(lir::Opcode::Sub, lhs,
+                                  lir::Operand::from_reg(prod), reg_class);
     vreg_map[hir_instr] = rem;
     return;
   }
@@ -233,19 +243,13 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     std::vector<lir::Operand> args;
     auto *function_type =
         dynamic_cast<hir::type::FunctionType *>(hir_instr->type_arg);
-    std::cout << function_type->to_string() << std::endl;
     for (size_t i = 1; i < hir_instr->operand_count(); i++) {
       auto arg_op = lower_operand(hir_instr->operand(i));
       if (function_type->param_types.at(i - 1)->is_pointer())
         arg_op.get_reg_mut().set_class(lir::Register::GPR64);
       args.push_back(arg_op);
     }
-    lir::Register::RegClass clazz;
-    if (hir_instr->type->is_pointer() || hir_instr->type->is_array()) {
-      clazz = lir::Register::GPR64;
-    } else {
-      clazz = lir::Register::GPR32;
-    }
+    lir::Register::RegClass clazz = class_from_type(hir_instr->type);
     auto *callee = dynamic_cast<hir::Function *>(hir_instr->operand(0));
     auto dst = builder.emit_call(callee->name, std::move(args), clazz);
     dst.set_class(clazz);
@@ -253,6 +257,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::Load: {
+    std::cout << "Type arg for load is " << hir_instr->type_arg << std::endl;
     auto ptr = lower_operand(hir_instr->operand(0));
     if (ptr.is_reg())
       ptr.get_reg_mut().set_class(lir::Register::GPR64);
@@ -261,10 +266,11 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::Store: {
+    std::cout << "Type arg for store is " << hir_instr->type_arg << std::endl;
     auto base = lower_operand(hir_instr->operand(0));
     auto value = lower_operand(hir_instr->operand(1));
-    auto base_reg = ensure_reg(base);
-    auto value_reg = ensure_reg(value);
+    auto base_reg = ensure_reg(base, class_from_type(hir_instr->type));
+    auto value_reg = ensure_reg(value, class_from_type(hir_instr->type_arg));
 
     if (base.is_reg())
       base.get_reg_mut().set_class(lir::Register::GPR64);
@@ -277,14 +283,15 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto size = hir_instr->type_arg->size_of();
     auto size_op = lir::Operand::from_imm(size);
 
-    auto index_reg = ensure_reg(index);
-    auto size_reg = ensure_reg(size_op);
-    auto offset = builder.emit_binop(lir::Opcode::Mul, index_reg, size_reg);
+    auto index_reg = ensure_reg(index, class_from_type(hir_instr->type_arg));
+    auto size_reg = ensure_reg(size_op, class_from_type(hir_instr->type_arg));
+    auto offset = builder.emit_binop(lir::Opcode::Mul, index_reg, size_reg,
+                                     class_from_type(hir_instr->type_arg));
     offset.set_class(lir::Register::RegClass::GPR64);
 
     auto ptr = builder.emit_binop(lir::Opcode::Add, base,
-                                  lir::Operand::from_reg(offset));
-    ptr.set_class(lir::Register::RegClass::GPR64);
+                                  lir::Operand::from_reg(offset),
+                                  lir::Register::GPR64);
     vreg_map[hir_instr] = ptr;
     return;
   }
@@ -304,18 +311,14 @@ void LIRLowering::lower_binop(hir::Instruction *hir_instr, lir::Opcode op) {
   auto rhs = lower_operand(hir_instr->operand(1));
 
   // First operand must always be a register
-  lhs = ensure_reg(lhs);
+  lhs = ensure_reg(lhs, class_from_type(hir_instr->type));
 
   // Second operand: check if target accepts immediate
   if (rhs.is_imm() && !target_info.accepts_imm(op))
-    rhs = ensure_reg(rhs);
+    rhs = ensure_reg(rhs, class_from_type(hir_instr->type));
 
-  auto dst = builder.emit_binop(op, lhs, rhs);
-  if (hir_instr->type->is_pointer()) {
-    lhs.get_reg_mut().set_class(lir::Register::GPR64);
-    rhs.get_reg_mut().set_class(lir::Register::GPR64);
-  }
-
+  auto dst = builder.emit_binop(op, lhs, rhs, class_from_type(hir_instr->type));
+  dst.set_class(class_from_type(hir_instr->type));
   vreg_map[hir_instr] = dst;
 }
 
