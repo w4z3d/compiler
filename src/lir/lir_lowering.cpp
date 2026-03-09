@@ -28,6 +28,10 @@ void LIRLowering::lower_function(hir::Function *hir_function) {
     auto arg = hir_function->arguments[i];
     auto arg_reg = lir::Register::preg(i);
     auto callee_saved_reg = target_info.callee_saved[i];
+    if (arg->type->is_array() || arg->type->is_pointer()) {
+      arg_reg.set_class(lir::Register::GPR64);
+      callee_saved_reg.set_class(lir::Register::GPR64);
+    }
     auto *copy = arena.create<lir::Instruction>();
     copy->opcode = lir::Opcode::Copy;
     copy->operands.push_back(lir::Operand::from_reg(callee_saved_reg));
@@ -208,13 +212,18 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   case hir::Opcode::Ret:
     if (hir_instr->operand_count() > 0) {
       auto ret_register = lir::Operand::from_reg(lir::Register::preg(0));
-      if (hir_instr->type->is_pointer())
-        ret_register.get_reg().set_class(lir::Register::GPR64);
+      auto source_operand = lower_operand(hir_instr->operand(0));
+      if (hir_instr->type->is_pointer() || hir_instr->type->is_array() ||
+          (source_operand.is_reg() &&
+           source_operand.get_reg().get_class() == lir::Register::GPR64)) {
+        ret_register.get_reg_mut().set_class(lir::Register::GPR64);
+        source_operand.get_reg_mut().set_class(lir::Register::GPR64);
+      }
       auto *instr = arena.create<lir::Instruction>();
       instr->opcode = lir::Opcode::Mov;
       instr->num_defs = 1;
       instr->operands.push_back(ret_register);
-      instr->operands.push_back(lower_operand(hir_instr->operand(0)));
+      instr->operands.push_back(source_operand);
       builder.emit_raw(instr);
       builder.emit_ret(ret_register);
     } else
@@ -232,7 +241,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
       args.push_back(arg_op);
     }
     lir::Register::RegClass clazz;
-    if (hir_instr->type->is_pointer()) {
+    if (hir_instr->type->is_pointer() || hir_instr->type->is_array()) {
       clazz = lir::Register::GPR64;
     } else {
       clazz = lir::Register::GPR32;
@@ -244,6 +253,9 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::Load: {
+    auto ptr = lower_operand(hir_instr->operand(0));
+    if (ptr.is_reg())
+      ptr.get_reg_mut().set_class(lir::Register::GPR64);
     auto dst = builder.emit_load(lower_operand(hir_instr->operand(0)));
     vreg_map[hir_instr] = dst;
     return;
@@ -255,7 +267,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto value_reg = ensure_reg(value);
 
     if (base.is_reg())
-      base.get_reg().set_class(lir::Register::GPR64);
+      base.get_reg_mut().set_class(lir::Register::GPR64);
     builder.emit_store(base_reg, value_reg);
     return;
   }
