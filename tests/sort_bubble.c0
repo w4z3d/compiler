@@ -1,4 +1,4 @@
-void sort(int[] arr, int len) {
+int[] sort(int[] arr, int len) {
   for (int i = 0; i < len - 1; i += 1) {
     for (int j = 0; j < len - i - 1; j += 1) {
       if (arr[j] > arr[j + 1]) {
@@ -8,6 +8,7 @@ void sort(int[] arr, int len) {
       }
     }
   }
+  return arr;
 }
 
 int main() {
@@ -17,10 +18,10 @@ int main() {
   a[2] = 1;
   a[3] = 4;
   a[4] = 2;
-  sort(a, 5);
+  int[] sorted = sort(a, 5);
   int result = 0;
   for (int i = 0; i < 5; i += 1) {
-    result = result * 10 + a[i];
+    result = result * 10 + sorted[i];
   }
   return result;
 }

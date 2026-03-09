@@ -204,6 +204,7 @@ struct Argument : Value {
       : Value(type, name), parent(parent), arg_index(index) {}
 };
 
+static size_t block_id = 0;
 struct Function : Value {
   type::FunctionType *function_type;
   std::vector<Argument *> arguments; // One per param type

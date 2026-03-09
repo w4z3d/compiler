@@ -71,8 +71,12 @@ lir::Register LIRBuilder::emit_copy(lir::Operand src) {
 lir::Register LIRBuilder::emit_binop(lir::Opcode op, lir::Operand lhs,
                                      lir::Operand rhs) {
   auto dst = new_vreg();
-  if (lhs.is_reg() && lhs.get_reg().get_class() == lir::Register::GPR64)
+  if (lhs.is_reg() && lhs.get_reg().get_class() == lir::Register::GPR64 ||
+      rhs.is_reg() && rhs.get_reg().get_class() == lir::Register::GPR64) {
     dst.set_class(lir::Register::GPR64);
+    rhs.get_reg_mut().set_class(lir::Register::GPR64);
+    lhs.get_reg_mut().set_class(lir::Register::GPR64);
+  }
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = op;
   instr->num_defs = 1;

@@ -176,8 +176,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     lhs = ensure_reg(lhs);
     rhs = ensure_reg(rhs);
     if (hir_instr->type->is_pointer()) {
-      lhs.get_reg_mut().set_class(lir::Register::GPR32);
-      rhs.get_reg_mut().set_class(lir::Register::GPR32);
+      lhs.get_reg_mut().set_class(lir::Register::GPR64);
+      rhs.get_reg_mut().set_class(lir::Register::GPR64);
     }
     auto quot = builder.emit_binop(lir::Opcode::SDiv, lhs, rhs);
     auto prod =

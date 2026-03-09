@@ -360,7 +360,7 @@ Function::Function(const std::string &name, type::FunctionType *function_type,
 
 BasicBlock *Function::append_block(const std::string &label) {
   auto *bb = new BasicBlock(
-      label.empty() ? "bb" + std::to_string(blocks.size()) : label, this);
+      label.empty() ? "l" + std::to_string(block_id++) : label, this);
   blocks.push_back(bb);
   return bb;
 }
