@@ -629,7 +629,7 @@ void HIRBuilderVisitor::visit(AllocExpression &expr) {
   auto *malloc = module.get_function("malloc");
   if (!malloc) {
     malloc = module.add_function(
-        "malloc", types.get_function(types.i32(), {types.i32()}, false));
+        "malloc", types.get_function(types.ptr(), {types.ptr()}, false));
     malloc->is_extern = true;
   }
   hir::Value *size_val = module.const_int(types.i32(), size);
@@ -648,7 +648,7 @@ void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
   auto *malloc = module.get_function("malloc");
   if (!malloc) {
     malloc = module.add_function(
-        "malloc", types.get_function(types.i32(), {types.i32()}, false));
+        "malloc", types.get_function(types.ptr(), {types.ptr()}, false));
     malloc->is_extern = true;
   }
   hir::Value *ptr = builder.build_call(malloc, {mul});

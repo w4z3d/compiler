@@ -46,6 +46,7 @@ struct LIRBuilder {
   void emit_store(lir::Operand addr, lir::Operand value);
   lir::Register emit_call(std::string_view callee,
                           std::vector<lir::Operand> args,
+                          lir::Register::RegClass ret_clazz,
                           bool has_return = true);
 };
 

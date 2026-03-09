@@ -276,6 +276,7 @@ hir::Value *HIRBuilder::build_call(hir::Function *callee,
   auto *instr = arena.create<hir::Instruction>(
       hir::Opcode::Call, callee->function_type->return_type,
       std::move(operands));
+  instr->type_arg = callee->function_type;
   instr->name = name;
   return insert(instr);
 }

@@ -165,6 +165,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   case hir::Opcode::Not: {
     auto dst = builder.emit_unop(lir::Opcode::Neg,
                                  lower_operand(hir_instr->operand(0)));
+    if (hir_instr->type->is_pointer())
+      dst.set_class(lir::Register::RegClass::GPR64);
     vreg_map[hir_instr] = dst;
     return;
   }
@@ -173,6 +175,10 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto rhs = lower_operand(hir_instr->operand(1));
     lhs = ensure_reg(lhs);
     rhs = ensure_reg(rhs);
+    if (hir_instr->type->is_pointer()) {
+      lhs.get_reg_mut().set_class(lir::Register::GPR32);
+      rhs.get_reg_mut().set_class(lir::Register::GPR32);
+    }
     auto quot = builder.emit_binop(lir::Opcode::SDiv, lhs, rhs);
     auto prod =
         builder.emit_binop(lir::Opcode::Mul, lir::Operand::from_reg(quot), rhs);
@@ -202,6 +208,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   case hir::Opcode::Ret:
     if (hir_instr->operand_count() > 0) {
       auto ret_register = lir::Operand::from_reg(lir::Register::preg(0));
+      if (hir_instr->type->is_pointer())
+        ret_register.get_reg().set_class(lir::Register::GPR64);
       auto *instr = arena.create<lir::Instruction>();
       instr->opcode = lir::Opcode::Mov;
       instr->num_defs = 1;
@@ -214,11 +222,24 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   case hir::Opcode::Call: {
     std::vector<lir::Operand> args;
+    auto *function_type =
+        dynamic_cast<hir::type::FunctionType *>(hir_instr->type_arg);
+    std::cout << function_type->to_string() << std::endl;
     for (size_t i = 1; i < hir_instr->operand_count(); i++) {
-      args.push_back(lower_operand(hir_instr->operand(i)));
+      auto arg_op = lower_operand(hir_instr->operand(i));
+      if (function_type->param_types.at(i - 1)->is_pointer())
+        arg_op.get_reg_mut().set_class(lir::Register::GPR64);
+      args.push_back(arg_op);
+    }
+    lir::Register::RegClass clazz;
+    if (hir_instr->type->is_pointer()) {
+      clazz = lir::Register::GPR64;
+    } else {
+      clazz = lir::Register::GPR32;
     }
     auto *callee = dynamic_cast<hir::Function *>(hir_instr->operand(0));
-    auto dst = builder.emit_call(callee->name, std::move(args));
+    auto dst = builder.emit_call(callee->name, std::move(args), clazz);
+    dst.set_class(clazz);
     vreg_map[hir_instr] = dst;
     return;
   }
@@ -227,10 +248,17 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     vreg_map[hir_instr] = dst;
     return;
   }
-  case hir::Opcode::Store:
-    builder.emit_store(lower_operand(hir_instr->operand(0)),
-                       lower_operand(hir_instr->operand(1)));
+  case hir::Opcode::Store: {
+    auto base = lower_operand(hir_instr->operand(0));
+    auto value = lower_operand(hir_instr->operand(1));
+    auto base_reg = ensure_reg(base);
+    auto value_reg = ensure_reg(value);
+
+    if (base.is_reg())
+      base.get_reg().set_class(lir::Register::GPR64);
+    builder.emit_store(base_reg, value_reg);
     return;
+  }
   case hir::Opcode::GetElementPtr: {
     auto base = lower_operand(hir_instr->operand(0));
     auto index = lower_operand(hir_instr->operand(1));
@@ -240,9 +268,11 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto index_reg = ensure_reg(index);
     auto size_reg = ensure_reg(size_op);
     auto offset = builder.emit_binop(lir::Opcode::Mul, index_reg, size_reg);
+    offset.set_class(lir::Register::RegClass::GPR64);
 
     auto ptr = builder.emit_binop(lir::Opcode::Add, base,
                                   lir::Operand::from_reg(offset));
+    ptr.set_class(lir::Register::RegClass::GPR64);
     vreg_map[hir_instr] = ptr;
     return;
   }
@@ -268,7 +298,13 @@ void LIRLowering::lower_binop(hir::Instruction *hir_instr, lir::Opcode op) {
   if (rhs.is_imm() && !target_info.accepts_imm(op))
     rhs = ensure_reg(rhs);
 
-  vreg_map[hir_instr] = builder.emit_binop(op, lhs, rhs);
+  auto dst = builder.emit_binop(op, lhs, rhs);
+  if (hir_instr->type->is_pointer()) {
+    lhs.get_reg_mut().set_class(lir::Register::GPR64);
+    rhs.get_reg_mut().set_class(lir::Register::GPR64);
+  }
+
+  vreg_map[hir_instr] = dst;
 }
 
 void LIRLowering::eliminate_phis(hir::Function *hir_function) {

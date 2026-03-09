@@ -4,6 +4,7 @@
 #include "../../lir/lir.hpp"
 #include "aarch64_defs.hpp"
 #include <format>
+#include <iostream>
 #include <sstream>
 #include <string>
 
@@ -15,17 +16,24 @@ class AsmEmitter {
 
   // Emit a register name (w for 32-bit, x for 64-bit)
   // For now assume 32-bit (int) for everything
-  std::string wreg(lir::Register reg) {
+  std::string get_reg_name(lir::Register reg) {
     assert(reg.is_physical());
+    if (reg.get_class() == lir::Register::GPR32)
+      return wreg(reg);
+    else
+      return xreg(reg);
+  }
+
+  std::string wreg(lir::Register reg) {
     if (reg.id <= 28)
-      return std::format("x{}", reg.id);
+      return std::format("w{}", reg.id);
     if (reg.id == 29)
-      return "x29";
+      return "w29";
     if (reg.id == 30)
-      return "x30";
+      return "w30";
     if (reg.id == 32)
-      return "xzr";
-    return std::format("x{}", reg.id);
+      return "wzr";
+    return std::format("w{}", reg.id);
   }
 
   std::string xreg(lir::Register reg) {
@@ -45,7 +53,7 @@ class AsmEmitter {
 
   std::string operand(lir::Operand op) {
     if (op.is_reg())
-      return wreg(op.get_reg());
+      return get_reg_name(op.get_reg());
     if (op.is_imm())
       return std::format("#{}", op.get_imm());
     if (op.is_block())
@@ -89,10 +97,11 @@ class AsmEmitter {
       auto dst = inst->def(0);
       auto src = inst->use(0);
       if (src.is_imm()) {
-        emit_line(
-            std::format("mov {}, #{}", wreg(dst.get_reg()), src.get_imm()));
+        emit_line(std::format("mov {}, #{}", get_reg_name(dst.get_reg()),
+                              src.get_imm()));
       } else {
-        emit_line(std::format("mov {}, {}", wreg(dst.get_reg()), operand(src)));
+        emit_line(std::format("mov {}, {}", get_reg_name(dst.get_reg()),
+                              operand(src)));
       }
       break;
     }
@@ -100,30 +109,31 @@ class AsmEmitter {
       auto dst = inst->def(0);
       auto src = inst->use(0);
       if (src.is_imm()) {
-        emit_line(
-            std::format("mov {}, #{}", wreg(dst.get_reg()), src.get_imm()));
+        emit_line(std::format("mov {}, #{}", get_reg_name(dst.get_reg()),
+                              src.get_imm()));
       } else if (dst.get_reg() != src.get_reg()) {
-        emit_line(std::format("mov {}, {}", wreg(dst.get_reg()), operand(src)));
+        emit_line(std::format("mov {}, {}", get_reg_name(dst.get_reg()),
+                              operand(src)));
       }
       // Skip if src == dst (coalesced)
       break;
     }
     case lir::Opcode::Add: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("add {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::Sub: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("sub {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::Mul: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       // MUL cannot take immediates
@@ -131,7 +141,7 @@ class AsmEmitter {
       break;
     }
     case lir::Opcode::SDiv: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       // SDIV cannot take immediates
@@ -139,48 +149,48 @@ class AsmEmitter {
       break;
     }
     case lir::Opcode::Neg: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto src = operand(inst->use(0));
       emit_line(std::format("neg {}, {}", dst, src));
       break;
     }
     case lir::Opcode::And: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("and {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::Or: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("orr {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::Xor: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("eor {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::Shl: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("lsl {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::AShr: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("asr {}, {}, {}", dst, lhs, rhs));
       break;
     }
     case lir::Opcode::LShr: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("lsr {}, {}, {}", dst, lhs, rhs));
@@ -193,20 +203,20 @@ class AsmEmitter {
       break;
     }
     case lir::Opcode::CSet: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto cc = cond_code(inst->predicate.value());
       emit_line(std::format("cset {}, {}", dst, cc));
       break;
     }
     case lir::Opcode::Load: {
-      auto dst = wreg(inst->def(0).get_reg());
+      auto dst = get_reg_name(inst->def(0).get_reg());
       auto addr = xreg(inst->use(0).get_reg());
       emit_line(std::format("ldr {}, [{}]", dst, addr));
       break;
     }
     case lir::Opcode::Store: {
       auto addr = xreg(inst->use(0).get_reg());
-      auto src = wreg(inst->use(1).get_reg());
+      auto src = get_reg_name(inst->use(1).get_reg());
       emit_line(std::format("str {}, [{}]", src, addr));
       break;
     }

@@ -50,7 +50,10 @@ void rewrite_registers(lir::Function *func,
                        std::unordered_map<size_t, size_t> &coloring) {
   for (auto &reg : func->param_regs) {
     if (reg.is_virtual()) {
+      std::cout << "Reg has class " << std::to_string(reg.get_class())
+                << std::endl;
       reg = lir::Register::preg(coloring[reg.id]);
+      reg.set_class(lir::Register::GPR64);
     }
   }
   for (auto *mbb : func->blocks) {
@@ -59,7 +62,10 @@ void rewrite_registers(lir::Function *func,
         if (!op.is_reg() || !op.get_reg().is_virtual())
           continue;
         unsigned color = coloring[op.get_reg().id];
-        op = lir::Operand::from_reg(lir::Register::preg(color));
+        auto clazz = op.get_reg().get_class();
+        auto reg = lir::Register::preg(color);
+        op = lir::Operand::from_reg(reg);
+        op.get_reg_mut().set_class(clazz);
       }
     }
 

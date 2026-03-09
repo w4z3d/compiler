@@ -52,6 +52,10 @@ static BitSet compute_block_uses(lir::BasicBlock *mbb, unsigned num_vregs) {
           uses.set(op.get_reg().id);
       }
     }
+    for (auto &op : inst->implicit_uses) {
+      if (!defs.test(op.id))
+        uses.set(op.id);
+    }
     for (auto &op : inst->defs()) {
       if (op.is_reg())
         defs.set(op.get_reg().id);
@@ -164,6 +168,9 @@ void build_interference_graph(lir::Function *func, LivenessInfo &info,
       for (auto &op : inst->uses()) {
         if (op.is_reg())
           live.set(op.get_reg().id);
+      }
+      for (auto &op : inst->implicit_uses) {
+        live.set(op.id);
       }
       for (auto &implicit_def : inst->implicit_defs) {
         for (auto live_id : live) {

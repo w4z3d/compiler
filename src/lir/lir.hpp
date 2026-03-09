@@ -16,14 +16,18 @@ struct Function;
 
 struct Register {
   enum Kind : uint8_t { Virtual, Physical };
+  enum RegClass : uint8_t { GPR32, GPR64, FPR32, FPR64 };
   Kind kind;
+  RegClass reg_class;
   unsigned id;
 
-  static constexpr Register vreg(unsigned id) { return {Virtual, id}; }
-  static constexpr Register preg(unsigned id) { return {Physical, id}; }
+  static constexpr Register vreg(unsigned id) { return {Virtual, GPR32, id}; }
+  static constexpr Register preg(unsigned id) { return {Physical, GPR32, id}; }
 
   [[nodiscard]] bool is_virtual() const { return kind == Virtual; }
   [[nodiscard]] bool is_physical() const { return kind == Physical; }
+  [[nodiscard]] RegClass get_class() const { return reg_class; }
+  void set_class(RegClass clazz) { reg_class = clazz; }
 
   bool operator==(const Register &o) const {
     return kind == o.kind && id == o.id;
@@ -53,6 +57,9 @@ struct Operand {
     assert(is_reg());
     return reg;
   }
+
+  [[nodiscard]] Register &get_reg_mut() { return reg; }
+
   [[nodiscard]] int64_t get_imm() const {
     assert(is_imm());
     return imm;
@@ -168,6 +175,7 @@ struct Instruction {
   Opcode opcode;
   std::vector<Operand> operands;
   std::vector<Register> implicit_defs;
+  std::vector<Register> implicit_uses;
   unsigned num_defs = 0;
 
   std::optional<CmpPredicate> predicate; // for Cmp, CSet, CondJump
@@ -182,6 +190,7 @@ struct Instruction {
 
   void add_implicit_def(Register reg) { implicit_defs.push_back(reg); }
 
+  void add_implicit_use(Register reg) { implicit_uses.push_back(reg); }
   [[nodiscard]] const Operand &def(unsigned i = 0) const {
     assert(i < num_defs);
     return operands[i];

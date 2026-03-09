@@ -71,6 +71,8 @@ lir::Register LIRBuilder::emit_copy(lir::Operand src) {
 lir::Register LIRBuilder::emit_binop(lir::Opcode op, lir::Operand lhs,
                                      lir::Operand rhs) {
   auto dst = new_vreg();
+  if (lhs.is_reg() && lhs.get_reg().get_class() == lir::Register::GPR64)
+    dst.set_class(lir::Register::GPR64);
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = op;
   instr->num_defs = 1;
@@ -132,13 +134,14 @@ void LIRBuilder::emit_store(lir::Operand addr, lir::Operand value) {
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = lir::Opcode::Store;
   instr->num_defs = 0;
-  instr->operands.push_back(addr);
   instr->operands.push_back(value);
+  instr->operands.push_back(addr);
   insert(instr);
 }
 
 lir::Register LIRBuilder::emit_call(std::string_view callee_name,
                                     std::vector<lir::Operand> args,
+                                    lir::Register::RegClass ret_clazz,
                                     bool has_return) {
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = lir::Opcode::Call;
@@ -146,6 +149,7 @@ lir::Register LIRBuilder::emit_call(std::string_view callee_name,
   function->has_calls = true;
 
   lir::Register dst = lir::Register::preg(0);
+  dst.set_class(ret_clazz);
   if (has_return) {
     instr->num_defs = 1;
     instr->operands.push_back(lir::Operand::from_reg(dst));
@@ -156,6 +160,8 @@ lir::Register LIRBuilder::emit_call(std::string_view callee_name,
 
   for (int i = 0; i < args.size(); i++) {
     auto caller_saved_register = lir::Operand::from_reg(lir::Register::preg(i));
+    caller_saved_register.get_reg_mut().set_class(
+        args[i].get_reg().get_class());
     auto *copy_instr = arena.create<lir::Instruction>();
     copy_instr->opcode = lir::Opcode::Copy;
     copy_instr->operands.push_back(caller_saved_register);
@@ -164,7 +170,16 @@ lir::Register LIRBuilder::emit_call(std::string_view callee_name,
     emit_raw(copy_instr);
     instr->operands.push_back(caller_saved_register);
   }
-
   insert(instr);
-  return dst;
+  auto new_dst = new_vreg();
+  new_dst.set_class(ret_clazz);
+  auto new_dst_op = lir::Operand::from_reg(new_dst);
+  auto dst_op = lir::Operand::from_reg(dst);
+  auto *copy_instr = arena.create<lir::Instruction>();
+  copy_instr->opcode = lir::Opcode::Copy;
+  copy_instr->operands.push_back(new_dst_op);
+  copy_instr->operands.push_back(dst_op);
+  copy_instr->num_defs = 1;
+  emit_raw(copy_instr);
+  return new_dst;
 }
