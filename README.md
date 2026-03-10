@@ -1,4 +1,4 @@
-# c0 Compiler
+# CC0
 
 A C0 compiler built in C++ with no external dependencies.
 
