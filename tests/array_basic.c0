@@ -3,6 +3,10 @@ int main() {
 
     // Fill array
     arr[0] = 5;
+    arr[1] = 5;
+    arr[2] = 5;
+    arr[3] = 5;
+    arr[4] = 5;
 
     // Sum sorted array
     int sum = 0;

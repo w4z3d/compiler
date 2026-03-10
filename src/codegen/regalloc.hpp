@@ -7,17 +7,28 @@
 
 namespace regalloc {
 struct CoalesceInfo {
-  // Maps merged vreg → representative vreg
   std::unordered_map<unsigned, unsigned> representative;
 
-  unsigned find(unsigned v) {
-    while (representative.count(v))
-      v = representative[v];
-    return v;
+  unsigned find(unsigned id) {
+    if (!representative.contains(id))
+      return id;
+    // Path compression
+    unsigned root = id;
+    while (representative.contains(root))
+      root = representative[root];
+    // Compress path
+    unsigned current = id;
+    while (current != root) {
+      unsigned next = representative[current];
+      representative[current] = root;
+      current = next;
+    }
+    return root;
   }
 };
 
-CoalesceInfo coalesce(lir::Function *func, UndirectedGraph &graph);
+CoalesceInfo coalesce(lir::Function *func, UndirectedGraph &graph,
+                      unsigned num_allocatable);
 
 void rewrite_registers(lir::Function *func,
                        std::unordered_map<size_t, size_t> &coloring);

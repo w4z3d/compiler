@@ -142,7 +142,8 @@ void type_check::TypeVisitor::visit(TranslationUnit &unit) {
   // First pass: register all struct types and typedefs
   for (auto *decl : unit.get_declarations()) {
     if (auto *sd = dynamic_cast<StructDeclaration *>(decl)) {
-      auto *st = new type::StructType(std::string(sd->get_name()));
+      auto st = std::make_shared<type::StructType>(std::string(sd->get_name()));
+      std::cout << " Struct decl " << st->toString() << std::endl;
       if (auto sd_fields = sd->get_fields()) {
         std::vector<std::pair<std::string, const type::Type *>> fields;
         for (auto *field : *sd_fields) {

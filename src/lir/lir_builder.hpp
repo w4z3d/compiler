@@ -21,11 +21,10 @@ struct LIRBuilder {
   inline void insert(lir::Instruction *instruction) const {
     insert_block->emit(instruction);
   }
-
   lir::BasicBlock *create_block(std::string label);
-  [[nodiscard]] inline lir::Register new_vreg() {
+  [[nodiscard]] lir::Register new_vreg() {
     function->next_vreg_id++;
-    return lir::Register::vreg(next_vreg_id++);
+    return lir::Register::vreg(function->next_vreg_id++);
   }
 
   // Convenience emitters — these emit into the given block

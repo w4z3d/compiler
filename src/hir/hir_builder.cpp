@@ -259,20 +259,18 @@ hir::Value *HIRBuilder::build_call(hir::Function *callee,
                                    std::string_view name) {
   assert(callee && "callee cannot be null");
 
-  // Verify argument count matches function type
   assert(args.size() == callee->function_type->param_types.size() &&
          "argument count mismatch");
 
-  // Verify argument types match
   for (size_t i = 0; i < args.size(); i++) {
     assert(args[i]->type == callee->function_type->param_types[i] &&
            "argument type mismatch");
   }
 
-  // First operand is the callee, then the args
   std::vector<hir::Value *> operands;
   operands.push_back(callee);
   operands.insert(operands.end(), args.begin(), args.end());
+  printf("Insering call %s", callee->to_string().c_str());
 
   // Result type is the function's return type
   auto *instr = arena.create<hir::Instruction>(

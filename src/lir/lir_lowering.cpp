@@ -41,6 +41,7 @@ void LIRLowering::lower_function(hir::Function *hir_function) {
     vreg_map[arg] = callee_saved_reg;
     current_function->param_regs.push_back(callee_saved_reg);
   }
+
   for (auto *bb : hir_function->blocks) {
     builder.set_insert_point(block_map[bb]);
     lower_block(bb);
@@ -147,6 +148,7 @@ lir::Operand LIRLowering::lower_operand(hir::Value *val) {
 }
 
 void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
+  printf("Lowering %s \n", hir_instr->to_string().c_str());
   switch (hir_instr->opcode) {
   case hir::Opcode::Add:
     lower_binop(hir_instr, lir::Opcode::Add);
@@ -178,8 +180,20 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   case hir::Opcode::LShr:
     lower_binop(hir_instr, lir::Opcode::LShr);
     return;
-  case hir::Opcode::Neg:
   case hir::Opcode::Not: {
+    auto src = lower_operand(hir_instr->operand(0));
+    src = ensure_reg(src, class_from_type(hir_instr->type));
+
+    if (hir_instr->type->is_integer()) {
+      auto dst =
+          builder.emit_binop(lir::Opcode::Xor, src, lir::Operand::from_imm(1),
+                             lir::Register::GPR32);
+      vreg_map[hir_instr] = dst;
+    } else {
+    }
+    return;
+  }
+  case hir::Opcode::Neg: {
     auto dst = builder.emit_unop(lir::Opcode::Neg,
                                  lower_operand(hir_instr->operand(0)));
     if (hir_instr->type->is_pointer())
@@ -203,17 +217,33 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   }
   case hir::Opcode::ICmp: {
     auto pred = convert_predicate(hir_instr->predicate.value());
-    auto dst = builder.emit_cmp(pred, lower_operand(hir_instr->operand(0)),
-                                lower_operand(hir_instr->operand(1)));
+    builder.emit_cmp(pred, lower_operand(hir_instr->operand(0)),
+                     lower_operand(hir_instr->operand(1)));
+    auto dst = builder.emit_cset(pred);
     vreg_map[hir_instr] = dst;
     return;
   }
   case hir::Opcode::CondBr: {
     auto *condition = dynamic_cast<hir::Instruction *>(hir_instr->operand(0));
-    auto predicate = convert_predicate(condition->predicate.value());
-    builder.emit_cond_jump(predicate,
-                           lower_block_from_operand(hir_instr->operand(1)),
-                           lower_block_from_operand(hir_instr->operand(2)));
+    auto true_block = lower_block_from_operand(hir_instr->operand(1));
+    auto false_block = lower_block_from_operand(hir_instr->operand(2));
+
+    if (condition && condition->opcode == hir::Opcode::ICmp) {
+      auto predicate = convert_predicate(condition->predicate.value());
+      builder.emit_cond_jump(predicate, true_block, false_block);
+    } else {
+      auto cond_op = lower_operand(hir_instr->operand(0));
+      cond_op = ensure_reg(cond_op, lir::Register::GPR32);
+
+      auto *cmp = arena.create<lir::Instruction>();
+      cmp->opcode = lir::Opcode::Cmp;
+      cmp->num_defs = 0;
+      cmp->operands.push_back(cond_op);
+      cmp->operands.push_back(lir::Operand::from_imm(0));
+      builder.emit_raw(cmp);
+
+      builder.emit_cond_jump(lir::CmpPredicate::NE, true_block, false_block);
+    }
     return;
   }
   case hir::Opcode::Br:
@@ -230,7 +260,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
         source_operand.get_reg_mut().set_class(lir::Register::GPR64);
       }
       auto *instr = arena.create<lir::Instruction>();
-      instr->opcode = lir::Opcode::Mov;
+      instr->opcode = lir::Opcode::Copy;
       instr->num_defs = 1;
       instr->operands.push_back(ret_register);
       instr->operands.push_back(source_operand);
@@ -251,6 +281,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     }
     lir::Register::RegClass clazz = class_from_type(hir_instr->type);
     auto *callee = dynamic_cast<hir::Function *>(hir_instr->operand(0));
+    printf("Emitting call\n");
     auto dst = builder.emit_call(callee->name, std::move(args), clazz);
     dst.set_class(clazz);
     vreg_map[hir_instr] = dst;
@@ -342,6 +373,7 @@ void LIRLowering::eliminate_phis(hir::Function *hir_function) {
 
         if (src.is_reg() && src.get_reg() == dst)
           continue;
+        dst.set_class(src.get_reg().get_class());
 
         copies_per_pred[incoming_bb].emplace_back(dst, src);
       }
@@ -357,8 +389,14 @@ void LIRLowering::eliminate_phis(hir::Function *hir_function) {
     // Insert before terminator
     auto &instrs = pred_mbb->instructions;
     auto term_it = instrs.end();
-    if (!instrs.empty() && instrs.back()->is_terminator())
-      term_it = std::prev(instrs.end());
+    while (term_it != instrs.begin()) {
+      auto prev = std::prev(term_it);
+      if ((*prev)->is_terminator_sequence()) {
+        term_it = prev;
+      } else {
+        break;
+      }
+    }
 
     instrs.insert(term_it, sequentialized.begin(), sequentialized.end());
   }

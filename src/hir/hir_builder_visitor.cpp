@@ -391,7 +391,7 @@ void HIRBuilderVisitor::visit(UnaryMutationStatement &stmt) {
   write_variable(symbol_id, current_block, result);
 }
 void HIRBuilderVisitor::visit(ExpressionStatement &stmt) {
-  ASTVisitor::visit(stmt);
+  stmt.get_expression()->accept(*this);
 }
 void HIRBuilderVisitor::visit(ForStatement &stmt) {
   if (stmt.get_init()) {
@@ -448,7 +448,6 @@ void HIRBuilderVisitor::visit(ForStatement &stmt) {
   seal_block(merge_bb);
 }
 void HIRBuilderVisitor::visit(WhileStatement &stmt) {
-
   auto *condition_block = current_function->append_block();
   auto *body_block = current_function->append_block();
   auto *merge_block = current_function->append_block();
@@ -461,19 +460,18 @@ void HIRBuilderVisitor::visit(WhileStatement &stmt) {
   auto *cond = pop_stack();
 
   body_block->predecessors.push_back(condition_block);
+  merge_block->predecessors.push_back(condition_block);
   builder.build_cond_br(cond, body_block, merge_block);
 
   set_insert_point(body_block);
   seal_block(body_block);
   stmt.get_body()->accept(*this);
   if (!current_block->terminator()) {
-    condition_block->predecessors.push_back(body_block);
+    condition_block->predecessors.push_back(current_block);
     builder.build_br(condition_block);
   }
   seal_block(condition_block);
 
-  merge_block->predecessors.push_back(condition_block);
-  merge_block->predecessors.push_back(body_block);
   set_insert_point(merge_block);
   seal_block(merge_block);
 }

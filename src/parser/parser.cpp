@@ -566,6 +566,7 @@ CompoundStmt *Parser::parse_compound_statement() {
 }
 ReturnStmt *Parser::parse_return_statement() {
   const auto ret = expect(token::TokenKind::Return);
+  printf("Parsing return statement at line %d\n", std::get<0>(ret->span.start));
   const auto retStmt = arena.create<ReturnStmt>();
   if (!is_next(token::TokenKind::Semi)) {
     retStmt->set_expression(parse_expression());

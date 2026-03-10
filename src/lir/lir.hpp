@@ -220,6 +220,9 @@ struct Instruction {
            opcode == Opcode::Ret;
   }
 
+  [[nodiscard]] bool is_terminator_sequence() const {
+    return is_terminator() || opcode == Opcode::Cmp || opcode == Opcode::CSet;
+  }
   [[nodiscard]] bool is_branch() const {
     return opcode == Opcode::Jump || opcode == Opcode::CondJump;
   }
@@ -267,7 +270,7 @@ struct BasicBlock {
 struct Function {
   std::string name;
   std::vector<BasicBlock *> blocks;
-  unsigned next_vreg_id = 0;
+  unsigned next_vreg_id = 32;
   unsigned next_block_id = 0;
   std::vector<Register> param_regs;
   bool has_return_value = true;

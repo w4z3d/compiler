@@ -202,7 +202,8 @@ void semantic::SemanticVisitor::visit(ReturnStmt &stmt) {
 #ifdef L1
   has_return_statement = true;
 #endif
-  stmt.get_expression()->accept(*this);
+  if (stmt.get_expression())
+    stmt.get_expression()->accept(*this);
 }
 
 void semantic::SemanticVisitor::visit(BinaryOperatorExpression &expr) {

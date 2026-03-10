@@ -18,9 +18,16 @@ unsigned count_vregs(lir::Function *func) {
       for (auto &op : inst->operands) {
         if (op.is_reg()) {
           max_id = std::max(max_id, op.get_reg().id);
-          max_id = max_id + inst->implicit_defs.size();
           found = true;
         }
+      }
+      for (auto &imp : inst->implicit_defs) {
+        max_id = std::max(max_id, imp.id);
+        found = true;
+      }
+      for (auto &imp : inst->implicit_uses) {
+        max_id = std::max(max_id, imp.id);
+        found = true;
       }
     }
   }
@@ -35,6 +42,9 @@ static BitSet compute_block_defs(lir::BasicBlock *mbb, unsigned num_vregs) {
       if (op.is_reg())
         defs.set(op.get_reg().id);
     }
+    for (auto &imp : inst->implicit_defs) {
+      defs.set(imp.id);
+    }
   }
   return defs;
 }
@@ -45,20 +55,20 @@ static BitSet compute_block_uses(lir::BasicBlock *mbb, unsigned num_vregs) {
   BitSet uses(num_vregs);
   BitSet defs(num_vregs);
   for (auto *inst : mbb->instructions) {
-    // Uses before defs at this instruction
     for (auto &op : inst->uses()) {
-      if (op.is_reg()) {
-        if (!defs.test(op.get_reg().id))
-          uses.set(op.get_reg().id);
-      }
+      if (op.is_reg() && !defs.test(op.get_reg().id))
+        uses.set(op.get_reg().id);
     }
-    for (auto &op : inst->implicit_uses) {
-      if (!defs.test(op.id))
-        uses.set(op.id);
+    for (auto &imp : inst->implicit_uses) {
+      if (!defs.test(imp.id))
+        uses.set(imp.id);
     }
     for (auto &op : inst->defs()) {
       if (op.is_reg())
         defs.set(op.get_reg().id);
+    }
+    for (auto &imp : inst->implicit_defs) {
+      defs.set(imp.id);
     }
   }
   return uses;
@@ -161,42 +171,39 @@ void build_interference_graph(lir::Function *func, LivenessInfo &info,
   for (auto *mbb : func->blocks) {
     // Start with live_out as a BitSet
     BitSet live(info.live_out.at(mbb));
-
     // Walk instructions backwards
     for (auto inst : std::ranges::reverse_view(mbb->instructions)) {
-      // Add uses to live set first
+
+      for (auto &def_op : inst->defs()) {
+        if (!def_op.is_reg())
+          continue;
+        unsigned def_id = def_op.get_reg().id;
+        for (auto live_id : live) {
+          if (live_id != def_id)
+            graph.add_edge(def_id, live_id);
+        }
+      }
+      for (auto &implicit_def : inst->implicit_defs) {
+        for (auto live_id : live) {
+          if (live_id != implicit_def.id)
+            graph.add_edge(implicit_def.id, live_id);
+        }
+      }
+
+      for (auto &op : inst->defs()) {
+        if (op.is_reg())
+          live.reset(op.get_reg().id);
+      }
+      for (auto &implicit : inst->implicit_defs) {
+        live.reset(implicit.id);
+      }
+
       for (auto &op : inst->uses()) {
         if (op.is_reg())
           live.set(op.get_reg().id);
       }
       for (auto &op : inst->implicit_uses) {
         live.set(op.id);
-      }
-      for (auto &implicit_def : inst->implicit_defs) {
-        for (auto live_id : live) {
-          if (live_id != implicit_def.id) {
-            graph.add_edge(implicit_def.id, live_id);
-          }
-        }
-      }
-
-      // Each def interferes with everything currently live
-      for (auto &def_op : inst->defs()) {
-        if (!def_op.is_reg())
-          continue;
-        unsigned def_id = def_op.get_reg().id;
-
-        // Add edges between def and all live registers
-        for (auto live_id : live) {
-          if (live_id != def_id)
-            graph.add_edge(def_id, live_id);
-        }
-      }
-
-      // Remove defs from live set
-      for (auto &op : inst->defs()) {
-        if (op.is_reg())
-          live.reset(op.get_reg().id);
       }
     }
   }

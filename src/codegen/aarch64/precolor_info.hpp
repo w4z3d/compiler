@@ -1,11 +1,39 @@
 #include "aarch64_defs.hpp"
+#include <set>
 std::vector<std::pair<size_t, size_t>> precolor(lir::Function *func) {
-  const auto &target = aarch64::target;
-
+  std::set<unsigned> seen;
   std::vector<std::pair<size_t, size_t>> precolored;
-  precolored.reserve(func->param_regs.size());
-  for (size_t i = 0; i < func->param_regs.size(); i++) {
-    precolored.emplace_back(func->param_regs[i].id, target.arg_regs[i].id);
+
+  for (auto *mbb : func->blocks) {
+    for (auto *inst : mbb->instructions) {
+      // Explicit operands
+      for (auto &op : inst->operands) {
+        if (op.is_reg() && op.get_reg().is_physical()) {
+          unsigned id = op.get_reg().id;
+          if (seen.insert(id).second) {
+            precolored.emplace_back(id, id);
+          }
+        }
+      }
+      // Implicit defs (caller-saved clobbered by calls)
+      for (auto &reg : inst->implicit_defs) {
+        if (reg.is_physical()) {
+          unsigned id = reg.id;
+          if (seen.insert(id).second) {
+            precolored.emplace_back(id, id);
+          }
+        }
+      }
+      // Implicit uses
+      for (auto &reg : inst->implicit_uses) {
+        if (reg.is_physical()) {
+          unsigned id = reg.id;
+          if (seen.insert(id).second) {
+            precolored.emplace_back(id, id);
+          }
+        }
+      }
+    }
   }
 
   return precolored;

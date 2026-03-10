@@ -22,6 +22,8 @@
 #include <iostream>
 #include <memory>
 
+void clear_last_line() { std::cout << "\033[A\033[2K" << std::flush; }
+
 int main(int argc, char *argv[]) {
   const auto file = io::read_file(argv[1]);
 
@@ -31,6 +33,7 @@ int main(int argc, char *argv[]) {
   auto lexer = std::make_unique<Lexer>(file.name, file.content);
   auto parser = std::make_unique<Parser>(*lexer, diagnostics, source_manager);
 
+  printf("[+] Parsing file\n");
   const auto unit{parser->parse_translation_unit()};
 
   if (diagnostics->has_errors()) {
@@ -49,6 +52,8 @@ int main(int argc, char *argv[]) {
 
   type_check::TypeVisitor type_check_visitor{diagnostics, source_manager,
                                              symbol_table};
+  clear_last_line();
+  printf("[+] Performing type checking\n");
   unit->accept(type_check_visitor);
 
   if (diagnostics->has_errors()) {
@@ -58,39 +63,54 @@ int main(int argc, char *argv[]) {
 
   hir::Module module{};
   HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics};
+  clear_last_line();
+  printf("[+] Emitting HIR\n");
   unit->accept(hir_visitor);
 
+  std::cout << module.to_string() << std::endl;
   OptPipeline opt{};
 
-  std::cout << module.to_dot() << std::endl;
-
-  // for (auto &function : module.functions) {
-  //   opt.optimize(function.get());
-  // }
+  clear_last_line();
+  printf("[+] Optimizing HIR\n");
+  for (auto &function : module.functions) {
+    opt.optimize(function.get());
+  }
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
-  lowering.lower_module(module);
 
+  clear_last_line();
+  printf("[+] lowering to lir\n");
+
+  lowering.lower_module(module);
   std::cout << lir_module.to_string() << std::endl;
 
+  clear_last_line();
+  printf("[+] Performing Register Allocation\n");
   for (auto *func : lir_module.functions) {
-    // Liveness analysis
     auto info = liveness::compute_liveness(func);
-
-    // Build interference graph
     UndirectedGraph graph(info.num_vregs);
     liveness::build_interference_graph(func, info, graph);
 
-    std::vector<std::pair<size_t, size_t>> precolored = precolor(func);
-    // Graph coloring
+    auto coalesce_info =
+        regalloc::coalesce(func, graph, aarch64::target.num_allocatable);
+
+    auto precolored = precolor(func);
+
     auto coloring = graph.color(precolored, info.num_vregs);
 
-    // Rewrite vregs → physical registers and remove dead copies
+    for (auto &[removed, kept] : coalesce_info.representative) {
+      unsigned root = coalesce_info.find(removed);
+      if (coloring.contains(root)) {
+        coloring[removed] = coloring[root];
+      }
+    }
+
     regalloc::rewrite_registers(func, coloring);
   }
 
-  std::cout << lir_module.to_string() << std::endl;
   aarch64::AsmEmitter emitter(aarch64::target);
+  clear_last_line();
+  printf("[+] Emitting Assembly\n");
   std::string asm_output = emitter.emit_module(&lir_module);
 
   // Write to file

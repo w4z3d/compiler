@@ -16,9 +16,7 @@ public:
   constexpr explicit Type(Kind kind) : kind(kind) {}
   Kind kind;
 
-  [[nodiscard]] virtual bool equals(const Type &other) const {
-    return kind == other.kind;
-  }
+  [[nodiscard]] virtual bool equals(const Type &other) const = 0;
 
   // Add pure virtual toString method
   [[nodiscard]] virtual std::string toString() const { return ""; }
@@ -60,7 +58,6 @@ public:
     }
   }
 };
-
 // --- PointerType ---
 class PointerType : public Type {
 public:
@@ -68,14 +65,7 @@ public:
 
   explicit PointerType(const Type *to) : Type(Kind::Pointer), to(to) {}
 
-  [[nodiscard]] bool equals(const Type &other) const override {
-    if (other.kind != Kind::Pointer)
-      return false;
-    const auto &otherPtr = dynamic_cast<const PointerType &>(other);
-    if (!to || !otherPtr.to)
-      return !to && !otherPtr.to; // Both null or both not null
-    return to->equals(*otherPtr.to);
-  }
+  [[nodiscard]] bool equals(const Type &other) const override;
 
   [[nodiscard]] std::string toString() const override {
     if (to) {
@@ -129,10 +119,7 @@ public:
     fields = std::move(f);
   }
 
-  [[nodiscard]] bool equals(const Type &other) const override {
-    return other.kind == Kind::Struct &&
-           name == dynamic_cast<const StructType &>(other).name;
-  }
+  [[nodiscard]] bool equals(const Type &other) const override;
 
   [[nodiscard]] std::string toString() const override {
     std::ostringstream oss;

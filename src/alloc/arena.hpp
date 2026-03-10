@@ -107,7 +107,6 @@ public:
   }
 
   ~Arena() {
-    std::cout << "Freeing arena of " << used() << " bytes" << std::endl;
     for (const auto &destructor : std::ranges::reverse_view(destructors)) {
       destructor();
     }

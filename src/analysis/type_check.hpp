@@ -13,7 +13,8 @@ private:
   std::shared_ptr<SourceManager> source_manager;
   std::shared_ptr<SymbolTable> symbol_table;
 
-  std::unordered_map<std::string, const type::StructType *> struct_types;
+  std::unordered_map<std::string, std::shared_ptr<type::StructType>>
+      struct_types;
   std::unordered_map<std::string, const type::Type *> typedef_types;
 
   const type::Type *current_return_type = nullptr;

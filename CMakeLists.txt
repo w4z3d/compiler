@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28.1)
-project(compiler)
+project(cc0)
 enable_testing()
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,7 +12,7 @@ set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 file(GLOB_RECURSE SOURCES "src/*.cpp" "include/*.hpp")
 
 # Add target
-add_executable(compiler ${SOURCES})
+add_executable(cc0 ${SOURCES})
 
 add_subdirectory(tests)
 
