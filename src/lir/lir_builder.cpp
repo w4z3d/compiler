@@ -155,7 +155,7 @@ lir::Register LIRBuilder::emit_call(std::string_view callee_name,
   instr->num_defs = 1;
   instr->operands.push_back(lir::Operand::from_reg(dst));
 
-  for (int i = 0; i < 17; i++) {
+  for (int i = 0; i < 19; i++) {
     instr->add_implicit_def(lir::Register::preg(i));
   }
   for (int i = 0; i < args.size(); i++) {

@@ -148,7 +148,6 @@ lir::Operand LIRLowering::lower_operand(hir::Value *val) {
 }
 
 void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
-  printf("Lowering %s \n", hir_instr->to_string().c_str());
   switch (hir_instr->opcode) {
   case hir::Opcode::Add:
     lower_binop(hir_instr, lir::Opcode::Add);
@@ -281,14 +280,12 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     }
     lir::Register::RegClass clazz = class_from_type(hir_instr->type);
     auto *callee = dynamic_cast<hir::Function *>(hir_instr->operand(0));
-    printf("Emitting call\n");
     auto dst = builder.emit_call(callee->name, std::move(args), clazz);
     dst.set_class(clazz);
     vreg_map[hir_instr] = dst;
     return;
   }
   case hir::Opcode::Load: {
-    std::cout << "Type arg for load is " << hir_instr->type_arg << std::endl;
     auto ptr = lower_operand(hir_instr->operand(0));
     if (ptr.is_reg())
       ptr.get_reg_mut().set_class(lir::Register::GPR64);
@@ -297,7 +294,6 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::Store: {
-    std::cout << "Type arg for store is " << hir_instr->type_arg << std::endl;
     auto base = lower_operand(hir_instr->operand(0));
     auto value = lower_operand(hir_instr->operand(1));
     auto base_reg = ensure_reg(base, class_from_type(hir_instr->type));

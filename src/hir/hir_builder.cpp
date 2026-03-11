@@ -270,7 +270,6 @@ hir::Value *HIRBuilder::build_call(hir::Function *callee,
   std::vector<hir::Value *> operands;
   operands.push_back(callee);
   operands.insert(operands.end(), args.begin(), args.end());
-  printf("Insering call %s", callee->to_string().c_str());
 
   // Result type is the function's return type
   auto *instr = arena.create<hir::Instruction>(
