@@ -9,6 +9,6 @@ foreach(test_file ${TEST_FILES})
     get_filename_component(test_name ${test_file} NAME_WE)
     add_test(
         NAME ${test_name}
-        COMMAND $<TARGET_FILE:cc0> ${test_file} -v -o ${test_file}_out
+        COMMAND $<TARGET_FILE:cc0> ${test_file} -v
     )
 endforeach()
