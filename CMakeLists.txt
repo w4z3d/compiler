@@ -10,9 +10,11 @@ set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
 # Add sourcefiles
 file(GLOB_RECURSE SOURCES "src/*.cpp" "include/*.hpp")
-
 # Add target
 add_executable(cc0 ${SOURCES})
+
+target_compile_options(cc0 PRIVATE -fsanitize=address,undefined)
+target_link_options(cc0 PRIVATE -fsanitize=address,undefined)
 
 add_subdirectory(tests)
 
