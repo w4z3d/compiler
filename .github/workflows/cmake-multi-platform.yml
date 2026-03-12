@@ -51,14 +51,14 @@ jobs:
       uses: actions/upload-artifact@v4.6.2
       with:
         name: compiler-linux-x86_64
-        path: "**/build/**/compiler"
+        path: "**/build/**/cc0"
 
     - name: Upload artifact (Windows)
       if: matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4.6.2
       with:
         name: compiler-windows-x86_64
-        path: "**/build/**/compiler.exe"
+        path: "**/build/**/cc0.exe"
 
     - name: Test
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
