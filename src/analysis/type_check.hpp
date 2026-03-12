@@ -3,35 +3,28 @@
 
 #include "../defs/ast.hpp"
 #include "../report/report_builder.hpp"
+#include "../type/source_type_registry.hpp"
 #include "symbol.hpp"
 
 namespace type_check {
 
 class TypeVisitor : public ASTVisitor {
 private:
+  source_type::QualType current_return_type;
+  bool has_return = false;
+
+  arena::Arena arena;
+  source_type::TypeRegistry types;
+
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
   std::shared_ptr<SymbolTable> symbol_table;
 
-  std::unordered_map<std::string, std::shared_ptr<type::StructType>>
-      struct_types;
-  std::unordered_map<std::string, const type::Type *> typedef_types;
-
-  const type::Type *current_return_type = nullptr;
-
-  const type::Type *resolve_type(const TypeAnnotation *annotation);
-
-  const type::Type *resolve_underlying(const type::Type *t);
-
-  static bool is_small_type(const type::Type *t);
-
-  bool types_equal(const type::Type *a, const type::Type *b);
-
-  void type_error(const SourceLocation &loc, const std::string &message);
-
-  static const type::Type *expr_type(const Expression &expr);
-
-  const type::Type *lvalue_type(const LValue &val);
+  // ── Helpers ──────────────────────────────────────────
+  void emit_error(const SourceLocation &loc, const std::string &message);
+  const source_type::Type *resolve_underlying(const source_type::Type *t);
+  bool is_small_type(const source_type::Type *t);
+  const source_type::Type *lvalue_type(const LValue &val);
 
 public:
   explicit TypeVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
@@ -39,18 +32,25 @@ public:
                        std::shared_ptr<SymbolTable> symbol_table)
       : diagnostics(std::move(diagnostics)),
         source_manager(std::move(source_manager)),
-        symbol_table(std::move(symbol_table)) {}
+        symbol_table(std::move(symbol_table)), arena(arena::Arena{}),
+        types(arena) {}
 
-  void visit(Typedef &typedef_) override;
+  // ── Top Level ────────────────────────────────────────
+  void visit(TranslationUnit &unit) override;
+
+  // ── Declarations ─────────────────────────────────────
   void visit(Declaration &decl) override;
   void visit(FunctionDeclaration &decl) override;
   void visit(ParameterDeclaration &decl) override;
   void visit(StructDeclaration &decl) override;
+  void visit(Typedef &typedef_) override;
+  void visit(VariableDeclarationStatement &stmt) override;
+
+  // ── Statements ───────────────────────────────────────
   void visit(Statement &stmt) override;
   void visit(CompoundStmt &stmt) override;
   void visit(ReturnStmt &stmt) override;
   void visit(AssertStmt &stmt) override;
-  void visit(VariableDeclarationStatement &stmt) override;
   void visit(UnaryMutationStatement &stmt) override;
   void visit(AssignmentStatement &stmt) override;
   void visit(ExpressionStatement &stmt) override;
@@ -58,6 +58,8 @@ public:
   void visit(ForStatement &stmt) override;
   void visit(WhileStatement &stmt) override;
   void visit(ErrorStatement &stmt) override;
+
+  // ── Expressions ──────────────────────────────────────
   void visit(Expression &expr) override;
   void visit(NumericExpr &expr) override;
   void visit(CallExpr &expr) override;
@@ -75,21 +77,24 @@ public:
   void visit(AllocExpression &expr) override;
   void visit(AllocArrayExpression &expr) override;
   void visit(TernaryExpression &expr) override;
+
+  // ── Type Annotations (no-ops) ────────────────────────
   void visit(TypeAnnotation &type) override;
   void visit(BuiltinTypeAnnotation &type) override;
   void visit(NamedTypeAnnotation &type) override;
   void visit(StructTypeAnnotation &type) override;
   void visit(PointerTypeAnnotation &type) override;
   void visit(ArrayTypeAnnotation &type) override;
+
+  // ── LValues ──────────────────────────────────────────
   void visit(LValue &val) override;
   void visit(VariableLValue &val) override;
   void visit(ArrayAccessLValue &val) override;
   void visit(PointerAccessLValue &val) override;
   void visit(FieldAccessLValue &val) override;
   void visit(DereferenceLValue &val) override;
-  void visit(TranslationUnit &unit) override;
 };
 
 } // namespace type_check
 
-#endif // COMPILER_TYPE_CHECK_H
+#endif

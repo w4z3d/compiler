@@ -369,7 +369,8 @@ void LIRLowering::eliminate_phis(hir::Function *hir_function) {
 
         if (src.is_reg() && src.get_reg() == dst)
           continue;
-        dst.set_class(src.get_reg().get_class());
+        if (src.is_reg())
+          dst.set_class(src.get_reg().get_class());
 
         copies_per_pred[incoming_bb].emplace_back(dst, src);
       }

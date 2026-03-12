@@ -56,7 +56,7 @@ private:
 
   // Type helpers
   hir::type::Type *type_of_symbol(size_t symbol_id);
-  hir::type::Type *lower_type(const type::Type *ast_type);
+  hir::type::Type *lower_type(const source_type::Type *ast_type);
   size_t size_of(hir::type::Type *type);
 
   void set_insert_point(hir::BasicBlock *bb) {

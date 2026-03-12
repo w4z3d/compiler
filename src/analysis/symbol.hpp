@@ -3,16 +3,11 @@
 
 #include "../alloc/arena.hpp"
 #include "../defs/source_location.hpp"
-#include "../defs/type.hpp"
+#include "../type/source_type.hpp"
 #include <format>
-#include <functional>
-#include <iostream>
-#include <memory>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <utility>
 
 class Symbol {
 public:
@@ -23,84 +18,70 @@ private:
   std::string name;
   Kind kind;
   bool initialized;
-
   SourceLocation location;
-  const type::Type *type;
+  const source_type::Type *type;
 
 public:
-  explicit Symbol(std::string_view name, SourceLocation loc, Kind kind,
-                  size_t id, bool initialized,
-                  const type::Type *type = type::int_t())
-      : name(name), location(std::move(loc)), kind(kind), id(id),
-        initialized(initialized), type(type) {}
+  Symbol(std::string_view name, SourceLocation loc, Kind kind, size_t id,
+         bool initialized, const source_type::Type *type)
+      : id(id), name(name), kind(kind), initialized(initialized),
+        location(std::move(loc)), type(type) {}
+
+  virtual ~Symbol() = default;
 
   [[nodiscard]] std::string_view get_name() const { return name; }
-
-  [[nodiscard]] const SourceLocation &get_source_location() const {
-    return location;
-  }
-
+  [[nodiscard]] const SourceLocation &get_location() const { return location; }
   [[nodiscard]] Kind get_kind() const { return kind; }
-
   [[nodiscard]] size_t get_id() const { return id; }
-  [[nodiscard]] const type::Type *get_type() const { return type; }
-
-  void set_id(size_t id_) { id = id_; }
-
+  [[nodiscard]] const source_type::Type *get_type() const { return type; }
   [[nodiscard]] bool is_initialized() const { return initialized; }
 
   void set_initialized(bool init) { initialized = init; }
 
+  [[nodiscard]] bool is_variable() const { return kind == Kind::Variable; }
+  [[nodiscard]] bool is_function() const { return kind == Kind::Function; }
+  [[nodiscard]] bool is_struct() const { return kind == Kind::Struct; }
+
   [[nodiscard]] std::string to_string() const {
-    return std::format("[{}{}, <{}:{}:{} - {}:{}:{}>]", name, id,
-                       location.file_name, std::get<0>(location.begin),
-                       std::get<1>(location.begin), location.file_name,
-                       std::get<0>(location.end), std::get<1>(location.end));
+    return std::format("[{} id={} kind={}]", name, id, (int)kind);
   }
-};
-
-class VariableSymbol : public Symbol {
-  bool initialized = false;
-
-public:
-  explicit VariableSymbol(std::string_view name, SourceLocation loc, size_t id,
-                          bool initialized, const type::Type *type)
-      : Symbol(name, loc, Kind::Variable, id, initialized, type) {}
 };
 
 class FunctionSymbol : public Symbol {
 public:
-  const type::Type *return_type;
-  explicit FunctionSymbol(std::string_view name, SourceLocation loc, size_t id,
-                          bool initialized, const type::Type *return_type)
+  const source_type::FunctionType *func_type;
+
+  FunctionSymbol(std::string_view name, SourceLocation loc, size_t id,
+                 bool initialized, const source_type::Type *return_type,
+                 const source_type::FunctionType *func_type = nullptr)
       : Symbol(name, loc, Kind::Function, id, initialized, return_type),
-        return_type(return_type) {}
+        func_type(func_type) {}
 };
 
 class StructSymbol : public Symbol {
 public:
-  explicit StructSymbol(std::string_view name, SourceLocation loc, size_t id,
-                        bool initialized)
-      : Symbol(name, loc, Kind::Struct, id, initialized, type::int_t()) {}
+  const source_type::StructType *struct_type;
+
+  StructSymbol(std::string_view name, SourceLocation loc, size_t id,
+               bool initialized, const source_type::StructType *st)
+      : Symbol(name, loc, Kind::Struct, id, initialized, st), struct_type(st) {}
 };
 
 class Scope {
-private:
   struct StringHash {
     using is_transparent = void;
-    std::size_t operator()(std::string_view str) const noexcept {
-      return std::hash<std::string_view>{}(str);
+    size_t operator()(std::string_view s) const noexcept {
+      return std::hash<std::string_view>{}(s);
     }
   };
-
   struct StringEqual {
     using is_transparent = void;
-    bool operator()(std::string_view lhs, std::string_view rhs) const noexcept {
-      return lhs == rhs;
+    bool operator()(std::string_view a, std::string_view b) const noexcept {
+      return a == b;
     }
   };
 
-  std::unordered_map<std::string, Symbol, StringHash, StringEqual> symbols;
+  std::unordered_map<std::string, Symbol *, StringHash, StringEqual> symbols;
   Scope *parent;
   std::string scope_name;
 
@@ -109,51 +90,27 @@ public:
       : parent(parent), scope_name(std::move(name)) {}
 
   [[nodiscard]] Scope *get_parent() const { return parent; }
-
-  bool define(const Symbol &symbol) {
-    if (symbols.find(symbol.get_name()) != symbols.end()) {
-      return false;
-    }
-    symbols.emplace(symbol.get_name(), symbol);
-    return true;
-  }
-
-  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
-  lookup_local(std::string_view name) {
-    auto it = symbols.find(name);
-    if (it != symbols.end()) {
-      return std::reference_wrapper<Symbol>(it->second);
-    }
-
-    return std::nullopt;
-  }
-
-  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
-  lookup(const std::string_view name) {
-    auto symbol = lookup_local(name);
-
-    if (symbol) {
-      return symbol;
-    }
-
-    auto parent = get_parent();
-    if (parent) {
-      return parent->lookup(name);
-    }
-
-    return std::nullopt;
-  }
-
-  [[nodiscard]] std::unordered_map<std::string, Symbol, StringHash, StringEqual>
-  get_scoped_symbols() const {
-    return symbols;
-  }
-
   [[nodiscard]] std::string_view get_name() const { return scope_name; }
+
+  // Returns false if already defined in THIS scope
+  bool define(Symbol *sym) {
+    auto [it, inserted] = symbols.emplace(std::string(sym->get_name()), sym);
+    return inserted;
+  }
+
+  [[nodiscard]] Symbol *lookup_local(std::string_view name) {
+    auto it = symbols.find(name);
+    return it != symbols.end() ? it->second : nullptr;
+  }
+
+  [[nodiscard]] Symbol *lookup(std::string_view name) {
+    if (auto *sym = lookup_local(name))
+      return sym;
+    return parent ? parent->lookup(name) : nullptr;
+  }
 };
 
 class SymbolTable {
-private:
   Scope *current_scope;
   arena::Arena arena;
   size_t id_counter = 0;
@@ -165,68 +122,79 @@ public:
   }
 
   void enter_scope(const std::string &name = "anonymous") {
-    auto new_scope = arena.create<Scope>(name, current_scope);
-    current_scope = new_scope;
+    current_scope = arena.create<Scope>(name, current_scope);
   }
 
   bool exit_scope() {
-
-    auto parent = current_scope->get_parent();
-
-    if (parent) {
-      current_scope = parent;
+    if (auto *p = current_scope->get_parent()) {
+      current_scope = p;
       return true;
     }
     return false;
   }
 
-  bool define(const Symbol &symbol) {
-    if (!current_scope->define(symbol))
+  Symbol *create_variable(std::string_view name, SourceLocation loc,
+                          const source_type::Type *type,
+                          bool initialized = false) {
+    auto *sym =
+        arena.create<Symbol>(name, std::move(loc), Symbol::Kind::Variable,
+                             next_id(), initialized, type);
+    return sym;
+  }
+
+  FunctionSymbol *create_function(std::string_view name, SourceLocation loc,
+                                  const source_type::Type *return_type,
+                                  const source_type::FunctionType *func_type,
+                                  bool has_body = false) {
+    auto *sym = arena.create<FunctionSymbol>(name, std::move(loc), next_id(),
+                                             has_body, return_type, func_type);
+    return sym;
+  }
+
+  StructSymbol *create_struct(std::string_view name, SourceLocation loc,
+                              const source_type::StructType *struct_type,
+                              bool is_complete = false) {
+    auto *sym = arena.create<StructSymbol>(name, std::move(loc), next_id(),
+                                           is_complete, struct_type);
+    return sym;
+  }
+
+  bool define(Symbol *sym) {
+    if (!current_scope->define(sym))
       return false;
-    // Register in id map — lookup the stored copy, not the param
-    auto stored = current_scope->lookup_local(symbol.get_name());
-    if (stored)
-      id_to_symbol[symbol.get_id()] = &stored->get();
+    id_to_symbol[sym->get_id()] = sym;
     return true;
   }
 
-  // Add this
-  std::optional<std::reference_wrapper<Symbol>> lookup_by_id(size_t id) {
-    auto it = id_to_symbol.find(id);
-    if (it != id_to_symbol.end())
-      return *it->second;
-    return std::nullopt;
-  }
-  size_t next_id() { return id_counter++; }
-
-  [[nodiscard]] std::optional<std::reference_wrapper<Symbol>>
-  lookup(std::string_view name) {
+  [[nodiscard]] Symbol *lookup(std::string_view name) {
     return current_scope->lookup(name);
   }
 
+  [[nodiscard]] Symbol *lookup_by_id(size_t id) {
+    auto it = id_to_symbol.find(id);
+    return it != id_to_symbol.end() ? it->second : nullptr;
+  }
+
+  size_t next_id() { return id_counter++; }
+
   [[nodiscard]] std::string dump() const {
-    std::string content{};
-    return dump_scope(content, current_scope, 0);
+    std::string out;
+    dump_scope(out, current_scope, 0);
+    return out;
   }
 
 private:
-  static std::string dump_scope(std::string &content, Scope *scope, int level) {
+  static void dump_scope(std::string &out, Scope *scope, int level) {
     std::string indent(level * 2, ' ');
-    content += std::format("Scope: {} \n", scope->get_name());
+    out += std::format("{}Scope: {}\n", indent, scope->get_name());
 
-    auto symbols = scope->get_scoped_symbols();
-    for (const auto &pair : symbols) {
-      content += std::format("{}  {} \n", indent, pair.second.to_string());
-    }
+    // Note: would need Scope to expose iteration
+    // for (auto &[name, sym] : scope->symbols())
+    //     out += std::format("{}  {}\n", indent, sym->to_string());
 
-    auto parent = scope->get_parent();
-    if (parent) {
-      content += std::format("{} Parent:\n", indent);
-      dump_scope(content, parent, level + 1);
-    }
-
-    return content;
+    if (auto *parent = scope->get_parent())
+      dump_scope(out, parent, level + 1);
   }
 };
 
-#endif // !ANALYSIS_SYMBOL_H
+#endif

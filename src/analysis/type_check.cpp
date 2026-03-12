@@ -1,68 +1,749 @@
 #include "type_check.hpp"
-#include <format>
 
-// ============================================================================
-// Helpers
-// ============================================================================
+namespace type_check {
 
-const type::Type *
-type_check::TypeVisitor::resolve_type(const TypeAnnotation *annotation) {
-  return from_type_annotation(annotation);
+void TypeVisitor::emit_error(const SourceLocation &loc,
+                             const std::string &message) {
+  diagnostics->error(loc, message).with_snippet(*source_manager);
 }
 
-const type::Type *
-type_check::TypeVisitor::resolve_underlying(const type::Type *t) {
+const source_type::Type *
+TypeVisitor::resolve_underlying(const source_type::Type *t) {
+  return types.resolve_through_typedefs(t);
+}
+
+bool TypeVisitor::is_small_type(const source_type::Type *t) {
   if (!t)
-    return nullptr;
-  if (t->kind == type::Type::Kind::Named) {
-    auto *named = dynamic_cast<const type::NamedType *>(t);
-    if (named) {
-      auto it = typedef_types.find(named->name);
-      if (it != typedef_types.end())
-        return resolve_underlying(it->second);
-      if (named->type)
-        return resolve_underlying(named->type);
+    return false;
+  t = resolve_underlying(t);
+  if (t->is_builtin()) {
+    auto *bt = static_cast<const source_type::BuiltinType *>(t);
+    return !bt->is_void();
+  }
+  return t->is_pointer();
+}
+
+void TypeVisitor::visit(TranslationUnit &unit) {
+  for (auto *decl : unit.get_declarations()) {
+    if (auto *sd = dynamic_cast<StructDeclaration *>(decl)) {
+      if (auto fields = sd->get_fields()) {
+        std::vector<std::pair<std::string, source_type::QualType>> fs;
+        for (auto *f : *fields) {
+          auto *ft = types.resolve(f->get_type());
+          if (ft && types.types_equal(ft, types.get_void()))
+            diagnostics
+                ->error(f->get_location(),
+                        std::format("struct field '{}' cannot have "
+                                    "type 'void'",
+                                    f->get_identifier()))
+                .with_snippet(*source_manager);
+          fs.emplace_back(std::string(f->get_identifier()),
+                          source_type::QualType(ft));
+        }
+        types.add_struct(std::string(sd->get_name()), std::move(fs));
+      }
+    }
+
+    if (auto *td = dynamic_cast<Typedef *>(decl)) {
+      auto *resolved = types.resolve(td->get_type());
+      types.add_typedef(std::string(td->get_name()), resolved);
+    }
+    decl->accept(*this);
+  }
+}
+
+void TypeVisitor::visit(FunctionDeclaration &decl) {
+  auto return_type = types.resolve_qual(decl.get_return_type());
+  current_return_type = return_type;
+  has_return = false;
+
+  std::vector<source_type::QualType> param_types;
+  for (const auto &param : decl.get_parameter_declarations())
+    param_types.emplace_back(types.resolve_qual(param->get_type()));
+
+  auto *func_type = types.get_function(return_type, param_types);
+  auto *func_sym = symbol_table->create_function(
+      decl.get_name(), decl.get_location(), return_type.unqualified(),
+      func_type, static_cast<bool>(decl.get_body()));
+  symbol_table->define(func_sym);
+
+  symbol_table->enter_scope(std::format("Scope_{}", decl.get_name()));
+
+  for (const auto &param : decl.get_parameter_declarations()) {
+    auto *param_type = types.resolve(param->get_type());
+    if (param_type && types.types_equal(param_type, types.get_void()))
+      diagnostics
+          ->error(param->get_location(), "parameter cannot have type 'void'")
+          .with_snippet(*source_manager);
+
+    auto *param_sym = symbol_table->create_variable(
+        param->get_name(), param->get_location(), param_type, true);
+    symbol_table->define(param_sym);
+    param->set_symbol(param_sym);
+  }
+
+  if (decl.get_body())
+    decl.get_body()->accept(*this);
+
+  if (!has_return &&
+      !types.types_equal(return_type.unqualified(), types.get_void()))
+    diagnostics
+        ->error(decl.get_location(),
+                std::format("non-void function '{}' must return a value",
+                            decl.get_name()))
+        .with_snippet(*source_manager)
+        .suggest("add a return statement");
+
+  symbol_table->exit_scope();
+  current_return_type = {};
+}
+
+void TypeVisitor::visit(VariableDeclarationStatement &stmt) {
+  auto var_type = types.resolve_qual(stmt.get_type());
+
+  if (var_type.unqualified() &&
+      types.types_equal(var_type.unqualified(), types.get_void()))
+    diagnostics->error(stmt.get_location(), "variable cannot have type 'void'")
+        .with_snippet(*source_manager);
+
+  if (stmt.get_initializer()) {
+    stmt.get_initializer()->accept(*this);
+    auto *init_type = stmt.get_initializer()->get_resolved_type();
+    if (init_type && var_type.unqualified() &&
+        !types.types_equal(init_type, var_type.unqualified()))
+      diagnostics
+          ->error(stmt.get_location(),
+                  std::format("initializer type mismatch: variable "
+                              "declared as '{}', got '{}'",
+                              var_type.to_string(), init_type->to_string()))
+          .with_snippet(*source_manager);
+  }
+
+  auto *var_sym = symbol_table->create_variable(
+      stmt.get_identifier(), stmt.get_location(), var_type.unqualified(),
+      static_cast<bool>(stmt.get_initializer()));
+
+  if (!symbol_table->define(var_sym)) {
+    auto *prev = symbol_table->lookup(stmt.get_identifier());
+    diagnostics
+        ->error(
+            stmt.get_location(),
+            std::format("redefinition of variable '{}'", stmt.get_identifier()))
+        .with_snippet(*source_manager)
+        .note("previously defined here", prev->get_location(), *source_manager);
+  }
+
+  stmt.set_symbol(var_sym);
+}
+
+void TypeVisitor::visit(ParameterDeclaration &decl) {}
+void TypeVisitor::visit(StructDeclaration &decl) {}
+void TypeVisitor::visit(Typedef &typedef_) {}
+void TypeVisitor::visit(Declaration &decl) {}
+
+void TypeVisitor::visit(CompoundStmt &stmt) {
+  symbol_table->enter_scope(
+      std::format("compound_{}", stmt.get_location().start_line()));
+  for (const auto &s : stmt.get_statements())
+    s->accept(*this);
+  symbol_table->exit_scope();
+}
+
+void TypeVisitor::visit(ReturnStmt &stmt) {
+  has_return = true;
+
+  if (stmt.get_expression()) {
+    stmt.get_expression()->accept(*this);
+
+    if (types.types_equal(current_return_type.unqualified(), types.get_void()))
+      diagnostics
+          ->error(stmt.get_location(), "returning a value from a void function")
+          .with_snippet(*source_manager);
+    else {
+      auto *ret_type = stmt.get_expression()->get_resolved_type();
+      if (ret_type &&
+          !types.types_equal(ret_type, current_return_type.unqualified()))
+        diagnostics
+            ->error(stmt.get_location(),
+                    std::format("return type mismatch: expected '{}', "
+                                "got '{}'",
+                                current_return_type.to_string(),
+                                ret_type->to_string()))
+            .with_snippet(*source_manager)
+            .suggest(std::format("change return type to '{}'",
+                                 ret_type->to_string()));
+    }
+  } else {
+    if (!types.types_equal(current_return_type.unqualified(), types.get_void()))
+      diagnostics
+          ->error(stmt.get_location(),
+                  std::format("non-void function must return a value "
+                              "of type '{}'",
+                              current_return_type.to_string()))
+          .with_snippet(*source_manager);
+  }
+}
+
+void TypeVisitor::visit(AssignmentStatement &stmt) {
+  stmt.get_lvalue()->accept(*this);
+  stmt.get_expr()->accept(*this);
+
+  auto *lhs_type = lvalue_type(*stmt.get_lvalue());
+  auto *rhs_type = stmt.get_expr()->get_resolved_type();
+  lhs_type = resolve_underlying(lhs_type);
+  rhs_type = resolve_underlying(rhs_type);
+
+  if (stmt.get_op() != AssignmentOperator::Equals) {
+    if (lhs_type && !types.types_equal(lhs_type, types.get_int()))
+      diagnostics
+          ->error(stmt.get_location(),
+                  std::format("compound assignment requires 'int' on "
+                              "left side, got '{}'",
+                              lhs_type->to_string()))
+          .with_snippet(*source_manager);
+    if (rhs_type && !types.types_equal(rhs_type, types.get_int()))
+      diagnostics
+          ->error(stmt.get_location(),
+                  std::format("compound assignment requires 'int' on "
+                              "right side, got '{}'",
+                              rhs_type->to_string()))
+          .with_snippet(*source_manager);
+  } else {
+    if (lhs_type && rhs_type && !types.types_equal(lhs_type, rhs_type))
+      diagnostics
+          ->error(stmt.get_location(),
+                  std::format("assignment type mismatch: left side is "
+                              "'{}', right side is '{}'",
+                              lhs_type->to_string(), rhs_type->to_string()))
+          .with_snippet(*source_manager);
+  }
+}
+
+void TypeVisitor::visit(UnaryMutationStatement &stmt) {
+  stmt.get_target()->accept(*this);
+  auto *t = resolve_underlying(lvalue_type(*stmt.get_target()));
+  if (t && !types.types_equal(t, types.get_int()))
+    diagnostics
+        ->error(stmt.get_location(),
+                std::format("increment/decrement requires 'int', got '{}'",
+                            t->to_string()))
+        .with_snippet(*source_manager);
+}
+
+void TypeVisitor::visit(IfStatement &stmt) {
+  stmt.get_condition()->accept(*this);
+  auto *cond = resolve_underlying(stmt.get_condition()->get_resolved_type());
+  if (cond && !types.types_equal(cond, types.get_bool()))
+    diagnostics
+        ->error(stmt.get_condition()->get_location(),
+                std::format("if condition must be 'bool', got '{}'",
+                            cond->to_string()))
+        .with_snippet(*source_manager);
+  stmt.get_then_branch()->accept(*this);
+  if (stmt.get_else_branch())
+    stmt.get_else_branch()->accept(*this);
+}
+
+void TypeVisitor::visit(ForStatement &stmt) {
+  symbol_table->enter_scope(
+      std::format("for_{}", stmt.get_location().start_line()));
+  if (stmt.get_init())
+    stmt.get_init()->accept(*this);
+  if (stmt.get_condition()) {
+    stmt.get_condition()->accept(*this);
+    auto *cond = resolve_underlying(stmt.get_condition()->get_resolved_type());
+    if (cond && !types.types_equal(cond, types.get_bool()))
+      diagnostics
+          ->error(stmt.get_condition()->get_location(),
+                  std::format("for condition must be 'bool', got '{}'",
+                              cond->to_string()))
+          .with_snippet(*source_manager);
+  }
+  if (stmt.get_increment())
+    stmt.get_increment()->accept(*this);
+  stmt.get_body()->accept(*this);
+  symbol_table->exit_scope();
+}
+
+void TypeVisitor::visit(WhileStatement &stmt) {
+  stmt.get_condition()->accept(*this);
+  auto *cond = resolve_underlying(stmt.get_condition()->get_resolved_type());
+  if (cond && !types.types_equal(cond, types.get_bool()))
+    diagnostics
+        ->error(stmt.get_condition()->get_location(),
+                std::format("while condition must be 'bool', got '{}'",
+                            cond->to_string()))
+        .with_snippet(*source_manager);
+  stmt.get_body()->accept(*this);
+}
+
+void TypeVisitor::visit(AssertStmt &stmt) {
+  stmt.get_expression()->accept(*this);
+  auto *t = resolve_underlying(stmt.get_expression()->get_resolved_type());
+  if (t && !types.types_equal(t, types.get_bool()))
+    diagnostics
+        ->error(stmt.get_location(),
+                std::format("assert condition must be 'bool', got '{}'",
+                            t->to_string()))
+        .with_snippet(*source_manager);
+}
+
+void TypeVisitor::visit(ErrorStatement &stmt) {
+  stmt.get_expr()->accept(*this);
+  auto *t = resolve_underlying(stmt.get_expr()->get_resolved_type());
+  if (t && !types.types_equal(t, types.get_string()))
+    diagnostics
+        ->error(stmt.get_location(),
+                std::format("error statement requires 'string', got '{}'",
+                            t->to_string()))
+        .with_snippet(*source_manager);
+}
+
+void TypeVisitor::visit(ExpressionStatement &stmt) {
+  stmt.get_expression()->accept(*this);
+}
+
+void TypeVisitor::visit(Statement &stmt) {}
+
+void TypeVisitor::visit(NumericExpr &expr) {
+  expr.set_resolved_type(types.get_int());
+}
+
+void TypeVisitor::visit(BoolConstExpr &expr) {
+  expr.set_resolved_type(types.get_bool());
+}
+
+void TypeVisitor::visit(CharLiteralExpr &expr) {
+  expr.set_resolved_type(types.get_char());
+}
+
+void TypeVisitor::visit(StringLiteralExpr &expr) {
+  expr.set_resolved_type(types.get_string());
+}
+
+void TypeVisitor::visit(NullExpr &expr) {
+  expr.set_resolved_type(types.get_pointer(types.get_void()));
+}
+
+void TypeVisitor::visit(VarExpr &expr) {
+  auto *sym = symbol_table->lookup(expr.get_variable_name());
+  if (!sym) {
+    diagnostics
+        ->error(expr.get_location(), std::format("unresolved reference '{}'",
+                                                 expr.get_variable_name()))
+        .with_snippet(*source_manager);
+    return;
+  }
+  if (!sym->is_initialized()) {
+    diagnostics
+        ->error(expr.get_location(),
+                std::format("use of uninitialized variable '{}'",
+                            expr.get_variable_name()))
+        .with_snippet(*source_manager)
+        .note("variable declared here", sym->get_location(), *source_manager)
+        .suggest(std::format("initialize '{}' before use", sym->get_name()));
+    return;
+  }
+  expr.set_symbol(sym);
+  expr.set_resolved_type(sym->get_type());
+}
+
+void TypeVisitor::visit(ParenthesisExpression &expr) {
+  expr.get_expression()->accept(*this);
+  expr.set_resolved_type(expr.get_expression()->get_resolved_type());
+}
+
+void TypeVisitor::visit(BinaryOperatorExpression &expr) {
+  expr.get_left_expression()->accept(*this);
+  expr.get_right_expression()->accept(*this);
+
+  auto *lhs =
+      resolve_underlying(expr.get_left_expression()->get_resolved_type());
+  auto *rhs =
+      resolve_underlying(expr.get_right_expression()->get_resolved_type());
+
+  if (!lhs || !rhs)
+    return;
+
+  switch (expr.get_operator_kind()) {
+  case BinaryOperator::Add:
+  case BinaryOperator::Sub:
+  case BinaryOperator::Mult:
+  case BinaryOperator::Div:
+  case BinaryOperator::Modulo:
+    if (!types.types_equal(lhs, types.get_int()))
+      diagnostics
+          ->error(expr.get_left_expression()->get_location(),
+                  std::format("arithmetic operator expects 'int', "
+                              "got '{}'",
+                              lhs->to_string()))
+          .with_snippet(*source_manager);
+    if (!types.types_equal(rhs, types.get_int()))
+      diagnostics
+          ->error(expr.get_right_expression()->get_location(),
+                  std::format("arithmetic operator expects 'int', "
+                              "got '{}'",
+                              rhs->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_int());
+    break;
+
+  case BinaryOperator::BitwiseAnd:
+  case BinaryOperator::BitwiseOr:
+  case BinaryOperator::BitwiseXor:
+  case BinaryOperator::ShiftLeft:
+  case BinaryOperator::ShiftRight:
+    if (!types.types_equal(lhs, types.get_int()))
+      diagnostics
+          ->error(expr.get_left_expression()->get_location(),
+                  std::format("bitwise operator expects 'int', "
+                              "got '{}'",
+                              lhs->to_string()))
+          .with_snippet(*source_manager);
+    if (!types.types_equal(rhs, types.get_int()))
+      diagnostics
+          ->error(expr.get_right_expression()->get_location(),
+                  std::format("bitwise operator expects 'int', "
+                              "got '{}'",
+                              rhs->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_int());
+    break;
+
+  case BinaryOperator::Equal:
+  case BinaryOperator::NotEqual:
+    if (!is_small_type(lhs))
+      diagnostics
+          ->error(expr.get_left_expression()->get_location(),
+                  std::format("equality not defined for type '{}'",
+                              lhs->to_string()))
+          .with_snippet(*source_manager);
+    else if (!types.types_equal(lhs, rhs)) {
+      bool null_ok = lhs->is_pointer() && rhs->is_pointer();
+      if (!null_ok)
+        diagnostics
+            ->error(expr.get_location(),
+                    std::format("comparing incompatible types "
+                                "'{}' and '{}'",
+                                lhs->to_string(), rhs->to_string()))
+            .with_snippet(*source_manager);
+    }
+    expr.set_resolved_type(types.get_bool());
+    break;
+
+  case BinaryOperator::LessThan:
+  case BinaryOperator::LessThanOrEqual:
+  case BinaryOperator::GreaterThan:
+  case BinaryOperator::GreaterThanOrEqual:
+    if (!types.types_equal(lhs, types.get_int()) &&
+        !types.types_equal(lhs, types.get_char()))
+      diagnostics
+          ->error(expr.get_left_expression()->get_location(),
+                  std::format("comparison expects 'int' or 'char', "
+                              "got '{}'",
+                              lhs->to_string()))
+          .with_snippet(*source_manager);
+    if (!types.types_equal(lhs, rhs))
+      diagnostics
+          ->error(expr.get_location(),
+                  std::format("comparing different types '{}' and '{}'",
+                              lhs->to_string(), rhs->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_bool());
+    break;
+
+  case BinaryOperator::LogicalAnd:
+  case BinaryOperator::LogicalOr:
+    if (!types.types_equal(lhs, types.get_bool()))
+      diagnostics
+          ->error(expr.get_left_expression()->get_location(),
+                  std::format("logical operator expects 'bool', "
+                              "got '{}'",
+                              lhs->to_string()))
+          .with_snippet(*source_manager);
+    if (!types.types_equal(rhs, types.get_bool()))
+      diagnostics
+          ->error(expr.get_right_expression()->get_location(),
+                  std::format("logical operator expects 'bool', "
+                              "got '{}'",
+                              rhs->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_bool());
+    break;
+
+  case BinaryOperator::FieldAccess:
+  case BinaryOperator::PointerAccess:
+    break;
+
+  case BinaryOperator::Unknown:
+    diagnostics->error(expr.get_location(), "unknown binary operator")
+        .with_snippet(*source_manager);
+    break;
+  }
+}
+
+void TypeVisitor::visit(UnaryOperatorExpression &expr) {
+  expr.get_expression()->accept(*this);
+  auto *inner = resolve_underlying(expr.get_expression()->get_resolved_type());
+  if (!inner)
+    return;
+
+  switch (expr.get_operator_kind()) {
+  case UnaryOperator::Neg:
+    if (!types.types_equal(inner, types.get_int()))
+      diagnostics
+          ->error(expr.get_location(),
+                  std::format("negation expects 'int', got '{}'",
+                              inner->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_int());
+    break;
+
+  case UnaryOperator::BitwiseNot:
+    if (!types.types_equal(inner, types.get_int()))
+      diagnostics
+          ->error(expr.get_location(),
+                  std::format("bitwise not expects 'int', got '{}'",
+                              inner->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_int());
+    break;
+
+  case UnaryOperator::LogicalNot:
+    if (!types.types_equal(inner, types.get_bool()))
+      diagnostics
+          ->error(expr.get_location(),
+                  std::format("logical not expects 'bool', got '{}'",
+                              inner->to_string()))
+          .with_snippet(*source_manager);
+    expr.set_resolved_type(types.get_bool());
+    break;
+
+  case UnaryOperator::Deref:
+    if (!inner->is_pointer()) {
+      diagnostics
+          ->error(expr.get_location(),
+                  std::format("dereference expects pointer, got '{}'",
+                              inner->to_string()))
+          .with_snippet(*source_manager);
+    } else {
+      auto *pt = static_cast<const source_type::PointerType *>(inner);
+      expr.set_resolved_type(pt->pointee.unqualified());
+    }
+    break;
+
+  case UnaryOperator::Unknown:
+    diagnostics->error(expr.get_location(), "unknown unary operator")
+        .with_snippet(*source_manager);
+    break;
+  }
+}
+
+void TypeVisitor::visit(CallExpr &expr) {
+  for (auto *arg : expr.get_params())
+    arg->accept(*this);
+
+  auto *sym = symbol_table->lookup(expr.get_function_name());
+  if (!sym) {
+    diagnostics
+        ->error(expr.get_location(),
+                std::format("unknown function '{}'", expr.get_function_name()))
+        .with_snippet(*source_manager);
+    return;
+  }
+
+  if (!sym->is_initialized()) {
+    diagnostics
+        ->error(expr.get_location(),
+                std::format("call to declared but undefined function '{}'",
+                            expr.get_function_name()))
+        .with_snippet(*source_manager)
+        .note("declared here", sym->get_location(), *source_manager)
+        .suggest(std::format("provide a body for '{}'", sym->get_name()));
+    return;
+  }
+
+  // Check if it's a FunctionSymbol with full type info
+  if (sym->is_function()) {
+    auto *func_sym = static_cast<FunctionSymbol *>(sym);
+    if (func_sym->func_type) {
+      auto &param_types = func_sym->func_type->param_types;
+
+      if (expr.get_params().size() != param_types.size()) {
+        diagnostics
+            ->error(expr.get_location(),
+                    std::format("function '{}' expects {} arguments, "
+                                "got {}",
+                                expr.get_function_name(), param_types.size(),
+                                expr.get_params().size()))
+            .with_snippet(*source_manager);
+      } else {
+        for (size_t i = 0; i < expr.get_params().size(); i++) {
+          auto *arg_type = expr.get_params()[i]->get_resolved_type();
+          if (arg_type &&
+              !types.types_equal(arg_type, param_types[i].unqualified()))
+            diagnostics
+                ->error(expr.get_params()[i]->get_location(),
+                        std::format("argument {} type mismatch: "
+                                    "expected '{}', got '{}'",
+                                    i + 1, param_types[i].to_string(),
+                                    arg_type->to_string()))
+                .with_snippet(*source_manager);
+        }
+      }
     }
   }
-  return t;
+
+  expr.set_resolved_type(sym->get_type());
 }
 
-bool type_check::TypeVisitor::is_small_type(const type::Type *t) {
-  if (!t)
-    return false;
-  switch (t->kind) {
-  case type::Type::Kind::Builtin: {
-    auto *bt = dynamic_cast<const type::BuiltinType *>(t);
-    return bt && bt->get_kind() != type::BuiltinType::BuiltinKind::Void;
+void TypeVisitor::visit(ArrayAccessExpr &expr) {
+  expr.get_array()->accept(*this);
+  expr.get_index()->accept(*this);
+
+  auto *idx = resolve_underlying(expr.get_index()->get_resolved_type());
+  if (idx && !types.types_equal(idx, types.get_int()))
+    diagnostics
+        ->error(expr.get_index()->get_location(),
+                std::format("array index must be 'int', got '{}'",
+                            idx->to_string()))
+        .with_snippet(*source_manager);
+
+  auto *arr = resolve_underlying(expr.get_array()->get_resolved_type());
+  if (arr && arr->is_array()) {
+    auto *at = static_cast<const source_type::ArrayType *>(arr);
+    expr.set_resolved_type(at->element);
+  } else if (arr) {
+    diagnostics
+        ->error(expr.get_array()->get_location(),
+                std::format("subscript requires array type, got '{}'",
+                            arr->to_string()))
+        .with_snippet(*source_manager);
   }
-  case type::Type::Kind::Pointer:
-    return true;
-  default:
-    return false;
+}
+
+void TypeVisitor::visit(FieldAccessExpr &expr) {
+  expr.get_struct()->accept(*this);
+  auto *base = resolve_underlying(expr.get_struct()->get_resolved_type());
+  if (!base)
+    return;
+
+  if (!base->is_struct()) {
+    diagnostics
+        ->error(expr.get_struct()->get_location(),
+                std::format("'.' requires struct type, got '{}'",
+                            base->to_string()))
+        .with_snippet(*source_manager);
+    return;
+  }
+
+  auto *st = static_cast<const source_type::StructType *>(base);
+  auto *field = st->field_type(std::string(expr.get_field()));
+  if (field) {
+    expr.set_resolved_type(field);
+  } else {
+    diagnostics
+        ->error(expr.get_location(),
+                std::format("struct '{}' has no field '{}'", st->name,
+                            expr.get_field()))
+        .with_snippet(*source_manager);
   }
 }
 
-bool type_check::TypeVisitor::types_equal(const type::Type *a,
-                                          const type::Type *b) {
-  a = resolve_underlying(a);
-  b = resolve_underlying(b);
-  if (!a || !b)
-    return false;
-  return a->equals(*b);
+void TypeVisitor::visit(PointerAccessExpr &expr) {
+  expr.get_struct_pointer()->accept(*this);
+  auto *base =
+      resolve_underlying(expr.get_struct_pointer()->get_resolved_type());
+  if (!base)
+    return;
+
+  if (!base->is_pointer()) {
+    diagnostics
+        ->error(expr.get_struct_pointer()->get_location(),
+                std::format("'->' requires pointer type, got '{}'",
+                            base->to_string()))
+        .with_snippet(*source_manager);
+    return;
+  }
+
+  auto *ptr = static_cast<const source_type::PointerType *>(base);
+  auto *pointee = resolve_underlying(ptr->pointee.unqualified());
+  if (!pointee || !pointee->is_struct()) {
+    diagnostics
+        ->error(expr.get_struct_pointer()->get_location(),
+                std::format("'->' requires pointer to struct, got '{}'",
+                            base->to_string()))
+        .with_snippet(*source_manager);
+    return;
+  }
+
+  auto *st = static_cast<const source_type::StructType *>(pointee);
+  auto *field = st->field_type(std::string(expr.get_field()));
+  if (field) {
+    expr.set_resolved_type(field);
+  } else {
+    diagnostics
+        ->error(expr.get_location(),
+                std::format("struct '{}' has no field '{}'", st->name,
+                            expr.get_field()))
+        .with_snippet(*source_manager);
+  }
 }
 
-void type_check::TypeVisitor::type_error(const SourceLocation &loc,
-                                         const std::string &message) {
-  diagnostics->emit_error(loc, message);
-  diagnostics->add_source_context(source_manager->get_line(loc.start_line()));
+void TypeVisitor::visit(AllocExpression &expr) {
+
+  auto *alloc_type = types.resolve(expr.get_type());
+  if (alloc_type)
+    expr.set_resolved_type(types.get_pointer(alloc_type));
+  expr.set_element_type(alloc_type);
 }
 
-const type::Type *type_check::TypeVisitor::expr_type(const Expression &expr) {
-  auto rt = expr.get_resolved_type();
-  return rt.get();
+void TypeVisitor::visit(AllocArrayExpression &expr) {
+  expr.get_size()->accept(*this);
+  auto *size_type = resolve_underlying(expr.get_size()->get_resolved_type());
+  if (size_type && !types.types_equal(size_type, types.get_int()))
+    diagnostics
+        ->error(expr.get_size()->get_location(),
+                std::format("alloc_array size must be 'int', got '{}'",
+                            size_type->to_string()))
+        .with_snippet(*source_manager);
+
+  auto *elem_type = types.resolve(expr.get_type());
+  if (elem_type)
+    expr.set_resolved_type(types.get_array(elem_type));
+  expr.set_element_type(elem_type);
 }
 
-const type::Type *type_check::TypeVisitor::lvalue_type(const LValue &val) {
+void TypeVisitor::visit(TernaryExpression &expr) {
+  expr.get_condition()->accept(*this);
+  expr.get_then()->accept(*this);
+  expr.get_else()->accept(*this);
+
+  auto *cond = resolve_underlying(expr.get_condition()->get_resolved_type());
+  if (cond && !types.types_equal(cond, types.get_bool()))
+    diagnostics
+        ->error(expr.get_condition()->get_location(),
+                std::format("ternary condition must be 'bool', got '{}'",
+                            cond->to_string()))
+        .with_snippet(*source_manager);
+
+  auto *then_type = expr.get_then()->get_resolved_type();
+  auto *else_type = expr.get_else()->get_resolved_type();
+  if (then_type && else_type && !types.types_equal(then_type, else_type))
+    diagnostics
+        ->error(expr.get_location(),
+                std::format("ternary branches must have same type: "
+                            "'{}' vs '{}'",
+                            then_type->to_string(), else_type->to_string()))
+        .with_snippet(*source_manager);
+
+  if (then_type)
+    expr.set_resolved_type(then_type);
+}
+
+void TypeVisitor::visit(Expression &expr) {}
+
+const source_type::Type *TypeVisitor::lvalue_type(const LValue &val) {
   switch (val.get_kind()) {
   case LValue::Kind::Variable: {
     auto *v = dynamic_cast<const VariableLValue *>(&val);
@@ -74,11 +755,10 @@ const type::Type *type_check::TypeVisitor::lvalue_type(const LValue &val) {
     auto *d = dynamic_cast<const DereferenceLValue *>(&val);
     if (!d)
       return nullptr;
-    auto *inner = lvalue_type(*d->get_operand());
-    inner = resolve_underlying(inner);
-    if (inner && inner->kind == type::Type::Kind::Pointer) {
-      auto *ptr = dynamic_cast<const type::PointerType *>(inner);
-      return ptr ? ptr->to : nullptr;
+    auto *inner = resolve_underlying(lvalue_type(*d->get_operand()));
+    if (inner && inner->is_pointer()) {
+      auto *pt = static_cast<const source_type::PointerType *>(inner);
+      return pt->pointee.unqualified();
     }
     return nullptr;
   }
@@ -86,16 +766,10 @@ const type::Type *type_check::TypeVisitor::lvalue_type(const LValue &val) {
     auto *f = dynamic_cast<const FieldAccessLValue *>(&val);
     if (!f)
       return nullptr;
-    auto *base = lvalue_type(*f->get_base());
-    base = resolve_underlying(base);
-    if (base && base->kind == type::Type::Kind::Struct) {
-      auto *st = dynamic_cast<const type::StructType *>(base);
-      if (st) {
-        for (const auto &[fname, ftype] : st->fields) {
-          if (fname == f->get_field())
-            return ftype;
-        }
-      }
+    auto *base = resolve_underlying(lvalue_type(*f->get_base()));
+    if (base && base->is_struct()) {
+      auto *st = static_cast<const source_type::StructType *>(base);
+      return st->field_type(std::string(f->get_field()));
     }
     return nullptr;
   }
@@ -103,21 +777,13 @@ const type::Type *type_check::TypeVisitor::lvalue_type(const LValue &val) {
     auto *p = dynamic_cast<const PointerAccessLValue *>(&val);
     if (!p)
       return nullptr;
-    auto *base = lvalue_type(*p->get_base());
-    base = resolve_underlying(base);
-    if (base && base->kind == type::Type::Kind::Pointer) {
-      auto *ptr = dynamic_cast<const type::PointerType *>(base);
-      if (ptr) {
-        auto *pointee = resolve_underlying(ptr->to);
-        if (pointee && pointee->kind == type::Type::Kind::Struct) {
-          auto *st = dynamic_cast<const type::StructType *>(pointee);
-          if (st) {
-            for (const auto &[fname, ftype] : st->fields) {
-              if (fname == p->get_field())
-                return ftype;
-            }
-          }
-        }
+    auto *base = resolve_underlying(lvalue_type(*p->get_base()));
+    if (base && base->is_pointer()) {
+      auto *pt = static_cast<const source_type::PointerType *>(base);
+      auto *pointee = resolve_underlying(pt->pointee.unqualified());
+      if (pointee && pointee->is_struct()) {
+        auto *st = static_cast<const source_type::StructType *>(pointee);
+        return st->field_type(std::string(p->get_field()));
       }
     }
     return nullptr;
@@ -126,11 +792,10 @@ const type::Type *type_check::TypeVisitor::lvalue_type(const LValue &val) {
     auto *a = dynamic_cast<const ArrayAccessLValue *>(&val);
     if (!a)
       return nullptr;
-    auto *base = lvalue_type(*a->get_base());
-    base = resolve_underlying(base);
-    if (base && base->kind == type::Type::Kind::Array) {
-      auto *arr = dynamic_cast<const type::ArrayType *>(base);
-      return arr ? arr->elementType : nullptr;
+    auto *base = resolve_underlying(lvalue_type(*a->get_base()));
+    if (base && base->is_array()) {
+      auto *at = static_cast<const source_type::ArrayType *>(base);
+      return at->element;
     }
     return nullptr;
   }
@@ -138,711 +803,50 @@ const type::Type *type_check::TypeVisitor::lvalue_type(const LValue &val) {
   return nullptr;
 }
 
-void type_check::TypeVisitor::visit(TranslationUnit &unit) {
-  // First pass: register all struct types and typedefs
-  for (auto *decl : unit.get_declarations()) {
-    if (auto *sd = dynamic_cast<StructDeclaration *>(decl)) {
-      auto st = std::make_shared<type::StructType>(std::string(sd->get_name()));
-      std::cout << " Struct decl " << st->toString() << std::endl;
-      if (auto sd_fields = sd->get_fields()) {
-        std::vector<std::pair<std::string, const type::Type *>> fields;
-        for (auto *field : *sd_fields) {
-          fields.emplace_back(std::string(field->get_identifier()),
-                              resolve_type(field->get_type()));
-        }
-        st->set_fields(std::move(fields));
-      }
-      struct_types[std::string(sd->get_name())] = st;
-    } else if (auto *td = dynamic_cast<Typedef *>(decl)) {
-      typedef_types[std::string(td->get_name())] = resolve_type(td->get_type());
-    }
-  }
+void TypeVisitor::visit(LValue &val) {}
 
-  // Second pass: type check everything
-  for (auto *decl : unit.get_declarations()) {
-    decl->accept(*this);
-  }
-}
-
-void type_check::TypeVisitor::visit(Typedef &typedef_) {
-  // Already registered in the first pass
-}
-
-void type_check::TypeVisitor::visit(Declaration &decl) {
-  ASTVisitor::visit(decl);
-}
-
-void type_check::TypeVisitor::visit(FunctionDeclaration &decl) {
-  auto *prev_return = current_return_type;
-  current_return_type = resolve_type(decl.get_return_type());
-
-  for (auto *param : decl.get_parameter_declarations()) {
-    param->accept(*this);
-  }
-
-  if (decl.get_body()) {
-    decl.get_body()->accept(*this);
-  }
-
-  current_return_type = prev_return;
-}
-
-void type_check::TypeVisitor::visit(ParameterDeclaration &decl) {
-  auto *param_type = resolve_type(decl.get_type());
-  if (param_type && param_type->equals(*type::void_t())) {
-    type_error(decl.get_location(), "parameter cannot have void type");
-  }
-}
-
-void type_check::TypeVisitor::visit(StructDeclaration &decl) {
-  // Already registered in the first pass; check fields for void
-  if (auto fields = decl.get_fields()) {
-    for (auto *field : *fields) {
-      auto *ft = resolve_type(field->get_type());
-      if (ft && ft->equals(*type::void_t())) {
-        type_error(field->get_location(),
-                   std::format("struct field '{}' cannot have void type",
-                               field->get_identifier()));
-      }
-    }
-  }
-}
-
-void type_check::TypeVisitor::visit(Statement &stmt) {
-  ASTVisitor::visit(stmt);
-}
-
-void type_check::TypeVisitor::visit(CompoundStmt &stmt) {
-  for (auto *s : stmt.get_statements()) {
-    s->accept(*this);
-  }
-}
-
-void type_check::TypeVisitor::visit(ReturnStmt &stmt) {
-  if (stmt.get_expression()) {
-    stmt.get_expression()->accept(*this);
-
-    if (current_return_type && current_return_type->equals(*type::void_t())) {
-      type_error(stmt.get_location(), "returning a value from a void function");
-    } else if (current_return_type) {
-      auto *et = expr_type(*stmt.get_expression());
-      if (et && !types_equal(et, current_return_type)) {
-        type_error(stmt.get_location(),
-                   std::format("return type mismatch: expected '{}', got '{}'",
-                               current_return_type->toString(),
-                               et->toString()));
-      }
-    }
+void TypeVisitor::visit(VariableLValue &val) {
+  auto *sym = symbol_table->lookup(val.get_name());
+  if (!sym) {
+    diagnostics
+        ->error(val.get_location(),
+                std::format("unresolved reference '{}'", val.get_name()))
+        .with_snippet(*source_manager);
   } else {
-    if (current_return_type && !current_return_type->equals(*type::void_t())) {
-      type_error(stmt.get_location(),
-                 std::format("non-void function must return a value of "
-                             "type '{}'",
-                             current_return_type->toString()));
-    }
+    sym->set_initialized(true);
+    val.set_symbol(sym);
   }
 }
 
-void type_check::TypeVisitor::visit(AssertStmt &stmt) {
-  stmt.get_expression()->accept(*this);
-  auto *et = expr_type(*stmt.get_expression());
-  if (et && !et->equals(*type::bool_t())) {
-    type_error(
-        stmt.get_location(),
-        std::format("assert condition must be bool, got '{}'", et->toString()));
-  }
-}
-
-void type_check::TypeVisitor::visit(VariableDeclarationStatement &stmt) {
-  auto *declared_type = resolve_type(stmt.get_type());
-
-  if (declared_type && declared_type->equals(*type::void_t())) {
-    type_error(stmt.get_location(), "variable cannot have void type");
-  }
-
-  if (stmt.get_initializer()) {
-    stmt.get_initializer()->accept(*this);
-    auto *init_type = expr_type(*stmt.get_initializer());
-    if (init_type && declared_type && !types_equal(init_type, declared_type)) {
-      type_error(stmt.get_location(),
-                 std::format("initializer type mismatch: variable "
-                             "declared as '{}', got '{}'",
-                             declared_type->toString(), init_type->toString()));
-    }
-  }
-}
-
-void type_check::TypeVisitor::visit(UnaryMutationStatement &stmt) {
-  stmt.get_target()->accept(*this);
-  auto *t = lvalue_type(*stmt.get_target());
-  t = resolve_underlying(t);
-  if (t && !t->equals(*type::int_t())) {
-    type_error(stmt.get_location(),
-               std::format("increment/decrement requires int type, got '{}'",
-                           t->toString()));
-  }
-}
-
-void type_check::TypeVisitor::visit(AssignmentStatement &stmt) {
-  stmt.get_lvalue()->accept(*this);
-  stmt.get_expr()->accept(*this);
-
-  auto *lhs_type = lvalue_type(*stmt.get_lvalue());
-  auto *rhs_type = expr_type(*stmt.get_expr());
-
-  if (stmt.get_op() != AssignmentOperator::Equals) {
-    lhs_type = resolve_underlying(lhs_type);
-    rhs_type = resolve_underlying(rhs_type);
-    if (lhs_type && !lhs_type->equals(*type::int_t())) {
-      type_error(stmt.get_location(),
-                 std::format("compound assignment requires int type "
-                             "on left side, got '{}'",
-                             lhs_type->toString()));
-    }
-    if (rhs_type && !rhs_type->equals(*type::int_t())) {
-      type_error(stmt.get_location(),
-                 std::format("compound assignment requires int type "
-                             "on right side, got '{}'",
-                             rhs_type->toString()));
-    }
-  } else {
-    // Plain assignment: types must match
-    if (lhs_type && rhs_type && !types_equal(lhs_type, rhs_type)) {
-      type_error(
-          stmt.get_location(),
-          std::format(
-              "assignment type mismatch: left side is '{}', right side is '{}'",
-              lhs_type->toString(), rhs_type->toString()));
-    }
-  }
-}
-
-void type_check::TypeVisitor::visit(ExpressionStatement &stmt) {
-  stmt.get_expression()->accept(*this);
-}
-
-void type_check::TypeVisitor::visit(IfStatement &stmt) {
-  stmt.get_condition()->accept(*this);
-  auto *cond_type = expr_type(*stmt.get_condition());
-  if (cond_type && !cond_type->equals(*type::bool_t())) {
-    type_error(stmt.get_location(),
-               std::format("if condition must be bool, got '{}'",
-                           cond_type->toString()));
-  }
-  stmt.get_then_branch()->accept(*this);
-  if (stmt.get_else_branch())
-    stmt.get_else_branch()->accept(*this);
-}
-
-void type_check::TypeVisitor::visit(ForStatement &stmt) {
-  if (stmt.get_init())
-    stmt.get_init()->accept(*this);
-  stmt.get_condition()->accept(*this);
-  auto *cond_type = expr_type(*stmt.get_condition());
-  if (cond_type && !cond_type->equals(*type::bool_t())) {
-    type_error(stmt.get_location(),
-               std::format("for loop condition must be bool, got '{}'",
-                           cond_type->toString()));
-  }
-  if (stmt.get_increment())
-    stmt.get_increment()->accept(*this);
-  stmt.get_body()->accept(*this);
-}
-
-void type_check::TypeVisitor::visit(WhileStatement &stmt) {
-  stmt.get_condition()->accept(*this);
-  auto *cond_type = expr_type(*stmt.get_condition());
-  if (cond_type && !cond_type->equals(*type::bool_t())) {
-    type_error(stmt.get_location(),
-               std::format("while condition must be bool, got '{}'",
-                           cond_type->toString()));
-  }
-  stmt.get_body()->accept(*this);
-}
-
-void type_check::TypeVisitor::visit(ErrorStatement &stmt) {
-  stmt.get_expr()->accept(*this);
-  auto *et = expr_type(*stmt.get_expr());
-  if (et && !et->equals(*type::string_t())) {
-    type_error(stmt.get_location(),
-               std::format("error statement requires string, got '{}'",
-                           et->toString()));
-  }
-}
-
-// ============================================================================
-// Expressions
-// ============================================================================
-
-void type_check::TypeVisitor::visit(Expression &expr) {
-  ASTVisitor::visit(expr);
-}
-
-void type_check::TypeVisitor::visit(NumericExpr &expr) {
-  expr.set_resolved_type(std::shared_ptr<type::Type>(
-      const_cast<type::BuiltinType *>(type::int_t()), [](type::Type *) {}));
-}
-
-void type_check::TypeVisitor::visit(StringLiteralExpr &expr) {
-  expr.set_resolved_type(std::shared_ptr<type::Type>(
-      const_cast<type::BuiltinType *>(type::string_t()), [](type::Type *) {}));
-}
-
-void type_check::TypeVisitor::visit(CharLiteralExpr &expr) {
-  expr.set_resolved_type(std::shared_ptr<type::Type>(
-      const_cast<type::BuiltinType *>(type::char_t()), [](type::Type *) {}));
-}
-
-void type_check::TypeVisitor::visit(BoolConstExpr &expr) {
-  expr.set_resolved_type(std::shared_ptr<type::Type>(
-      const_cast<type::BuiltinType *>(type::bool_t()), [](type::Type *) {}));
-}
-
-void type_check::TypeVisitor::visit(NullExpr &expr) {
-  // null has pointer type (polymorphic — compatible with any pointer)
-  // Use a special "null pointer" type; for simplicity, use PointerType(nullptr)
-  auto null_type = std::make_shared<type::PointerType>(nullptr);
-  expr.set_resolved_type(null_type);
-}
-
-void type_check::TypeVisitor::visit(VarExpr &expr) {
-  if (expr.get_symbol()) {
-    auto *t = expr.get_symbol()->get_type();
-    if (t) {
-      expr.set_resolved_type(std::shared_ptr<type::Type>(
-          const_cast<type::Type *>(t), [](type::Type *) {}));
-    }
-  }
-}
-
-void type_check::TypeVisitor::visit(ParenthesisExpression &expr) {
-  expr.get_expression()->accept(*this);
-  auto rt = expr.get_expression()->get_resolved_type();
-  if (rt)
-    expr.set_resolved_type(rt);
-}
-
-void type_check::TypeVisitor::visit(BinaryOperatorExpression &expr) {
-  expr.get_left_expression()->accept(*this);
-  expr.get_right_expression()->accept(*this);
-
-  auto *lhs = expr_type(*expr.get_left_expression());
-  auto *rhs = expr_type(*expr.get_right_expression());
-  lhs = resolve_underlying(lhs);
-  rhs = resolve_underlying(rhs);
-
-  if (!lhs || !rhs)
-    return; // earlier error
-
-  auto set_int = [&] {
-    expr.set_resolved_type(std::shared_ptr<type::Type>(
-        const_cast<type::BuiltinType *>(type::int_t()), [](type::Type *) {}));
-  };
-  auto set_bool = [&] {
-    expr.set_resolved_type(std::shared_ptr<type::Type>(
-        const_cast<type::BuiltinType *>(type::bool_t()), [](type::Type *) {}));
-  };
-
-  switch (expr.get_operator_kind()) {
-  // Arithmetic: int x int -> int
-  case BinaryOperator::Add:
-  case BinaryOperator::Sub:
-  case BinaryOperator::Mult:
-  case BinaryOperator::Div:
-  case BinaryOperator::Modulo:
-    if (!lhs->equals(*type::int_t()))
-      type_error(expr.get_left_expression()->get_location(),
-                 std::format("arithmetic operator expects int, got '{}'",
-                             lhs->toString()));
-    if (!rhs->equals(*type::int_t()))
-      type_error(expr.get_right_expression()->get_location(),
-                 std::format("arithmetic operator expects int, got '{}'",
-                             rhs->toString()));
-    set_int();
-    break;
-
-  // Bitwise: int x int -> int
-  case BinaryOperator::BitwiseAnd:
-  case BinaryOperator::BitwiseOr:
-  case BinaryOperator::BitwiseXor:
-  case BinaryOperator::ShiftLeft:
-  case BinaryOperator::ShiftRight:
-    if (!lhs->equals(*type::int_t()))
-      type_error(expr.get_left_expression()->get_location(),
-                 std::format("bitwise operator expects int, got '{}'",
-                             lhs->toString()));
-    if (!rhs->equals(*type::int_t()))
-      type_error(expr.get_right_expression()->get_location(),
-                 std::format("bitwise operator expects int, got '{}'",
-                             rhs->toString()));
-    set_int();
-    break;
-
-  // Equality: small x small -> bool (same type)
-  case BinaryOperator::Equal:
-  case BinaryOperator::NotEqual:
-    if (!is_small_type(lhs))
-      type_error(expr.get_left_expression()->get_location(),
-                 std::format("equality comparison not defined for type '{}'",
-                             lhs->toString()));
-    else if (!types_equal(lhs, rhs)) {
-      // Allow comparing any pointer with null
-      bool null_compare = (lhs->kind == type::Type::Kind::Pointer &&
-                           rhs->kind == type::Type::Kind::Pointer);
-      if (!null_compare)
-        type_error(expr.get_location(),
-                   std::format("equality comparison between incompatible types "
-                               "'{}' and '{}'",
-                               lhs->toString(), rhs->toString()));
-    }
-    set_bool();
-    break;
-
-  // Ordered comparison: int x int -> bool (or char x char)
-  case BinaryOperator::LessThan:
-  case BinaryOperator::LessThanOrEqual:
-  case BinaryOperator::GreaterThan:
-  case BinaryOperator::GreaterThanOrEqual:
-    if (!lhs->equals(*type::int_t()) && !lhs->equals(*type::char_t()))
-      type_error(expr.get_left_expression()->get_location(),
-                 std::format("ordered comparison expects int or char, got '{}'",
-                             lhs->toString()));
-    if (!rhs->equals(*type::int_t()) && !rhs->equals(*type::char_t()))
-      type_error(expr.get_right_expression()->get_location(),
-                 std::format("ordered comparison expects int or char, got '{}'",
-                             rhs->toString()));
-    if (!types_equal(lhs, rhs))
-      type_error(expr.get_location(),
-                 std::format("ordered comparison between different types '{}' "
-                             "and '{}'",
-                             lhs->toString(), rhs->toString()));
-    set_bool();
-    break;
-
-  // Logical: bool x bool -> bool
-  case BinaryOperator::LogicalAnd:
-  case BinaryOperator::LogicalOr:
-    if (!lhs->equals(*type::bool_t()))
-      type_error(expr.get_left_expression()->get_location(),
-                 std::format("logical operator expects bool, got '{}'",
-                             lhs->toString()));
-    if (!rhs->equals(*type::bool_t()))
-      type_error(expr.get_right_expression()->get_location(),
-                 std::format("logical operator expects bool, got '{}'",
-                             rhs->toString()));
-    set_bool();
-    break;
-
-  case BinaryOperator::FieldAccess:
-  case BinaryOperator::PointerAccess:
-    // Handled by FieldAccessExpr/PointerAccessExpr
-    break;
-
-  case BinaryOperator::Unknown:
-    type_error(expr.get_location(), "unknown binary operator");
-    break;
-  }
-}
-
-void type_check::TypeVisitor::visit(UnaryOperatorExpression &expr) {
-  expr.get_expression()->accept(*this);
-  auto *inner = expr_type(*expr.get_expression());
-  inner = resolve_underlying(inner);
-
-  if (!inner)
-    return;
-
-  switch (expr.get_operator_kind()) {
-  case UnaryOperator::Neg:
-    if (!inner->equals(*type::int_t()))
-      type_error(
-          expr.get_location(),
-          std::format("negation expects int, got '{}'", inner->toString()));
-    expr.set_resolved_type(std::shared_ptr<type::Type>(
-        const_cast<type::BuiltinType *>(type::int_t()), [](type::Type *) {}));
-    break;
-
-  case UnaryOperator::BitwiseNot:
-    if (!inner->equals(*type::int_t()))
-      type_error(
-          expr.get_location(),
-          std::format("bitwise not expects int, got '{}'", inner->toString()));
-    expr.set_resolved_type(std::shared_ptr<type::Type>(
-        const_cast<type::BuiltinType *>(type::int_t()), [](type::Type *) {}));
-    break;
-
-  case UnaryOperator::LogicalNot:
-    if (!inner->equals(*type::bool_t()))
-      type_error(
-          expr.get_location(),
-          std::format("logical not expects bool, got '{}'", inner->toString()));
-    expr.set_resolved_type(std::shared_ptr<type::Type>(
-        const_cast<type::BuiltinType *>(type::bool_t()), [](type::Type *) {}));
-    break;
-
-  case UnaryOperator::Deref:
-    if (inner->kind != type::Type::Kind::Pointer)
-      type_error(expr.get_location(),
-                 std::format("dereference expects pointer type, got '{}'",
-                             inner->toString()));
-    else {
-      auto *ptr = dynamic_cast<const type::PointerType *>(inner);
-      if (ptr && ptr->to) {
-        expr.set_resolved_type(std::shared_ptr<type::Type>(
-            const_cast<type::Type *>(ptr->to), [](type::Type *) {}));
-      }
-    }
-    break;
-
-  case UnaryOperator::Unknown:
-    type_error(expr.get_location(), "unknown unary operator");
-    break;
-  }
-}
-
-void type_check::TypeVisitor::visit(CallExpr &expr) {
-  // Visit all argument expressions first
-  for (auto *arg : expr.get_params()) {
-    arg->accept(*this);
-  }
-
-  // Look up the function symbol
-  auto lookup = symbol_table->lookup(expr.get_function_name());
-  if (!lookup)
-    return; // semantic analysis already reported the error
-
-  auto &sym = lookup->get();
-  auto *func_type = sym.get_type();
-  func_type = resolve_underlying(func_type);
-
-  if (func_type && func_type->kind == type::Type::Kind::Function) {
-    auto *ft = dynamic_cast<const type::FunctionType *>(func_type);
-    if (ft) {
-      // Check argument count
-      if (expr.get_params().size() != ft->paramTypes.size()) {
-        type_error(expr.get_location(),
-                   std::format("function '{}' expects {} arguments, got {}",
-                               expr.get_function_name(), ft->paramTypes.size(),
-                               expr.get_params().size()));
-      } else {
-        // Check argument types
-        for (size_t i = 0; i < expr.get_params().size(); ++i) {
-          auto *arg_type = expr_type(*expr.get_params()[i]);
-          if (arg_type && ft->paramTypes[i] &&
-              !types_equal(arg_type, ft->paramTypes[i])) {
-            type_error(expr.get_params()[i]->get_location(),
-                       std::format("argument {} type mismatch: expected '{}', "
-                                   "got '{}'",
-                                   i + 1, ft->paramTypes[i]->toString(),
-                                   arg_type->toString()));
-          }
-        }
-      }
-
-      // Set return type
-      if (ft->returnType) {
-        expr.set_resolved_type(std::shared_ptr<type::Type>(
-            const_cast<type::Type *>(ft->returnType), [](type::Type *) {}));
-      }
-      return;
-    }
-  }
-
-  // If the symbol type is not a FunctionType, use the return type from the
-  // symbol directly (FunctionSymbol stores return_type as its type)
-  if (func_type) {
-    expr.set_resolved_type(std::shared_ptr<type::Type>(
-        const_cast<type::Type *>(func_type), [](type::Type *) {}));
-  }
-}
-
-void type_check::TypeVisitor::visit(ArrayAccessExpr &expr) {
-  expr.get_array()->accept(*this);
-  expr.get_index()->accept(*this);
-
-  auto *idx = expr_type(*expr.get_index());
-  idx = resolve_underlying(idx);
-  if (idx && !idx->equals(*type::int_t())) {
-    type_error(
-        expr.get_index()->get_location(),
-        std::format("array index must be int, got '{}'", idx->toString()));
-  }
-
-  auto *arr = expr_type(*expr.get_array());
-  arr = resolve_underlying(arr);
-  if (arr && arr->kind == type::Type::Kind::Array) {
-    auto *at = dynamic_cast<const type::ArrayType *>(arr);
-    if (at && at->elementType) {
-      expr.set_resolved_type(std::shared_ptr<type::Type>(
-          const_cast<type::Type *>(at->elementType), [](type::Type *) {}));
-    }
-  } else if (arr) {
-    type_error(expr.get_array()->get_location(),
-               std::format("subscript operator requires array type, got '{}'",
-                           arr->toString()));
-  }
-}
-
-void type_check::TypeVisitor::visit(PointerAccessExpr &expr) {
-  expr.get_struct_pointer()->accept(*this);
-
-  auto *base = expr_type(*expr.get_struct_pointer());
-  base = resolve_underlying(base);
-
-  if (!base)
-    return;
-
-  if (base->kind != type::Type::Kind::Pointer) {
-    type_error(
-        expr.get_struct_pointer()->get_location(),
-        std::format("'->' requires pointer type, got '{}'", base->toString()));
-    return;
-  }
-
-  auto *ptr = dynamic_cast<const type::PointerType *>(base);
-  if (!ptr || !ptr->to)
-    return;
-
-  auto *pointee = resolve_underlying(ptr->to);
-  if (!pointee || pointee->kind != type::Type::Kind::Struct) {
-    type_error(expr.get_struct_pointer()->get_location(),
-               std::format("'->' requires pointer to struct, got pointer "
-                           "to '{}'",
-                           pointee ? pointee->toString() : "unknown"));
-    return;
-  }
-
-  auto *st = dynamic_cast<const type::StructType *>(pointee);
-  if (!st)
-    return;
-
-  for (const auto &[fname, ftype] : st->fields) {
-    if (fname == expr.get_field()) {
-      if (ftype)
-        expr.set_resolved_type(std::shared_ptr<type::Type>(
-            const_cast<type::Type *>(ftype), [](type::Type *) {}));
-      return;
-    }
-  }
-
-  type_error(expr.get_location(), std::format("struct '{}' has no field '{}'",
-                                              st->name, expr.get_field()));
-}
-
-void type_check::TypeVisitor::visit(FieldAccessExpr &expr) {
-  expr.get_struct()->accept(*this);
-
-  auto *base = expr_type(*expr.get_struct());
-  base = resolve_underlying(base);
-
-  if (!base)
-    return;
-
-  if (base->kind != type::Type::Kind::Struct) {
-    type_error(
-        expr.get_struct()->get_location(),
-        std::format("'.' requires struct type, got '{}'", base->toString()));
-    return;
-  }
-
-  auto *st = dynamic_cast<const type::StructType *>(base);
-  if (!st)
-    return;
-
-  for (const auto &[fname, ftype] : st->fields) {
-    if (fname == expr.get_field()) {
-      if (ftype)
-        expr.set_resolved_type(std::shared_ptr<type::Type>(
-            const_cast<type::Type *>(ftype), [](type::Type *) {}));
-      return;
-    }
-  }
-
-  type_error(expr.get_location(), std::format("struct '{}' has no field '{}'",
-                                              st->name, expr.get_field()));
-}
-
-void type_check::TypeVisitor::visit(AllocExpression &expr) {
-  auto *alloc_type = resolve_type(expr.get_type());
-  if (alloc_type) {
-    auto ptr_type = std::make_shared<type::PointerType>(alloc_type);
-    expr.set_resolved_type(ptr_type);
-  }
-}
-
-void type_check::TypeVisitor::visit(AllocArrayExpression &expr) {
-  expr.get_size()->accept(*this);
-
-  auto *size_type = expr_type(*expr.get_size());
-  size_type = resolve_underlying(size_type);
-  if (size_type && !size_type->equals(*type::int_t())) {
-    type_error(expr.get_size()->get_location(),
-               std::format("alloc_array size must be int, got '{}'",
-                           size_type->toString()));
-  }
-
-  auto *elem_type = resolve_type(expr.get_type());
-  if (elem_type) {
-    auto arr_type = std::make_shared<type::ArrayType>(elem_type);
-    expr.set_resolved_type(arr_type);
-  }
-}
-
-void type_check::TypeVisitor::visit(TernaryExpression &expr) {
-  expr.get_condition()->accept(*this);
-  expr.get_then()->accept(*this);
-  expr.get_else()->accept(*this);
-
-  auto *cond = expr_type(*expr.get_condition());
-  cond = resolve_underlying(cond);
-  if (cond && !cond->equals(*type::bool_t())) {
-    type_error(expr.get_condition()->get_location(),
-               std::format("ternary condition must be bool, got '{}'",
-                           cond->toString()));
-  }
-
-  auto *then_type = expr_type(*expr.get_then());
-  auto *else_type = expr_type(*expr.get_else());
-  if (then_type && else_type && !types_equal(then_type, else_type)) {
-    type_error(expr.get_location(),
-               std::format("ternary branches must have same type: '{}' "
-                           "vs '{}'",
-                           then_type->toString(), else_type->toString()));
-  }
-
-  // Result type is the type of the then branch
-  auto rt = expr.get_then()->get_resolved_type();
-  if (rt)
-    expr.set_resolved_type(rt);
-}
-
-// ============================================================================
-// Type annotations — no-ops, actual resolution happens in resolve_type
-// ============================================================================
-
-void type_check::TypeVisitor::visit(TypeAnnotation &type) {}
-void type_check::TypeVisitor::visit(BuiltinTypeAnnotation &type) {}
-void type_check::TypeVisitor::visit(NamedTypeAnnotation &type) {}
-void type_check::TypeVisitor::visit(StructTypeAnnotation &type) {}
-void type_check::TypeVisitor::visit(PointerTypeAnnotation &type) {}
-void type_check::TypeVisitor::visit(ArrayTypeAnnotation &type) {}
-
-// ============================================================================
-// LValues — visited for side effects (accept already called in statements)
-// ============================================================================
-
-void type_check::TypeVisitor::visit(LValue &val) {}
-void type_check::TypeVisitor::visit(VariableLValue &val) {}
-void type_check::TypeVisitor::visit(ArrayAccessLValue &val) {
+void TypeVisitor::visit(ArrayAccessLValue &val) {
+  val.get_base()->accept(*this);
   val.get_index()->accept(*this);
-  auto *idx = expr_type(*val.get_index());
-  idx = resolve_underlying(idx);
-  if (idx && !idx->equals(*type::int_t())) {
-    type_error(
-        val.get_index()->get_location(),
-        std::format("array index must be int, got '{}'", idx->toString()));
-  }
+  auto *idx = resolve_underlying(val.get_index()->get_resolved_type());
+  if (idx && !types.types_equal(idx, types.get_int()))
+    diagnostics
+        ->error(val.get_index()->get_location(),
+                std::format("array index must be 'int', got '{}'",
+                            idx->to_string()))
+        .with_snippet(*source_manager);
 }
-void type_check::TypeVisitor::visit(PointerAccessLValue &val) {}
-void type_check::TypeVisitor::visit(FieldAccessLValue &val) {}
-void type_check::TypeVisitor::visit(DereferenceLValue &val) {}
+
+void TypeVisitor::visit(PointerAccessLValue &val) {
+  val.get_base()->accept(*this);
+}
+
+void TypeVisitor::visit(FieldAccessLValue &val) {
+  val.get_base()->accept(*this);
+}
+
+void TypeVisitor::visit(DereferenceLValue &val) {
+  val.get_operand()->accept(*this);
+}
+
+void TypeVisitor::visit(TypeAnnotation &) {}
+void TypeVisitor::visit(BuiltinTypeAnnotation &) {}
+void TypeVisitor::visit(NamedTypeAnnotation &) {}
+void TypeVisitor::visit(StructTypeAnnotation &) {}
+void TypeVisitor::visit(PointerTypeAnnotation &) {}
+void TypeVisitor::visit(ArrayTypeAnnotation &) {}
+
+} // namespace type_check

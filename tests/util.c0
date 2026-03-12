@@ -7,6 +7,5 @@ struct Test {
 int binsearch(int x, int[] A, int n)
 {
   struct Test* lower = alloc(struct Test);
-  lower = lower + 2;
-  return *lower;
+  return lower->x;
 }

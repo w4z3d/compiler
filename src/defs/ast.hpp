@@ -2,9 +2,9 @@
 #define DEFS_AST_H
 
 #include "../analysis/symbol.hpp"
+#include "../type/source_type.hpp"
 #include "source_location.hpp"
 #include "token.hpp"
-#include "type.hpp"
 #include <charconv>
 #include <format>
 #include <memory>
@@ -91,8 +91,12 @@ public:
 
 // ==== Types ====
 class TypeAnnotation : public ASTNode {
+
 public:
-  explicit TypeAnnotation(SourceLocation loc = {}) : ASTNode(std::move(loc)) {}
+  enum class Kind { Builtin, Named, Struct, Pointer, Array };
+  Kind kind;
+  explicit TypeAnnotation(Kind kind, SourceLocation loc = {})
+      : ASTNode(std::move(loc)), kind(kind) {}
   [[nodiscard]] virtual std::string toString() const = 0;
   void accept(class ASTVisitor &visitor) override = 0;
 };
@@ -103,7 +107,7 @@ private:
 
 public:
   explicit BuiltinTypeAnnotation(Builtin type, SourceLocation loc = {})
-      : TypeAnnotation(std::move(loc)), type(type) {}
+      : TypeAnnotation(Kind::Builtin, std::move(loc)), type(type) {}
   [[nodiscard]] Builtin get_type() const { return type; };
   void accept(class ASTVisitor &visitor) override;
   [[nodiscard]] std::string toString() const override {
@@ -116,7 +120,7 @@ private:
   std::string_view name; // typedef name
 public:
   explicit NamedTypeAnnotation(std::string_view name, SourceLocation loc = {})
-      : TypeAnnotation(std::move(loc)), name(name) {}
+      : TypeAnnotation(Kind::Named, std::move(loc)), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::string(name);
@@ -130,7 +134,7 @@ private:
 
 public:
   explicit StructTypeAnnotation(std::string_view name, SourceLocation loc = {})
-      : TypeAnnotation(std::move(loc)), name(name) {}
+      : TypeAnnotation(Kind::Struct, std::move(loc)), name(name) {}
   [[nodiscard]] std::string_view get_name() const { return name; }
   [[nodiscard]] std::string toString() const override {
     return std::format("struct {}", name);
@@ -144,7 +148,7 @@ private:
 
 public:
   explicit PointerTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
-      : TypeAnnotation(std::move(loc)), type(type) {}
+      : TypeAnnotation(Kind::Pointer, std::move(loc)), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Pointer to <{}>", type->toString());
@@ -158,7 +162,7 @@ private:
 
 public:
   explicit ArrayTypeAnnotation(TypeAnnotation *type, SourceLocation loc = {})
-      : TypeAnnotation(std::move(loc)), type(type) {}
+      : TypeAnnotation(Kind::Array, std::move(loc)), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string toString() const override {
     return std::format("Array of <{}>", type->toString());
@@ -191,18 +195,18 @@ public:
 private:
   Kind kind;
   std::string_view name;
-  std::shared_ptr<type::Type> resolved_type;
+  const source_type::Type *resolved_type = nullptr;
 
 public:
   Expression(Kind k, std::string_view n, SourceLocation loc = {})
       : ASTNode(loc), kind(k), name(n) {}
   [[nodiscard]] Kind get_kind() const { return kind; }
   [[nodiscard]] std::string_view get_name() const { return name; }
-  [[nodiscard]] std::shared_ptr<type::Type> get_resolved_type() const {
+  [[nodiscard]] const source_type::Type *get_resolved_type() const {
     return resolved_type;
   }
   void accept(class ASTVisitor &visitor) override;
-  void set_resolved_type(const std::shared_ptr<type::Type> &type) {
+  void set_resolved_type(const source_type::Type *type) {
     resolved_type = type;
   }
 };
@@ -210,11 +214,18 @@ public:
 class AllocExpression : public Expression {
 private:
   TypeAnnotation *type;
+  const source_type::Type *element = nullptr;
 
 public:
   explicit AllocExpression(TypeAnnotation *type, SourceLocation loc = {})
       : Expression(Expression::Kind::Alloc, "AllocExpr", loc), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; };
+  [[nodiscard]] const source_type::Type *get_element_type() const {
+    return element;
+  };
+  void set_element_type(const source_type::Type *element_ty) {
+    element = element_ty;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -222,6 +233,7 @@ class AllocArrayExpression : public Expression {
 private:
   TypeAnnotation *type;
   Expression *size;
+  const source_type::Type *element = nullptr;
 
 public:
   AllocArrayExpression(TypeAnnotation *type, Expression *size,
@@ -230,6 +242,12 @@ public:
         type(type), size(size) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; };
   [[nodiscard]] Expression *get_size() const { return size; };
+  [[nodiscard]] const source_type::Type *get_element_type() const {
+    return element;
+  };
+  void set_element_type(const source_type::Type *element_ty) {
+    element = element_ty;
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -397,7 +415,7 @@ public:
 class VarExpr : public Expression {
 private:
   std::string_view variable_name;
-  std::shared_ptr<Symbol> resolved_symbol;
+  const Symbol *resolved_symbol = nullptr;
 
 public:
   explicit VarExpr(std::string_view name, SourceLocation loc = {})
@@ -406,12 +424,8 @@ public:
   [[nodiscard]] std::string_view get_variable_name() const {
     return variable_name;
   }
-  void set_symbol(std::shared_ptr<Symbol> sym) {
-    resolved_symbol = std::move(sym);
-  }
-  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
-    return resolved_symbol;
-  }
+  void set_symbol(const Symbol *sym) { resolved_symbol = sym; }
+  [[nodiscard]] const Symbol *get_symbol() const { return resolved_symbol; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -511,19 +525,15 @@ public:
 class VariableLValue : public LValue {
 private:
   std::string_view name;
-  std::shared_ptr<Symbol> resolved_symbol;
+  Symbol *resolved_symbol = nullptr;
 
 public:
   explicit VariableLValue(std::string_view name, SourceLocation loc = {})
       : LValue(Kind::Variable, loc), name(name) {}
 
   [[nodiscard]] std::string_view get_name() const { return name; }
-  void set_symbol(std::shared_ptr<Symbol> sym) {
-    resolved_symbol = std::move(sym);
-  }
-  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
-    return resolved_symbol;
-  }
+  void set_symbol(Symbol *sym) { resolved_symbol = sym; }
+  [[nodiscard]] Symbol *get_symbol() const { return resolved_symbol; }
   void accept(class ASTVisitor &visitor) override;
 };
 
@@ -711,7 +721,7 @@ private:
   TypeAnnotation *type;
   std::string_view identifier;
   Expression *initializer;
-  std::shared_ptr<Symbol> resolved_symbol;
+  Symbol *resolved_symbol = nullptr;
 
 public:
   VariableDeclarationStatement(TypeAnnotation *type,
@@ -723,10 +733,8 @@ public:
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
   [[nodiscard]] std::string_view get_identifier() const { return identifier; }
   [[nodiscard]] Expression *get_initializer() const { return initializer; }
-  void set_symbol(const std::shared_ptr<Symbol> &sym) { resolved_symbol = sym; }
-  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
-    return resolved_symbol;
-  }
+  void set_symbol(Symbol *&sym) { resolved_symbol = sym; }
+  [[nodiscard]] Symbol *get_symbol() { return resolved_symbol; }
 
   void accept(ASTVisitor &visitor) override;
 };
@@ -829,17 +837,15 @@ class ParameterDeclaration : public Declaration {
 private:
   std::string_view name;
   TypeAnnotation *type;
-  std::shared_ptr<Symbol> resolved_symbol;
+  const Symbol *resolved_symbol = nullptr;
 
 public:
   ParameterDeclaration(std::string_view name, TypeAnnotation *type,
                        SourceLocation loc = {})
       : Declaration(Kind::Parameter, name, loc), name(name), type(type) {}
   [[nodiscard]] TypeAnnotation *get_type() const { return type; }
-  void set_symbol(const std::shared_ptr<Symbol> &sym) { resolved_symbol = sym; }
-  [[nodiscard]] std::shared_ptr<Symbol> get_symbol() const {
-    return resolved_symbol;
-  }
+  void set_symbol(const Symbol *sym) { resolved_symbol = sym; }
+  [[nodiscard]] const Symbol *get_symbol() const { return resolved_symbol; }
   void accept(ASTVisitor &visitor) override;
 };
 
@@ -945,61 +951,4 @@ public:
   virtual void visit(TranslationUnit &unit) {}
 };
 
-inline const type::BuiltinType *
-from_type(const BuiltinTypeAnnotation *type_annotation) {
-  switch (type_annotation->get_type()) {
-  case Builtin::Int:
-    return type::int_t();
-  case Builtin::Bool:
-    return type::bool_t();
-  case Builtin::String:
-    return type::string_t();
-  case Builtin::Char:
-    return type::char_t();
-  case Builtin::Void:
-    return type::void_t();
-  case Builtin::Unknown:
-    throw std::runtime_error("gg");
-  }
-}
-inline const type::Type *from_type_annotation(const TypeAnnotation *annotation);
-
-inline const type::StructType *
-from_type(const StructTypeAnnotation *type_annotation) {
-  return new type::StructType{type_annotation->get_name().data()};
-}
-inline const type::NamedType *
-from_type(const NamedTypeAnnotation *type_annotation) {
-  return new type::NamedType{type_annotation->get_name().data()};
-}
-inline const type::PointerType *
-from_type(const PointerTypeAnnotation *type_annotation) {
-  return new type::PointerType{
-      from_type_annotation(type_annotation->get_type())};
-}
-inline const type::ArrayType *
-from_type(const ArrayTypeAnnotation *type_annotation) {
-  return new type::ArrayType(from_type_annotation(type_annotation->get_type()));
-}
-inline const type::Type *
-from_type_annotation(const TypeAnnotation *annotation) {
-  if (auto builtin = dynamic_cast<const BuiltinTypeAnnotation *>(annotation)) {
-    return from_type(builtin);
-  } else if (auto struct_ =
-                 dynamic_cast<const StructTypeAnnotation *>(annotation)) {
-    return from_type(struct_);
-  } else if (auto named =
-                 dynamic_cast<const NamedTypeAnnotation *>(annotation)) {
-    return from_type(named);
-  } else if (auto named =
-                 dynamic_cast<const PointerTypeAnnotation *>(annotation)) {
-    return from_type(named);
-  } else if (auto named =
-                 dynamic_cast<const ArrayTypeAnnotation *>(annotation)) {
-    return from_type(named);
-  } else {
-    throw std::runtime_error("Unknown type annotation " +
-                             annotation->toString());
-  }
-}
 #endif // !DEFS_AST_H

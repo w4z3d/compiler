@@ -2,39 +2,47 @@
 #include "hir_builder.hpp"
 #include <cassert>
 #include <cstdint>
-hir::type::Type *HIRBuilderVisitor::lower_type(const type::Type *ast_type) {
+#include <stdexcept>
+hir::type::Type *
+HIRBuilderVisitor::lower_type(const source_type::Type *ast_type) {
   assert(ast_type && "null ast type");
   switch (ast_type->kind) {
-  case type::Type::Kind::Builtin: {
-    const auto *b = dynamic_cast<const type::BuiltinType *>(ast_type);
-    switch (b->get_kind()) {
-    case type::BuiltinType::BuiltinKind::Int:
+  case source_type::Type::Kind::Builtin: {
+    const auto *b = dynamic_cast<const source_type::BuiltinType *>(ast_type);
+    switch (b->builtin) {
+    case source_type::BuiltinType::Builtin::Int:
       return types.i32();
-    case type::BuiltinType::BuiltinKind::Bool:
+    case source_type::BuiltinType::Builtin::Bool:
       return types.i1();
-    case type::BuiltinType::BuiltinKind::Char:
+    case source_type::BuiltinType::Builtin::Char:
       return types.i8();
-    case type::BuiltinType::BuiltinKind::Void:
+    case source_type::BuiltinType::Builtin::Void:
       return types.void_t();
-    case type::BuiltinType::BuiltinKind::String:
+    case source_type::BuiltinType::Builtin::String:
       return types.ptr();
+    default:
+      throw std::runtime_error("Leck eier");
     }
   }
-  case type::Type::Kind::Pointer:
+  case source_type::Type::Kind::Pointer:
     return types.ptr();
-  case type::Type::Kind::Array: {
-    const auto *a = dynamic_cast<const type::ArrayType *>(ast_type);
-    return types.get_array(a->get_len(), lower_type(a->elementType));
+  case source_type::Type::Kind::Array: {
+    const auto *a = dynamic_cast<const source_type::ArrayType *>(ast_type);
+    return types.get_array(a->length, lower_type(a->element));
   }
-  case type::Type::Kind::Struct: {
-    const auto *s = dynamic_cast<const type::StructType *>(ast_type);
-    return types.get_struct(s->name);
+  case source_type::Type::Kind::Struct: {
+    const auto *s = dynamic_cast<const source_type::StructType *>(ast_type);
+    std::vector<std::pair<std::string, hir::type::Type *>> fields{};
+    fields.reserve(s->fields.size());
+    for (const auto &[name, field] : s->fields) {
+      fields.emplace_back(name, lower_type(field.unqualified()));
+    }
+    return types.get_struct(s->name, fields);
   }
-  case type::Type::Kind::Named: {
-    const auto *n = dynamic_cast<const type::NamedType *>(ast_type);
-
-    assert(n->type && "unresolved named type");
-    return lower_type(n->type);
+  case source_type::Type::Kind::Named: {
+    const auto *n = dynamic_cast<const source_type::NamedType *>(ast_type);
+    assert(n->underlying && "unresolved named type");
+    return lower_type(n->underlying);
   }
   default:
     throw std::runtime_error("cannot lower type: unknown kind");
@@ -43,7 +51,7 @@ hir::type::Type *HIRBuilderVisitor::lower_type(const type::Type *ast_type) {
 hir::type::Type *HIRBuilderVisitor::type_of_symbol(size_t symbol_id) {
   auto sym = symbol_table->lookup_by_id(symbol_id);
   assert(sym && "symbol not found");
-  return lower_type(sym->get().get_type());
+  return lower_type(sym->get_type());
 }
 // Write a variable definition for a symbol in a block
 void HIRBuilderVisitor::write_variable(size_t symbol_id, hir::BasicBlock *bb,
@@ -197,7 +205,7 @@ void HIRBuilderVisitor::visit(IfStatement &stmt) {
 }
 
 void HIRBuilderVisitor::visit(VariableDeclarationStatement &stmt) {
-  auto sym = stmt.get_symbol().get();
+  auto *sym = stmt.get_symbol();
 
   if (stmt.get_initializer()) {
     stmt.get_initializer()->accept(*this);
@@ -278,8 +286,9 @@ void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
 
       assert(sym && "Symbol pointer is null");
 
-      auto *arr_type = dynamic_cast<const type::ArrayType *>(sym->get_type());
-      auto *elem_type = lower_type(arr_type->elementType);
+      auto *arr_type =
+          dynamic_cast<const source_type::ArrayType *>(sym->get_type());
+      auto *elem_type = lower_type(arr_type->element);
 
       hir::Value *base =
           read_variable(var_lval->get_symbol()->get_id(), current_block);
@@ -305,8 +314,11 @@ void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
     param_types.push_back(lower_type(sym->get_type()));
   }
 
-  const auto ret_type =
-      lower_type(from_type_annotation(decl.get_return_type()));
+  const auto fs =
+      dynamic_cast<FunctionSymbol *>(symbol_table->lookup(decl.get_name()))
+          ->func_type->return_type;
+
+  const auto ret_type = lower_type(fs.unqualified());
 
   hir::type::FunctionType *fn_type =
       types.get_function(ret_type, param_types, false);
@@ -620,33 +632,33 @@ void HIRBuilderVisitor::visit(FieldAccessExpr &expr) {
   ASTVisitor::visit(expr);
 }
 void HIRBuilderVisitor::visit(AllocExpression &expr) {
-  hir::type::Type *alloc_type =
-      lower_type(from_type_annotation(expr.get_type()));
+  hir::type::Type *alloc_type = lower_type(expr.get_element_type());
   size_t size = alloc_type->size_of();
 
   auto *malloc = module.get_function("malloc");
   if (!malloc) {
     malloc = module.add_function(
-        "malloc", types.get_function(types.ptr(), {types.ptr()}, false));
+        "malloc", types.get_function(types.ptr(), {types.i32()}, false));
     malloc->is_extern = true;
   }
-  hir::Value *size_val = module.const_int(types.i32(), size);
+  hir::Value *size_val = module.const_int(types.i32(), (int64_t)size);
   hir::Value *ptr = builder.build_call(malloc, {size_val});
 
   value_stack.push(ptr);
 }
 void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
-  auto *ty = lower_type(from_type_annotation(expr.get_type()));
+  auto *ty = lower_type(expr.get_element_type());
   expr.get_size()->accept(*this);
   auto *size_val = pop_stack();
 
-  auto *size_const = module.const_int(types.i32(), ty->size_of());
+  auto *size_const = module.const_int(types.i32(), (int64_t)ty->size_of());
   auto *mul = builder.build_mul(size_const, size_val);
 
   auto *malloc = module.get_function("malloc");
   if (!malloc) {
-    malloc = module.add_function(
-        "malloc", types.get_function(types.ptr(), {types.ptr()}, false));
+    malloc =
+        module.add_function("malloc", types.get_function(types.get_array(0, ty),
+                                                         {types.i32()}, false));
     malloc->is_extern = true;
   }
   hir::Value *ptr = builder.build_call(malloc, {mul});

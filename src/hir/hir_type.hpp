@@ -96,15 +96,17 @@ struct FunctionType : Type {
 
 struct StructType : Type {
   std::string name;
-  std::vector<Type *> fields;
+  std::vector<std::pair<std::string, Type *>> fields;
   std::vector<size_t> offsets; // filled by layout pass
   size_t size = 0;
-  explicit StructType(std::string n) : name(std::move(n)) {}
+  explicit StructType(std::string n,
+                      std::vector<std::pair<std::string, Type *>> &fields)
+      : name(std::move(n)), fields(std::move(fields)) {}
   [[nodiscard]] Kind kind() const override { return Kind::Struct; }
   [[nodiscard]] std::string to_string() const override { return "%" + name; }
   [[nodiscard]] inline size_t size_of() const override {
     size_t size = 0;
-    for (auto *field : fields) {
+    for (auto &[name, field] : fields) {
       size += field->size_of();
     }
     return size;
@@ -124,7 +126,9 @@ struct TypeContext {
 
   [[nodiscard]] ArrayType *get_array(size_t n, Type *inner_type);
 
-  [[nodiscard]] StructType *get_struct(std::string_view name);
+  [[nodiscard]] StructType *
+  get_struct(std::string_view name,
+             std::vector<std::pair<std::string, Type *>> &fields);
   [[nodiscard]] FunctionType *
   get_function(Type *return_type, std::vector<Type *> params, bool variadic);
 

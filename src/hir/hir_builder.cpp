@@ -258,11 +258,12 @@ hir::Value *HIRBuilder::build_call(hir::Function *callee,
                                    std::vector<hir::Value *> args,
                                    std::string_view name) {
   assert(callee && "callee cannot be null");
-
   assert(args.size() == callee->function_type->param_types.size() &&
          "argument count mismatch");
-
   for (size_t i = 0; i < args.size(); i++) {
+    std::cout << callee->to_string() << " args: " << args[i]->type->to_string()
+              << " " << callee->function_type->param_types[i]->to_string()
+              << std::endl;
     assert(args[i]->type == callee->function_type->param_types[i] &&
            "argument type mismatch");
   }

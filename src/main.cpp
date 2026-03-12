@@ -1,5 +1,4 @@
 #include "analysis/liveness.hpp"
-#include "analysis/semantics.hpp"
 #include "analysis/symbol.hpp"
 #include "analysis/type_check.hpp"
 #include "codegen/aarch64/aarch64_defs.hpp"
@@ -42,14 +41,6 @@ int main(int argc, char *argv[]) {
   }
 
   const auto symbol_table = std::make_shared<SymbolTable>();
-  semantic::SemanticVisitor semantic_visitor{diagnostics, source_manager,
-                                             symbol_table};
-  unit->accept(semantic_visitor);
-  if (diagnostics->has_errors()) {
-    diagnostics->print_all();
-    return 7;
-  }
-
   type_check::TypeVisitor type_check_visitor{diagnostics, source_manager,
                                              symbol_table};
   clear_last_line();

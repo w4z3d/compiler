@@ -160,7 +160,8 @@ lir::Register LIRBuilder::emit_call(std::string_view callee_name,
   }
   for (int i = 0; i < args.size(); i++) {
     auto arg_register = lir::Operand::from_reg(lir::Register::preg(i));
-    arg_register.get_reg_mut().set_class(args[i].get_reg().get_class());
+    if (args[i].is_reg())
+      arg_register.get_reg_mut().set_class(args[i].get_reg().get_class());
     auto *copy_instr = arena.create<lir::Instruction>();
     copy_instr->opcode = lir::Opcode::Copy;
     copy_instr->operands.push_back(arg_register);

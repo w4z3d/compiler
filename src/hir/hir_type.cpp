@@ -56,13 +56,16 @@ ArrayType *TypeContext::get_array(size_t n, Type *inner_type) {
   return array_types_.back().get();
 }
 
-StructType *TypeContext::get_struct(std::string_view name) {
+StructType *
+TypeContext::get_struct(std::string_view name,
+                        std::vector<std::pair<std::string, Type *>> &fields) {
   // Return existing struct type if already created
   for (const auto &s : struct_types) {
     if (s->name == name)
       return s.get();
   }
-  struct_types.push_back(std::make_unique<StructType>(std::string(name)));
+  struct_types.push_back(
+      std::make_unique<StructType>(std::string(name), fields));
   return struct_types.back().get();
 }
 

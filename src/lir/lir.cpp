@@ -139,7 +139,6 @@ std::string Instruction::to_string() const {
   }
 
   if (opcode == Opcode::Cmp) {
-    assert(operands.size() >= 2 && predicate);
     return result + std::format("cmp.{} {}, {}", predicate_name(*predicate),
                                 operands[0].to_string(),
                                 operands[1].to_string());
