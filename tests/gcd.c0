@@ -1,12 +1,15 @@
-int gcd(int a, int b) {
-  while (b != 0) {
-    int temp = b;
-    b = a % b;
-    a = temp;
-  }
-  return a;
-}
+/*
+gcd(a,0) = a
+gcd(a,b) = gcd(b,a mod b).
+*/
 
-int main() {
-  return gcd(48, 18);
+int gcd(int x, int y)
+//@requires x > 0 && y > 0;
+{
+  while (y != 0) {
+    int r = x % y;
+    x = y;
+    y = r;
+  }
+  return x;
 }
