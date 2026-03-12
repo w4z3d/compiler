@@ -216,8 +216,9 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
   }
   case hir::Opcode::ICmp: {
     auto pred = convert_predicate(hir_instr->predicate.value());
-    builder.emit_cmp(pred, lower_operand(hir_instr->operand(0)),
-                     lower_operand(hir_instr->operand(1)));
+    auto lhs_reg = ensure_reg(lower_operand(hir_instr->operand(0)),
+                              class_from_type(hir_instr->type));
+    builder.emit_cmp(pred, lhs_reg, lower_operand(hir_instr->operand(1)));
     auto dst = builder.emit_cset(pred);
     vreg_map[hir_instr] = dst;
     return;
@@ -289,7 +290,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto ptr = lower_operand(hir_instr->operand(0));
     if (ptr.is_reg())
       ptr.get_reg_mut().set_class(lir::Register::GPR64);
-    auto dst = builder.emit_load(lower_operand(hir_instr->operand(0)));
+    auto clazz = class_from_type(hir_instr->type_arg);
+    auto dst = builder.emit_load(lower_operand(hir_instr->operand(0)), clazz);
     vreg_map[hir_instr] = dst;
     return;
   }

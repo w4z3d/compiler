@@ -8,9 +8,9 @@
 
 namespace source_type {
 struct TypeRegistry {
-  arena::Arena &arena;
+  arena::Arena arena;
 
-  explicit TypeRegistry(arena::Arena &arena) : arena(arena) {}
+  explicit TypeRegistry() : arena(arena::Arena{}) {}
   struct ArrayKey {
     const Type *element;
     size_t length;

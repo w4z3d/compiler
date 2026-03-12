@@ -6,7 +6,41 @@ void TypeVisitor::emit_error(const SourceLocation &loc,
                              const std::string &message) {
   diagnostics->error(loc, message).with_snippet(*source_manager);
 }
+// Im TypeChecker oder einem eigenen Pass:
 
+void TypeVisitor::register_builtins() {
+  // void print_int(int x)
+  register_extern("print_int", types.get_void(), {types.get_int()});
+  register_extern("println", types.get_void(), {});
+  register_extern("print_bool", types.get_void(), {types.get_bool()});
+  register_extern("print_char", types.get_void(), {types.get_int()});
+  register_extern("print_int_ln", types.get_void(), {types.get_int()});
+
+  // int read_int()
+  register_extern("read_int", types.get_int(), {});
+  register_extern("read_char", types.get_int(), {});
+
+  // void exit(int code)
+  register_extern("exit", types.get_void(), {types.get_int()});
+  register_extern("abort", types.get_void(), {});
+  register_extern("assert", types.get_void(), {types.get_bool()});
+}
+
+void TypeVisitor::register_extern(
+    const std::string &name, const source_type::Type *ret_type,
+    std::vector<const source_type::Type *> params) {
+
+  std::vector<source_type::QualType> param_quals;
+  param_quals.reserve(params.size());
+  for (auto *p : params)
+    param_quals.emplace_back(p);
+
+  auto *func_type =
+      types.get_function(source_type::QualType(ret_type), param_quals);
+  auto *sym =
+      symbol_table->create_function(name, {}, ret_type, func_type, true);
+  symbol_table->define(sym);
+}
 const source_type::Type *
 TypeVisitor::resolve_underlying(const source_type::Type *t) {
   return types.resolve_through_typedefs(t);

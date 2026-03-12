@@ -1,0 +1,55 @@
+struct Matrix {
+    int rows;
+    int cols;
+    int[] data;
+};
+
+Matrix* mat_new(int rows, int cols) {
+    Matrix* m = alloc(Matrix);
+    m->rows = rows;
+    m->cols = cols;
+    m->data = alloc_array(int, rows * cols);
+    for (int i = 0; i < rows * cols; i++) {
+        m->data[i] = 0;
+    }
+    return m;
+}
+
+void mat_set(Matrix* m, int r, int c, int val) {
+    m->data[r * m->cols + c] = val;
+}
+
+int mat_get(Matrix* m, int r, int c) {
+    return m->data[r * m->cols + c];
+}
+
+Matrix* mat_mul(Matrix* a, Matrix* b) {
+    Matrix* result = mat_new(a->rows, b->cols);
+    for (int i = 0; i < a->rows; i++) {
+        for (int j = 0; j < b->cols; j++) {
+            int sum = 0;
+            for (int k = 0; k < a->cols; k++) {
+                sum = sum + mat_get(a, i, k) * mat_get(b, k, j);
+            }
+            mat_set(result, i, j, sum);
+        }
+    }
+    return result;
+}
+
+int main() {
+    Matrix* a = mat_new(2, 3);
+    mat_set(a, 0, 0, 1); mat_set(a, 0, 1, 2); mat_set(a, 0, 2, 3);
+    mat_set(a, 1, 0, 4); mat_set(a, 1, 1, 5); mat_set(a, 1, 2, 6);
+
+    Matrix* b = mat_new(3, 2);
+    mat_set(b, 0, 0, 7);  mat_set(b, 0, 1, 8);
+    mat_set(b, 1, 0, 9);  mat_set(b, 1, 1, 10);
+    mat_set(b, 2, 0, 11); mat_set(b, 2, 1, 12);
+
+    Matrix* c = mat_mul(a, b);
+    // c = [[58, 64], [139, 154]]
+
+    return mat_get(c, 0, 0) + mat_get(c, 1, 1);
+    // 58 + 154 = 212
+}

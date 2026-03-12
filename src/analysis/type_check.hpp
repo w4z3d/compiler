@@ -14,7 +14,7 @@ private:
   bool has_return = false;
 
   arena::Arena arena;
-  source_type::TypeRegistry types;
+  source_type::TypeRegistry &types;
 
   std::shared_ptr<DiagnosticEmitter> diagnostics;
   std::shared_ptr<SourceManager> source_manager;
@@ -25,15 +25,20 @@ private:
   const source_type::Type *resolve_underlying(const source_type::Type *t);
   bool is_small_type(const source_type::Type *t);
   const source_type::Type *lvalue_type(const LValue &val);
+  void register_builtins();
+  void register_extern(const std::string &name,
+                       const source_type::Type *ret_type,
+                       std::vector<const source_type::Type *> params);
 
 public:
   explicit TypeVisitor(std::shared_ptr<DiagnosticEmitter> diagnostics,
                        std::shared_ptr<SourceManager> source_manager,
-                       std::shared_ptr<SymbolTable> symbol_table)
+                       std::shared_ptr<SymbolTable> symbol_table,
+                       source_type::TypeRegistry &types)
       : diagnostics(std::move(diagnostics)),
         source_manager(std::move(source_manager)),
         symbol_table(std::move(symbol_table)), arena(arena::Arena{}),
-        types(arena) {}
+        types(types) {}
 
   // ── Top Level ────────────────────────────────────────
   void visit(TranslationUnit &unit) override;

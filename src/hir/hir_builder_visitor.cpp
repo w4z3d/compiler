@@ -1,8 +1,208 @@
 #include "hir_builder_visitor.hpp"
 #include "hir_builder.hpp"
+#include "hir_type.hpp"
 #include <cassert>
 #include <cstdint>
 #include <stdexcept>
+
+const source_type::StructType *
+HIRBuilderVisitor::get_struct_from_source_type(const source_type::Type *t) {
+  t = src_types.resolve_through_typedefs(t);
+  assert(t && t->is_struct() && "expected struct type");
+  return static_cast<const source_type::StructType *>(t);
+}
+
+const source_type::StructType *
+HIRBuilderVisitor::get_struct_through_pointer(const source_type::Type *t) {
+  t = src_types.resolve_through_typedefs(t);
+  assert(t && t->is_pointer() && "expected pointer type");
+  auto *pt = static_cast<const source_type::PointerType *>(t);
+  auto *pointee = src_types.resolve_through_typedefs(pt->pointee.unqualified());
+  assert(pointee && pointee->is_struct() && "expected pointer to struct");
+  return static_cast<const source_type::StructType *>(pointee);
+}
+
+FieldInfo
+HIRBuilderVisitor::find_struct_field(const source_type::StructType *st,
+                                     std::string_view field_name) {
+  for (size_t i = 0; i < st->fields.size(); i++) {
+    if (st->fields[i].first == field_name) {
+      auto *src_type = st->fields[i].second.unqualified();
+      return {i, lower_type(src_type), src_type};
+    }
+  }
+  assert(false && "unknown field");
+  return {0, nullptr, nullptr};
+}
+
+const source_type::Type *
+HIRBuilderVisitor::get_source_lvalue_type(LValue *lval) {
+  switch (lval->get_kind()) {
+
+  case LValue::Kind::Variable: {
+    auto *var = static_cast<VariableLValue *>(lval);
+    assert(var->get_symbol() && "null symbol in lvalue");
+    return src_types.resolve_through_typedefs(var->get_symbol()->get_type());
+  }
+
+  case LValue::Kind::Array: {
+    auto *arr = static_cast<ArrayAccessLValue *>(lval);
+    auto *base_type = get_source_lvalue_type(arr->get_base());
+    base_type = src_types.resolve_through_typedefs(base_type);
+    if (base_type->is_array()) {
+      auto *at = static_cast<const source_type::ArrayType *>(base_type);
+      return at->element;
+    }
+    // Pointer arithmetic fallback
+    if (base_type->is_pointer()) {
+      auto *pt = static_cast<const source_type::PointerType *>(base_type);
+      return pt->pointee.unqualified();
+    }
+    assert(false && "array access on non-array, non-pointer");
+    return nullptr;
+  }
+
+  case LValue::Kind::Field: {
+    auto *field_lval = static_cast<FieldAccessLValue *>(lval);
+    auto *base_type = get_source_lvalue_type(field_lval->get_base());
+    auto *st = get_struct_from_source_type(base_type);
+    for (auto &[name, qt] : st->fields) {
+      if (name == field_lval->get_field())
+        return src_types.resolve_through_typedefs(qt.unqualified());
+    }
+    assert(false && "unknown field in field access lvalue");
+    return nullptr;
+  }
+
+  case LValue::Kind::Pointer: {
+    auto *ptr_lval = static_cast<PointerAccessLValue *>(lval);
+    auto *base_type = get_source_lvalue_type(ptr_lval->get_base());
+    auto *st = get_struct_through_pointer(base_type);
+    for (auto &[name, qt] : st->fields) {
+      if (name == ptr_lval->get_field())
+        return src_types.resolve_through_typedefs(qt.unqualified());
+    }
+    assert(false && "unknown field in pointer access lvalue");
+    return nullptr;
+  }
+
+  case LValue::Kind::Dereference: {
+    auto *deref = static_cast<DereferenceLValue *>(lval);
+    auto *base_type = get_source_lvalue_type(deref->get_operand());
+    base_type = src_types.resolve_through_typedefs(base_type);
+    assert(base_type->is_pointer() && "deref of non-pointer");
+    auto *pt = static_cast<const source_type::PointerType *>(base_type);
+    return src_types.resolve_through_typedefs(pt->pointee.unqualified());
+  }
+  }
+
+  assert(false && "unhandled lvalue kind in get_source_lvalue_type");
+  return nullptr;
+}
+hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
+  switch (lval->get_kind()) {
+
+  case LValue::Kind::Variable: {
+    auto *var = static_cast<VariableLValue *>(lval);
+    assert(var->get_symbol() && "null symbol");
+    return read_variable(var->get_symbol()->get_id(), current_block);
+  }
+
+  case LValue::Kind::Array: {
+    auto *arr = static_cast<ArrayAccessLValue *>(lval);
+    auto *base_ptr = resolve_lvalue_to_ptr(arr->get_base());
+    auto *base_src_type = get_source_lvalue_type(arr->get_base());
+
+    // Evaluate index
+    arr->get_index()->accept(*this);
+    auto *index = pop_stack();
+
+    // Get element IR type
+    if (base_src_type->is_array() || base_src_type->is_pointer()) {
+      auto *arr_ptr = builder.build_load(types.ptr(), base_ptr);
+
+      hir::type::Type *elem_ir_type;
+      if (base_src_type->is_array()) {
+        auto *at = static_cast<const source_type::ArrayType *>(base_src_type);
+        elem_ir_type = lower_type(at->element);
+      } else {
+        auto *pt = static_cast<const source_type::PointerType *>(base_src_type);
+        elem_ir_type = lower_type(pt->pointee.unqualified());
+      }
+      return builder.build_gep(elem_ir_type, arr_ptr, {index});
+    }
+  }
+
+  case LValue::Kind::Field: {
+    auto *field_lval = static_cast<FieldAccessLValue *>(lval);
+
+    // Recurse: get pointer to the struct
+    auto *base = resolve_lvalue_to_ptr(field_lval->get_base());
+
+    // Get struct info from source types
+    auto *base_src_type = get_source_lvalue_type(field_lval->get_base());
+    auto *st = get_struct_from_source_type(base_src_type);
+    auto field = find_struct_field(st, field_lval->get_field());
+
+    auto *index = module.const_int(types.i64(), (int64_t)field.index);
+    return builder.build_gep(types.i64(), base, {index});
+  }
+
+  case LValue::Kind::Pointer: {
+    auto *ptr_lval = static_cast<PointerAccessLValue *>(lval);
+
+    // Recurse: get the pointer value
+    auto *base = resolve_lvalue_to_ptr(ptr_lval->get_base());
+
+    // base is a pointer to a struct — look through the pointer
+    // in source types to find the struct
+    auto *base_src_type = get_source_lvalue_type(ptr_lval->get_base());
+    auto *st = get_struct_through_pointer(base_src_type);
+    auto field = find_struct_field(st, ptr_lval->get_field());
+
+    auto *index = module.const_int(types.i64(), (int64_t)field.index);
+    return builder.build_gep(types.i64(), base, {index});
+  }
+
+  case LValue::Kind::Dereference: {
+    auto *deref = static_cast<DereferenceLValue *>(lval);
+    auto *base = resolve_lvalue_to_ptr(deref->get_operand());
+    return builder.build_load(types.ptr(), base);
+  }
+  }
+
+  assert(false && "unhandled lvalue kind");
+  return nullptr;
+}
+hir::Value *HIRBuilderVisitor::apply_compound_op(AssignmentOperator op,
+                                                 hir::Value *lhs,
+                                                 hir::Value *rhs) {
+  switch (op) {
+  case AssignmentOperator::Plus:
+    return builder.build_add(lhs, rhs);
+  case AssignmentOperator::Minus:
+    return builder.build_sub(lhs, rhs);
+  case AssignmentOperator::Mult:
+    return builder.build_mul(lhs, rhs);
+  case AssignmentOperator::Div:
+    return builder.build_sdiv(lhs, rhs);
+  case AssignmentOperator::Modulo:
+    return builder.build_srem(lhs, rhs);
+  case AssignmentOperator::LShift:
+    return builder.build_shl(lhs, rhs);
+  case AssignmentOperator::RShift:
+    return builder.build_ashr(lhs, rhs);
+  case AssignmentOperator::BitwiseAnd:
+    return builder.build_and(lhs, rhs);
+  case AssignmentOperator::BitwiseOr:
+    return builder.build_or(lhs, rhs);
+  case AssignmentOperator::BitwiseXor:
+    return builder.build_xor(lhs, rhs);
+  default:
+    assert(false && "unhandled compound assignment op");
+    return nullptr;
+  }
+}
 hir::type::Type *
 HIRBuilderVisitor::lower_type(const source_type::Type *ast_type) {
   assert(ast_type && "null ast type");
@@ -48,6 +248,7 @@ HIRBuilderVisitor::lower_type(const source_type::Type *ast_type) {
     throw std::runtime_error("cannot lower type: unknown kind");
   }
 }
+
 hir::type::Type *HIRBuilderVisitor::type_of_symbol(size_t symbol_id) {
   auto sym = symbol_table->lookup_by_id(symbol_id);
   assert(sym && "symbol not found");
@@ -225,81 +426,33 @@ void HIRBuilderVisitor::visit(VarExpr &expr) {
   value_stack.push(val);
 }
 void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
-  stmt.get_expr()->accept(*this); // Pushes result SSA Var
-  const auto rhs_var = pop_stack();
+  stmt.get_expr()->accept(*this);
+  auto *rhs_var = pop_stack();
 
   if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
-    auto *var_lval = dynamic_cast<VariableLValue *>(stmt.get_lvalue());
+    auto *var_lval = static_cast<VariableLValue *>(stmt.get_lvalue());
     size_t symbol_id = var_lval->get_symbol()->get_id();
 
     if (stmt.get_op() == AssignmentOperator::Equals) {
       write_variable(symbol_id, current_block, rhs_var);
     } else {
-      hir::Value *lhs = read_variable(symbol_id, current_block);
-      hir::Value *result;
-      switch (stmt.get_op()) {
-      case AssignmentOperator::Plus:
-        result = builder.build_add(lhs, rhs_var);
-        break;
-      case AssignmentOperator::Minus:
-        result = builder.build_sub(lhs, rhs_var);
-        break;
-      case AssignmentOperator::Mult:
-        result = builder.build_mul(lhs, rhs_var);
-        break;
-      case AssignmentOperator::Div:
-        result = builder.build_sdiv(lhs, rhs_var);
-        break;
-      case AssignmentOperator::Modulo:
-        result = builder.build_srem(lhs, rhs_var);
-        break;
-      case AssignmentOperator::LShift:
-        result = builder.build_shl(lhs, rhs_var);
-        break;
-      case AssignmentOperator::RShift:
-        result = builder.build_ashr(lhs, rhs_var);
-        break;
-      case AssignmentOperator::BitwiseAnd:
-        result = builder.build_and(lhs, rhs_var);
-        break;
-      case AssignmentOperator::BitwiseOr:
-        result = builder.build_or(lhs, rhs_var);
-        break;
-      case AssignmentOperator::BitwiseXor:
-        result = builder.build_xor(lhs, rhs_var);
-        break;
-      default:
-        assert(false && "unhandled compound assignment");
-      }
-      write_variable(symbol_id, current_block, result);
+      auto *old_val = read_variable(symbol_id, current_block);
+      auto *new_val = apply_compound_op(stmt.get_op(), old_val, rhs_var);
+      write_variable(symbol_id, current_block, new_val);
     }
-  } else if (stmt.get_lvalue()->get_kind() == LValue::Kind::Array) {
-    auto *arr_lval = dynamic_cast<ArrayAccessLValue *>(stmt.get_lvalue());
+    return;
+  }
 
-    auto *base_lval = arr_lval->get_base();
-    while (base_lval->get_kind() == LValue::Kind::Array) {
-      base_lval = dynamic_cast<ArrayAccessLValue *>(base_lval)->get_base();
-    }
-    if (auto *var_lval = dynamic_cast<VariableLValue *>(base_lval)) {
+  auto *ptr = resolve_lvalue_to_ptr(stmt.get_lvalue());
 
-      auto sym = var_lval->get_symbol();
-
-      assert(sym && "Symbol pointer is null");
-
-      auto *arr_type =
-          dynamic_cast<const source_type::ArrayType *>(sym->get_type());
-      auto *elem_type = lower_type(arr_type->element);
-
-      hir::Value *base =
-          read_variable(var_lval->get_symbol()->get_id(), current_block);
-      arr_lval->get_index()->accept(*this);
-      auto *index = pop_stack();
-
-      auto *ptr = builder.build_gep(elem_type, base, {index});
-      builder.build_store(rhs_var, ptr);
-    } else {
-      std::cerr << "Array LVar does not contain Var L Var" << std::endl;
-    }
+  if (stmt.get_op() == AssignmentOperator::Equals) {
+    builder.build_store(rhs_var, ptr);
+  } else {
+    auto *lval_src_type = get_source_lvalue_type(stmt.get_lvalue());
+    auto *ir_type = lower_type(lval_src_type);
+    auto *old_val = builder.build_load(ir_type, ptr);
+    auto *new_val = apply_compound_op(stmt.get_op(), old_val, rhs_var);
+    builder.build_store(new_val, ptr);
   }
 }
 
@@ -616,20 +769,54 @@ void HIRBuilderVisitor::visit(ArrayAccessExpr &expr) {
   expr.get_index()->accept(*this);
   auto *index = pop_stack();
 
-  hir::type::Type *elem_type;
-  if (auto *arr_ty = dynamic_cast<hir::type::ArrayType *>(base->type)) {
-    elem_type = arr_ty->inner_type;
-  }
-  auto *ptr = builder.build_gep(elem_type, base, {index});
-  auto *val = builder.build_load(elem_type, ptr);
+  auto *base_src_type =
+      src_types.resolve_through_typedefs(expr.get_array()->get_resolved_type());
+
+  auto *at = static_cast<const source_type::ArrayType *>(base_src_type);
+  auto *elem_ir_type = lower_type(at->element);
+
+  auto *ptr = builder.build_gep(elem_ir_type, base, {index});
+  auto *val = builder.build_load(elem_ir_type, ptr);
 
   value_stack.push(val);
 }
-void HIRBuilderVisitor::visit(PointerAccessExpr &expr) {
-  ASTVisitor::visit(expr);
-}
+
 void HIRBuilderVisitor::visit(FieldAccessExpr &expr) {
-  ASTVisitor::visit(expr);
+  expr.get_struct()->accept(*this);
+  auto *base = pop_stack();
+
+  auto *base_src_type = src_types.resolve_through_typedefs(
+      expr.get_struct()->get_resolved_type());
+  assert(base_src_type && base_src_type->is_struct());
+  auto *st = static_cast<const source_type::StructType *>(base_src_type);
+
+  auto field = find_struct_field(st, expr.get_field());
+
+  auto *gep = builder.build_gep(
+      types.i64(), base, {module.const_int(types.i64(), (int64_t)field.index)});
+  auto *val = builder.build_load(field.ir_type, gep);
+  value_stack.push(val);
+}
+
+void HIRBuilderVisitor::visit(PointerAccessExpr &expr) {
+  expr.get_struct_pointer()->accept(*this);
+  auto *base_ptr = pop_stack();
+
+  auto *ptr_src_type = src_types.resolve_through_typedefs(
+      expr.get_struct_pointer()->get_resolved_type());
+  assert(ptr_src_type && ptr_src_type->is_pointer());
+  auto *pt = static_cast<const source_type::PointerType *>(ptr_src_type);
+  auto *pointee = src_types.resolve_through_typedefs(pt->pointee.unqualified());
+  assert(pointee && pointee->is_struct());
+  auto *st = static_cast<const source_type::StructType *>(pointee);
+
+  auto field = find_struct_field(st, expr.get_field());
+
+  auto *gep =
+      builder.build_gep(types.i64(), base_ptr,
+                        {module.const_int(types.i64(), (int64_t)field.index)});
+  auto *val = builder.build_load(field.ir_type, gep);
+  value_stack.push(val);
 }
 void HIRBuilderVisitor::visit(AllocExpression &expr) {
   hir::type::Type *alloc_type = lower_type(expr.get_element_type());
@@ -647,18 +834,21 @@ void HIRBuilderVisitor::visit(AllocExpression &expr) {
   value_stack.push(ptr);
 }
 void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
-  auto *ty = lower_type(expr.get_element_type());
+  auto *elem_src_type = src_types.resolve(expr.get_type());
+  auto *elem_ir_type = lower_type(elem_src_type);
+
   expr.get_size()->accept(*this);
   auto *size_val = pop_stack();
 
-  auto *size_const = module.const_int(types.i32(), (int64_t)ty->size_of());
+  auto *size_const =
+      module.const_int(types.i32(), (int64_t)elem_ir_type->size_of());
   auto *mul = builder.build_mul(size_const, size_val);
 
   auto *malloc = module.get_function("malloc");
   if (!malloc) {
-    malloc =
-        module.add_function("malloc", types.get_function(types.get_array(0, ty),
-                                                         {types.i32()}, false));
+    malloc = module.add_function(
+        "malloc", types.get_function(types.get_array(0, elem_ir_type),
+                                     {types.i32()}, false));
     malloc->is_extern = true;
   }
   hir::Value *ptr = builder.build_call(malloc, {mul});
@@ -722,9 +912,7 @@ void HIRBuilderVisitor::visit(VariableLValue &val) { ASTVisitor::visit(val); }
 void HIRBuilderVisitor::visit(ArrayAccessLValue &val) {
   ASTVisitor::visit(val);
 }
-void HIRBuilderVisitor::visit(PointerAccessLValue &val) {
-  ASTVisitor::visit(val);
-}
+void HIRBuilderVisitor::visit(PointerAccessLValue &val) {}
 void HIRBuilderVisitor::visit(FieldAccessLValue &val) {
   ASTVisitor::visit(val);
 }

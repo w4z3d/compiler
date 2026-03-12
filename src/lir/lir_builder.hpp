@@ -42,7 +42,7 @@ struct LIRBuilder {
   lir::Register emit_cmp(lir::CmpPredicate pred, lir::Operand lhs,
                          lir::Operand rhs);
   lir::Register emit_cset(lir::CmpPredicate pred);
-  lir::Register emit_load(lir::Operand addr);
+  lir::Register emit_load(lir::Operand addr, lir::Register::RegClass clazz);
   void emit_store(lir::Operand addr, lir::Operand value);
   lir::Register emit_call(std::string_view callee,
                           std::vector<lir::Operand> args,

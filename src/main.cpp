@@ -1,3 +1,4 @@
+#include "alloc/arena.hpp"
 #include "analysis/liveness.hpp"
 #include "analysis/symbol.hpp"
 #include "analysis/type_check.hpp"
@@ -17,6 +18,7 @@
 #include "lir/lir_lowering.hpp"
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
+#include "type/source_type_registry.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -40,9 +42,16 @@ int main(int argc, char *argv[]) {
     return 42;
   }
 
+  ClangStylePrintVisitor printer{};
+  unit->accept(printer);
+
+  std::cout << printer.get_content() << std::endl;
+
   const auto symbol_table = std::make_shared<SymbolTable>();
+  source_type::TypeRegistry source_types{};
   type_check::TypeVisitor type_check_visitor{diagnostics, source_manager,
-                                             symbol_table};
+                                             symbol_table, source_types};
+
   clear_last_line();
   printf("[+] Performing type checking\n");
   unit->accept(type_check_visitor);
@@ -53,7 +62,8 @@ int main(int argc, char *argv[]) {
   }
 
   hir::Module module{};
-  HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics};
+  HIRBuilderVisitor hir_visitor{module, symbol_table, diagnostics,
+                                source_types};
   clear_last_line();
   printf("[+] Emitting HIR\n");
   unit->accept(hir_visitor);
@@ -63,9 +73,9 @@ int main(int argc, char *argv[]) {
 
   clear_last_line();
   printf("[+] Optimizing HIR\n");
-  for (auto &function : module.functions) {
-    opt.optimize(function.get());
-  }
+  // for (auto &function : module.functions) {
+  //   opt.optimize(function.get());
+  // }
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
 

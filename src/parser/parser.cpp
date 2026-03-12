@@ -677,8 +677,9 @@ TranslationUnit *Parser::parse_translation_unit() {
         unit->add_declaration(parse_struct_decl());
       else if (is_next(token::TokenKind::Typedef))
         unit->add_declaration(parse_typedef());
-      else
+      else {
         unit->add_declaration(parse_function_declaration());
+      }
     } catch (ParseError &error) {
       diagnostics->emit_error(error.get_loc(), error.what());
       diagnostics->add_source_context(

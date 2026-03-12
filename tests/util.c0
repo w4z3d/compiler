@@ -1,11 +1,19 @@
 
 struct Test {
   int x;
+  int y;
+  int z;
+  int a;
 };
 
 
 int binsearch(int x, int[] A, int n)
 {
   struct Test* lower = alloc(struct Test);
-  return lower->x;
+  return lower->a;
+}
+
+int main() {
+
+  return 0;
 }

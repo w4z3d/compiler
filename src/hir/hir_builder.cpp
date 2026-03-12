@@ -168,8 +168,10 @@ hir::Value *HIRBuilder::build_load(hir::type::Type *loaded_type,
                                    hir::Value *ptr, std::string_view name) {
   auto *instruction = arena.create<hir::Instruction>(
       hir::Opcode::Load, loaded_type, std::vector<hir::Value *>{ptr});
+  std::cout << "Emitting load for types " << loaded_type->to_string()
+            << " ptr type: " << ptr->type->to_string() << std::endl;
   instruction->name = name;
-  instruction->type_arg = ptr->type;
+  instruction->type_arg = loaded_type;
   return insert(instruction);
 }
 
@@ -261,9 +263,6 @@ hir::Value *HIRBuilder::build_call(hir::Function *callee,
   assert(args.size() == callee->function_type->param_types.size() &&
          "argument count mismatch");
   for (size_t i = 0; i < args.size(); i++) {
-    std::cout << callee->to_string() << " args: " << args[i]->type->to_string()
-              << " " << callee->function_type->param_types[i]->to_string()
-              << std::endl;
     assert(args[i]->type == callee->function_type->param_types[i] &&
            "argument type mismatch");
   }

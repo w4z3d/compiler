@@ -121,8 +121,10 @@ lir::Register LIRBuilder::emit_cset(lir::CmpPredicate pred) {
   return dst;
 }
 
-lir::Register LIRBuilder::emit_load(lir::Operand addr) {
+lir::Register LIRBuilder::emit_load(lir::Operand addr,
+                                    lir::Register::RegClass clazz) {
   auto dst = new_vreg();
+  dst.set_class(clazz);
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = lir::Opcode::Load;
   instr->num_defs = 1;

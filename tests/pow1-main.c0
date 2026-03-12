@@ -1,5 +1,0 @@
-/* pow1-main.c0 */
-
-int main() {
-  return POW(19, 1000000);
-}

@@ -4,27 +4,32 @@
 #include "../analysis/symbol.hpp"
 #include "../defs/ast.hpp"
 #include "../report/report_builder.hpp"
+#include "../type/source_type.hpp"
+#include "../type/source_type_registry.hpp"
 #include "hir_builder.hpp"
 #include "hir_type.hpp"
 #include <stack>
 #include <unordered_map>
 #include <unordered_set>
 
+struct FieldInfo {
+  size_t index;
+  hir::type::Type *ir_type;
+  const source_type::Type *src_type;
+};
+
 struct HIRBuilderVisitor : ASTVisitor {
   hir::Module &module;
   HIRBuilder builder;
   hir::type::TypeContext &types;
   std::shared_ptr<SymbolTable> symbol_table;
-  std::shared_ptr<DiagnosticEmitter> diagnostics; // reference — owned by caller
+  std::shared_ptr<DiagnosticEmitter> diagnostics;
+  source_type::TypeRegistry &src_types;
 
-  // Traversal state
   hir::Function *current_function = nullptr;
   hir::BasicBlock *current_block = nullptr;
-  std::stack<hir::Value *> value_stack;
-  // Maps symbol id → alloca instruction for that variable
-  // Used by loads and stores to find where a variable lives in memory
-  std::unordered_map<size_t, hir::Value *> var_addresses;
-  // SSA construction state
+
+  // SSA construction
   std::unordered_map<size_t,
                      std::unordered_map<hir::BasicBlock *, hir::Value *>>
       current_defs;
@@ -32,14 +37,17 @@ struct HIRBuilderVisitor : ASTVisitor {
   std::unordered_map<hir::BasicBlock *,
                      std::unordered_map<size_t, hir::PhiNode *>>
       incomplete_phis;
-  std::unordered_set<hir::PhiNode *> phis_being_removed;
+
+  std::stack<hir::Value *> value_stack;
 
 public:
   explicit HIRBuilderVisitor(hir::Module &mod,
                              std::shared_ptr<SymbolTable> sym_table,
-                             std::shared_ptr<DiagnosticEmitter> diag)
+                             std::shared_ptr<DiagnosticEmitter> diag,
+                             source_type::TypeRegistry &source_types)
       : module(mod), builder(mod), types(mod.types),
-        symbol_table(std::move(sym_table)), diagnostics(std::move(diag)) {}
+        symbol_table(std::move(sym_table)), diagnostics(std::move(diag)),
+        src_types(source_types) {}
 
   hir::Module &get_module() { return module; }
 
@@ -54,6 +62,16 @@ private:
                    const std::vector<hir::BasicBlock *> &predecessors);
   void seal_block(hir::BasicBlock *bb);
 
+  hir::Value *resolve_lvalue_to_ptr(LValue *lval);
+  const source_type::Type *get_source_lvalue_type(LValue *lval);
+  FieldInfo find_struct_field(const source_type::StructType *st,
+                              std::string_view field_name);
+  const source_type::StructType *
+  get_struct_from_source_type(const source_type::Type *t);
+  const source_type::StructType *
+  get_struct_through_pointer(const source_type::Type *t);
+  hir::Value *apply_compound_op(AssignmentOperator op, hir::Value *lhs,
+                                hir::Value *rhs);
   // Type helpers
   hir::type::Type *type_of_symbol(size_t symbol_id);
   hir::type::Type *lower_type(const source_type::Type *ast_type);

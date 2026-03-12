@@ -1,0 +1,10 @@
+struct Foo {
+    int[] arr;
+};
+
+int main() {
+    Foo* f = alloc(Foo);
+    f->arr = alloc_array(int, 5);
+    f->arr[0] = 42;
+    return f->arr[0];
+}

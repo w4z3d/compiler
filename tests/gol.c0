@@ -1,0 +1,125 @@
+struct Board {
+  int width;
+  int height;
+  int[] cells;
+};
+
+Board *new_board(int width, int height) {
+  Board *b = alloc(Board);
+  b->width = width;
+  b->height = height;
+  b->cells = alloc_array(int, width *height);
+
+  // Initialize to 0
+  for (int i = 0; i < width * height; i++) {
+    b->cells[i] = 0;
+  }
+
+  return b;
+}
+
+int get_cell(Board *b, int x, int y) {
+  if (x < 0)
+    return 0;
+  if (y < 0)
+    return 0;
+  if (x >= b->width)
+    return 0;
+  if (y >= b->height)
+    return 0;
+  return b->cells[y * b->width + x];
+}
+
+void set_cell(Board *b, int x, int y, int val) {
+  b->cells[y * b->width + x] = val;
+}
+
+int count_neighbors(Board *b, int x, int y) {
+  int count = 0;
+  count = count + get_cell(b, x - 1, y - 1);
+  count = count + get_cell(b, x, y - 1);
+  count = count + get_cell(b, x + 1, y - 1);
+  count = count + get_cell(b, x - 1, y);
+  count = count + get_cell(b, x + 1, y);
+  count = count + get_cell(b, x - 1, y + 1);
+  count = count + get_cell(b, x, y + 1);
+  count = count + get_cell(b, x + 1, y + 1);
+  return count;
+}
+
+Board *step(Board *current) {
+  Board *next = new_board(current->width, current->height);
+
+  for (int y = 0; y < current->height; y++) {
+    for (int x = 0; x < current->width; x++) {
+      int alive = get_cell(current, x, y);
+      int neighbors = count_neighbors(current, x, y);
+
+      if (alive == 1 && neighbors < 2) {
+        // Underpopulation
+        set_cell(next, x, y, 0);
+      } else if (alive == 1 && neighbors > 3) {
+        // Overpopulation
+        set_cell(next, x, y, 0);
+      } else if (alive == 0 && neighbors == 3) {
+        // Reproduction
+        set_cell(next, x, y, 1);
+      } else {
+        // Stays the same
+        set_cell(next, x, y, alive);
+      }
+    }
+  }
+
+  return next;
+}
+
+// Place a glider at position (sx, sy)
+void place_glider(Board *b, int sx, int sy) {
+  //  .#.
+  //  ..#
+  //  ###
+  set_cell(b, sx + 1, sy, 1);
+  set_cell(b, sx + 2, sy + 1, 1);
+  set_cell(b, sx, sy + 2, 1);
+  set_cell(b, sx + 1, sy + 2, 1);
+  set_cell(b, sx + 2, sy + 2, 1);
+}
+
+// Place a blinker at position (sx, sy)
+void place_blinker(Board *b, int sx, int sy) {
+  // ###
+  set_cell(b, sx, sy, 1);
+  set_cell(b, sx + 1, sy, 1);
+  set_cell(b, sx + 2, sy, 1);
+}
+
+// Place a block (still life) at position (sx, sy)
+void place_block(Board *b, int sx, int sy) {
+  // ##
+  // ##
+  set_cell(b, sx, sy, 1);
+  set_cell(b, sx + 1, sy, 1);
+  set_cell(b, sx, sy + 1, 1);
+  set_cell(b, sx + 1, sy + 1, 1);
+}
+
+int main() {
+  int width = 20;
+  int height = 10;
+
+  Board *board = new_board(width, height);
+
+  // Place some patterns
+  place_glider(board, 1, 1);
+  place_blinker(board, 10, 4);
+  place_block(board, 15, 1);
+  set_cell(board, 1, 1, 1);
+
+  // Run 50 generations
+  for (int gen = 0; gen < 50; gen++) {
+    board = step(board);
+  }
+
+  return get_cell(board, 1, 1);
+}

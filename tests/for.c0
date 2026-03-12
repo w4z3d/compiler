@@ -1,4 +1,6 @@
-
+int main() {
+return 0;
+}
 
 int sum1(int[] A, int n)
 //@requires 0 <= n && n <= \length(A);
@@ -24,7 +26,6 @@ int sum_to_neg1(int[] A, int n)
 {
   int sum = 0;
   for (int i = 0; i < n; i++) {
-    if (A[i] < 0) break;  /* exit loop if encountering neg. num. */
     sum = sum + A[i];
   }
   return sum;

@@ -69,7 +69,7 @@ struct FloatType : Type {
 };
 
 struct ArrayType : Type {
-  size_t count; // Array sizes must be known at compile time
+  size_t count = 1; // Array sizes must be known at compile time
   Type *inner_type;
 
   explicit ArrayType(size_t count, Type *inner_type)
@@ -80,7 +80,8 @@ struct ArrayType : Type {
     return "[" + std::to_string(count) + "x" + inner_type->to_string() + "]";
   }
   [[nodiscard]] inline size_t size_of() const override {
-    return count * inner_type->size_of();
+    return 8; // Arrays are heap allocated and thus unsized as we cant guarantee
+              // the size at compile time.
   };
 };
 struct FunctionType : Type {
@@ -107,7 +108,7 @@ struct StructType : Type {
   [[nodiscard]] inline size_t size_of() const override {
     size_t size = 0;
     for (auto &[name, field] : fields) {
-      size += field->size_of();
+      size += 8;
     }
     return size;
   };
