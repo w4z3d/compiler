@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 void print_int(int x) { printf("%d", x); }
 void print_char(int c) { putchar(c); }
@@ -14,5 +13,11 @@ int read_int() {
 }
 int read_char() { return getchar(); }
 
-void cc_sleep(int milliseconds) { usleep(milliseconds * 1000); }
+#ifdef _WIN32
+#include <windows.h>
+void cc_sleep(int ms) { Sleep(ms); }
+#else
+#include <unistd.h>
+void cc_sleep(int ms) { usleep(ms * 1000); }
+#endif
 void cc_exit(int code) { exit(code); }
