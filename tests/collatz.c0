@@ -1,0 +1,30 @@
+extern void print_char(int c);
+extern void print_int(int x);
+extern void println();
+
+int collatz_length(int n) {
+    int count = 0;
+    while (n != 1) {
+        if (n % 2 == 0) {
+            n = n / 2;
+        } else {
+            n = 3 * n + 1;
+        }
+        count = count + 1;
+    }
+    return count;
+}
+
+int main() {
+    for (int n = 1; n <= 100; n++) {
+        int len = collatz_length(n);
+        print_int(n);
+        print_char(58);  // :
+        print_char(32);  // space
+        for (int i = 0; i < len; i++) {
+            print_char(35);  // #
+        }
+        println();
+    }
+    return 0;
+}

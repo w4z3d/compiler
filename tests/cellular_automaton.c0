@@ -1,0 +1,137 @@
+extern void print_char(int c);
+extern void print_int(int x);
+extern void println();
+extern void cc_sleep(int ms);
+
+struct World {
+  int width;
+  int height;
+  int count;
+  int[] xs;
+  int[] ys;
+  int[] speeds;
+};
+
+World *new_world(int width, int height, int count) {
+  World *w = alloc(World);
+  w->width = width;
+  w->height = height;
+  w->count = count;
+
+  w->xs = alloc_array(int, count);
+  w->ys = alloc_array(int, count);
+  w->speeds = alloc_array(int, count);
+
+  for (int i = 0; i < count; i++) {
+    w->xs[i] = width - 1 - (i % width);
+    w->ys[i] = i % height;
+    w->speeds[i] = 1 + (i % 3);
+  }
+
+  return w;
+}
+
+void clear_screen() {
+  // ESC [ 2 J
+  print_char(27);
+  print_char(91);
+  print_char(50);
+  print_char(74);
+
+  // ESC [ H
+  print_char(27);
+  print_char(91);
+  print_char(72);
+}
+
+int star_at(World *w, int x, int y) {
+  for (int i = 0; i < w->count; i++) {
+    if (w->xs[i] == x && w->ys[i] == y) {
+      int s = w->speeds[i];
+      if (s == 1) {
+        return 46; // .
+      } else if (s == 2) {
+        return 43; // +
+      } else {
+        return 42; // *
+      }
+    }
+  }
+  return 0;
+}
+
+void print_world(World *w, int step) {
+  clear_screen();
+
+  print_char(83);  // S
+  print_char(116); // t
+  print_char(97);  // a
+  print_char(114); // r
+  print_char(102); // f
+  print_char(105); // i
+  print_char(101); // e
+  print_char(108); // l
+  print_char(100); // d
+  print_char(32);  // space
+  print_char(83);  // S
+  print_char(116); // t
+  print_char(101); // e
+  print_char(112); // p
+  print_char(32);  // space
+  print_int(step);
+  println();
+
+  print_char(43); // +
+  for (int x = 0; x < w->width; x++) {
+    print_char(45); // -
+  }
+  print_char(43); // +
+  println();
+
+  for (int y = 0; y < w->height; y++) {
+    print_char(124); // |
+    for (int x = 0; x < w->width; x++) {
+      int ch = star_at(w, x, y);
+      if (ch != 0) {
+        print_char(ch);
+      } else {
+        print_char(32); // space
+      }
+    }
+    print_char(124); // |
+    println();
+  }
+
+  print_char(43); // +
+  for (int x = 0; x < w->width; x++) {
+    print_char(45); // -
+  }
+  print_char(43); // +
+  println();
+}
+
+void update_world(World *w) {
+  for (int i = 0; i < w->count; i++) {
+    w->xs[i] = w->xs[i] - w->speeds[i];
+    if (w->xs[i] < 0) {
+      w->xs[i] = w->width - 1;
+      w->ys[i] = (w->ys[i] + 3) % w->height;
+    }
+  }
+}
+
+int main() {
+  int width = 60;
+  int height = 20;
+  int count = 40;
+
+  World *w = new_world(width, height, count);
+
+  for (int step = 0; step < 2000; step++) {
+    print_world(w, step);
+    cc_sleep(40);
+    update_world(w);
+  }
+
+  return 0;
+}

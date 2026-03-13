@@ -1,0 +1,7 @@
+
+extern void print_int(int x);
+
+int main() {
+  print_int(10);
+  return 0;
+}

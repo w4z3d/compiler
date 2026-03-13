@@ -1,0 +1,121 @@
+extern void print_char(int c);
+extern void println();
+
+struct Maze {
+    int width;
+    int height;
+    int[] walls;
+    int[] visited;
+};
+
+Maze* new_maze(int w, int h) {
+    Maze* m = alloc(Maze);
+    m->width = w;
+    m->height = h;
+    m->walls = alloc_array(int, w * h * 4);
+    m->visited = alloc_array(int, w * h);
+    for (int i = 0; i < w * h; i++) {
+        m->visited[i] = 0;
+    }
+    for (int i = 0; i < w * h * 4; i++) {
+        m->walls[i] = 1;
+    }
+    return m;
+}
+
+int maze_idx(Maze* m, int x, int y) {
+    return y * m->width + x;
+}
+
+void remove_wall(Maze* m, int x, int y, int dir) {
+    m->walls[maze_idx(m, x, y) * 4 + dir] = 0;
+}
+
+int has_wall(Maze* m, int x, int y, int dir) {
+    return m->walls[maze_idx(m, x, y) * 4 + dir];
+}
+
+void carve(Maze* m, int x, int y, int seed) {
+    m->visited[maze_idx(m, x, y)] = 1;
+
+    int[] dirs = alloc_array(int, 4);
+    dirs[0] = 0; dirs[1] = 1; dirs[2] = 2; dirs[3] = 3;
+
+    // Fisher-Yates shuffle
+    for (int i = 3; i > 0; i--) {
+        seed = (seed * 11035152 + 12345) & 0x7fffffff;
+        int j = seed % (i + 1);
+        int tmp = dirs[i];
+        dirs[i] = dirs[j];
+        dirs[j] = tmp;
+    }
+
+    // dx: 0=right, 1=down, 2=left, 3=up
+    int[] dx = alloc_array(int, 4);
+    int[] dy = alloc_array(int, 4);
+    dx[0] = 1; dx[1] = 0; dx[2] = -1; dx[3] = 0;
+    dy[0] = 0; dy[1] = 1; dy[2] = 0;  dy[3] = -1;
+
+    for (int i = 0; i < 4; i++) {
+        int d = dirs[i];
+        int nx = x + dx[d];
+        int ny = y + dy[d];
+
+        if (nx >= 0 && nx < m->width && ny >= 0 && ny < m->height) {
+            if (m->visited[maze_idx(m, nx, ny)] == 0) {
+                remove_wall(m, x, y, d);
+                int opposite = (d + 2) % 4;
+                remove_wall(m, nx, ny, opposite);
+                carve(m, nx, ny, seed + nx * 31 + ny * 17);
+            }
+        }
+    }
+}
+
+void print_maze(Maze* m) {
+    // Top border
+    for (int x = 0; x < m->width; x++) {
+        print_char(43);  // +
+        print_char(45);  // -
+        print_char(45);
+    }
+    print_char(43);
+    println();
+
+    for (int y = 0; y < m->height; y++) {
+        // Cell row
+        print_char(124); // |
+        for (int x = 0; x < m->width; x++) {
+            print_char(32); // space (cell)
+            if (x < m->width - 1 && has_wall(m, x, y, 0) == 1) {
+                print_char(124); // |
+            } else if (x < m->width - 1) {
+                print_char(32);
+            }
+        }
+        print_char(32);
+        print_char(124);
+        println();
+
+        // Bottom wall row
+        for (int x = 0; x < m->width; x++) {
+            print_char(43); // +
+            if (has_wall(m, x, y, 1) == 1) {
+                print_char(45); // -
+                print_char(45);
+            } else {
+                print_char(32);
+                print_char(32);
+            }
+        }
+        print_char(43);
+        println();
+    }
+}
+
+int main() {
+    Maze* m = new_maze(12, 8);
+    carve(m, 0, 0, 42069);
+    print_maze(m);
+    return 0;
+}
