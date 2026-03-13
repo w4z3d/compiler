@@ -87,6 +87,7 @@ void TypeVisitor::visit(TranslationUnit &unit) {
 }
 
 void TypeVisitor::visit(FunctionDeclaration &decl) {
+
   auto return_type = types.resolve_qual(decl.get_return_type());
   current_return_type = return_type;
   has_return = false;
@@ -98,7 +99,7 @@ void TypeVisitor::visit(FunctionDeclaration &decl) {
   auto *func_type = types.get_function(return_type, param_types);
   auto *func_sym = symbol_table->create_function(
       decl.get_name(), decl.get_location(), return_type.unqualified(),
-      func_type, static_cast<bool>(decl.get_body()));
+      func_type, static_cast<bool>(decl.get_body() || decl.is_extern()));
   symbol_table->define(func_sym);
 
   symbol_table->enter_scope(std::format("Scope_{}", decl.get_name()));

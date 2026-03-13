@@ -66,6 +66,8 @@ hir::Value *HIRBuilder::build_udiv(hir::Value *lhs, hir::Value *rhs,
 }
 hir::Value *HIRBuilder::build_srem(hir::Value *lhs, hir::Value *rhs,
                                    std::string_view name) {
+  std::cout << "Types for srem: " << lhs->type << " rhs: " << rhs->type
+            << std::endl;
   assert(lhs->type == rhs->type && "operand type mismatch");
   auto instruction = arena.create<hir::Instruction>(
       hir::Opcode::SRem, lhs->type, std::vector<hir::Value *>{lhs, rhs});

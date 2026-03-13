@@ -21,7 +21,6 @@ bool TargetInfo::accepts_imm(lir::Opcode op) const {
   case lir::Opcode::Add:
   case lir::Opcode::Sub:
   case lir::Opcode::Cmp:
-  case lir::Opcode::And:
   case lir::Opcode::Or:
   case lir::Opcode::Xor:
   case lir::Opcode::Shl:

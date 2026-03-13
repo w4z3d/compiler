@@ -113,23 +113,14 @@ hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
     auto *base_ptr = resolve_lvalue_to_ptr(arr->get_base());
     auto *base_src_type = get_source_lvalue_type(arr->get_base());
 
-    // Evaluate index
     arr->get_index()->accept(*this);
     auto *index = pop_stack();
 
-    // Get element IR type
     if (base_src_type->is_array() || base_src_type->is_pointer()) {
-      auto *arr_ptr = builder.build_load(types.ptr(), base_ptr);
 
-      hir::type::Type *elem_ir_type;
-      if (base_src_type->is_array()) {
-        auto *at = static_cast<const source_type::ArrayType *>(base_src_type);
-        elem_ir_type = lower_type(at->element);
-      } else {
-        auto *pt = static_cast<const source_type::PointerType *>(base_src_type);
-        elem_ir_type = lower_type(pt->pointee.unqualified());
-      }
-      return builder.build_gep(elem_ir_type, arr_ptr, {index});
+      auto *at = static_cast<const source_type::ArrayType *>(base_src_type);
+      auto *elem_ir_type = lower_type(at->element);
+      return builder.build_gep(elem_ir_type, base_ptr, {index});
     }
   }
 
@@ -422,7 +413,12 @@ void HIRBuilderVisitor::visit(VarExpr &expr) {
   assert(symbol && "Symbol is nullptr");
   // Always use SSA — read_variable handles cross-block cases
   // and inserts phi nodes where needed
+
   hir::Value *val = read_variable(symbol->get_id(), current_block);
+  std::cerr << "VarExpr " << symbol->get_name()
+            << " val_type: " << (void *)val->type << " ("
+            << val->type->to_string() << ")" << std::endl;
+
   value_stack.push(val);
 }
 void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
@@ -432,7 +428,9 @@ void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
   if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
     auto *var_lval = static_cast<VariableLValue *>(stmt.get_lvalue());
     size_t symbol_id = var_lval->get_symbol()->get_id();
-
+    std::cerr << "Assign " << var_lval->get_symbol()->get_name()
+              << " val_type: " << (void *)rhs_var->type << " ("
+              << rhs_var->type->to_string() << ")" << std::endl;
     if (stmt.get_op() == AssignmentOperator::Equals) {
       write_variable(symbol_id, current_block, rhs_var);
     } else {
@@ -460,6 +458,21 @@ void HIRBuilderVisitor::visit(Typedef &typedef_) {
   ASTVisitor::visit(typedef_);
 }
 void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
+  if (decl.is_extern()) {
+    std::vector<hir::type::Type *> param_types;
+    for (const auto &param : decl.get_parameter_declarations())
+      param_types.push_back(lower_type(param->get_symbol()->get_type()));
+
+    auto *fs =
+        dynamic_cast<FunctionSymbol *>(symbol_table->lookup(decl.get_name()));
+    auto *ret_type = lower_type(fs->func_type->return_type.unqualified());
+
+    auto *fn =
+        module.add_function(std::string(decl.get_name()),
+                            types.get_function(ret_type, param_types, false));
+    fn->is_extern = true;
+    return;
+  }
   // Build the function type from the declaration
   std::vector<hir::type::Type *> param_types;
   for (const auto &param : decl.get_parameter_declarations()) {
@@ -478,6 +491,9 @@ void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
 
   current_function = module.add_function(std::string(decl.get_name()), fn_type);
 
+  if (decl.is_extern())
+    return;
+
   hir::BasicBlock *entry = current_function->entry();
   set_insert_point(entry);
 
@@ -493,7 +509,8 @@ void HIRBuilderVisitor::visit(FunctionDeclaration &decl) {
     write_variable(sym->get_id(), entry, arg);
   }
 
-  decl.get_body()->accept(*this);
+  if (decl.get_body())
+    decl.get_body()->accept(*this);
   if (!current_block->terminator()) {
     if (ret_type->is_void()) {
       builder.build_ret(nullptr);
@@ -647,8 +664,13 @@ void HIRBuilderVisitor::visit(NumericExpr &expr) {
   if (expr.get_base() == NumericExpr::Base::Hexadecimal && num > 0x7FFFFFFF) {
     num = ~num + 1;
   }
+  auto *val = module.const_int(types.i32(), static_cast<int64_t>(num));
 
-  value_stack.push(module.const_int(builder.context.i32(), num));
+  // Debug:
+  std::cerr << "NumericExpr: " << num << " type: " << val->type->to_string()
+            << " type_ptr: " << val->type << std::endl;
+
+  value_stack.push(val);
 }
 void HIRBuilderVisitor::visit(CallExpr &expr) {
   const auto symbol = symbol_table->lookup(expr.get_function_name());
@@ -691,7 +713,11 @@ void HIRBuilderVisitor::visit(BinaryOperatorExpression &expr) {
 
   expr.get_right_expression()->accept(*this);
   auto *rhs = pop_stack();
-
+  std::cerr << "BinOp " << (int)expr.get_operator_kind()
+            << " lhs_type: " << (void *)lhs->type << " ("
+            << lhs->type->to_string() << ")"
+            << " rhs_type: " << (void *)rhs->type << " ("
+            << rhs->type->to_string() << ")" << std::endl;
   hir::Value *result;
   switch (expr.get_operator_kind()) {
   case BinaryOperator::Add:
@@ -732,6 +758,21 @@ void HIRBuilderVisitor::visit(BinaryOperatorExpression &expr) {
     break;
   case BinaryOperator::LogicalOr:
     result = builder.build_or(lhs, rhs);
+    break;
+  case BinaryOperator::BitwiseAnd:
+    result = builder.build_and(lhs, rhs);
+    break;
+  case BinaryOperator::BitwiseOr:
+    result = builder.build_or(lhs, rhs);
+    break;
+  case BinaryOperator::BitwiseXor:
+    result = builder.build_xor(lhs, rhs);
+    break;
+  case BinaryOperator::ShiftLeft:
+    result = builder.build_shl(lhs, rhs);
+    break;
+  case BinaryOperator::ShiftRight:
+    result = builder.build_ashr(lhs, rhs);
     break;
   default:
 

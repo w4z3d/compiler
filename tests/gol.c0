@@ -1,3 +1,8 @@
+extern void print_char(int c);
+extern void print_int(int x);
+extern void println();
+extern void cc_sleep(int ms);
+
 struct Board {
   int width;
   int height;
@@ -9,12 +14,9 @@ Board *new_board(int width, int height) {
   b->width = width;
   b->height = height;
   b->cells = alloc_array(int, width *height);
-
-  // Initialize to 0
   for (int i = 0; i < width * height; i++) {
     b->cells[i] = 0;
   }
-
   return b;
 }
 
@@ -49,36 +51,76 @@ int count_neighbors(Board *b, int x, int y) {
 
 Board *step(Board *current) {
   Board *next = new_board(current->width, current->height);
-
   for (int y = 0; y < current->height; y++) {
     for (int x = 0; x < current->width; x++) {
       int alive = get_cell(current, x, y);
       int neighbors = count_neighbors(current, x, y);
-
       if (alive == 1 && neighbors < 2) {
-        // Underpopulation
         set_cell(next, x, y, 0);
       } else if (alive == 1 && neighbors > 3) {
-        // Overpopulation
         set_cell(next, x, y, 0);
       } else if (alive == 0 && neighbors == 3) {
-        // Reproduction
         set_cell(next, x, y, 1);
       } else {
-        // Stays the same
         set_cell(next, x, y, alive);
       }
     }
   }
-
   return next;
 }
 
-// Place a glider at position (sx, sy)
+void print_board(Board *b, int gen) {
+  // Clear screen: ESC [ 2 J
+  print_char(27);
+  print_char(91);
+  print_char(50);
+  print_char(74);
+
+  // Cursor home: ESC [ H
+  print_char(27);
+  print_char(91);
+  print_char(72);
+
+  // Header
+  print_char(71);  // G
+  print_char(101); // e
+  print_char(110); // n
+  print_char(32);  // space
+  print_int(gen);
+  println();
+
+  // Top border
+  print_char(43); // +
+  for (int x = 0; x < b->width; x++) {
+    print_char(45); // -
+  }
+  print_char(43); // +
+  println();
+
+  // Board
+  for (int y = 0; y < b->height; y++) {
+    print_char(124); // |
+    for (int x = 0; x < b->width; x++) {
+      if (get_cell(b, x, y) == 1) {
+        print_char(35); // #
+      } else {
+        print_char(32); // space
+      }
+    }
+    print_char(124); // |
+    println();
+  }
+
+  // Bottom border
+  print_char(43); // +
+  for (int x = 0; x < b->width; x++) {
+    print_char(45); // -
+  }
+  print_char(43); // +
+  println();
+}
+
 void place_glider(Board *b, int sx, int sy) {
-  //  .#.
-  //  ..#
-  //  ###
   set_cell(b, sx + 1, sy, 1);
   set_cell(b, sx + 2, sy + 1, 1);
   set_cell(b, sx, sy + 2, 1);
@@ -86,40 +128,74 @@ void place_glider(Board *b, int sx, int sy) {
   set_cell(b, sx + 2, sy + 2, 1);
 }
 
-// Place a blinker at position (sx, sy)
 void place_blinker(Board *b, int sx, int sy) {
-  // ###
   set_cell(b, sx, sy, 1);
   set_cell(b, sx + 1, sy, 1);
   set_cell(b, sx + 2, sy, 1);
 }
 
-// Place a block (still life) at position (sx, sy)
-void place_block(Board *b, int sx, int sy) {
-  // ##
-  // ##
-  set_cell(b, sx, sy, 1);
-  set_cell(b, sx + 1, sy, 1);
-  set_cell(b, sx, sy + 1, 1);
-  set_cell(b, sx + 1, sy + 1, 1);
+void place_glider_gun(Board *b, int sx, int sy) {
+  set_cell(b, sx + 24, sy + 0, 1);
+  set_cell(b, sx + 22, sy + 1, 1);
+  set_cell(b, sx + 24, sy + 1, 1);
+  set_cell(b, sx + 12, sy + 2, 1);
+  set_cell(b, sx + 13, sy + 2, 1);
+  set_cell(b, sx + 20, sy + 2, 1);
+  set_cell(b, sx + 21, sy + 2, 1);
+  set_cell(b, sx + 34, sy + 2, 1);
+  set_cell(b, sx + 35, sy + 2, 1);
+  set_cell(b, sx + 11, sy + 3, 1);
+  set_cell(b, sx + 15, sy + 3, 1);
+  set_cell(b, sx + 20, sy + 3, 1);
+  set_cell(b, sx + 21, sy + 3, 1);
+  set_cell(b, sx + 34, sy + 3, 1);
+  set_cell(b, sx + 35, sy + 3, 1);
+  set_cell(b, sx + 0, sy + 4, 1);
+  set_cell(b, sx + 1, sy + 4, 1);
+  set_cell(b, sx + 10, sy + 4, 1);
+  set_cell(b, sx + 16, sy + 4, 1);
+  set_cell(b, sx + 20, sy + 4, 1);
+  set_cell(b, sx + 21, sy + 4, 1);
+  set_cell(b, sx + 0, sy + 5, 1);
+  set_cell(b, sx + 1, sy + 5, 1);
+  set_cell(b, sx + 10, sy + 5, 1);
+  set_cell(b, sx + 14, sy + 5, 1);
+  set_cell(b, sx + 16, sy + 5, 1);
+  set_cell(b, sx + 17, sy + 5, 1);
+  set_cell(b, sx + 22, sy + 5, 1);
+  set_cell(b, sx + 24, sy + 5, 1);
+  set_cell(b, sx + 10, sy + 6, 1);
+  set_cell(b, sx + 16, sy + 6, 1);
+  set_cell(b, sx + 24, sy + 6, 1);
+  set_cell(b, sx + 11, sy + 7, 1);
+  set_cell(b, sx + 15, sy + 7, 1);
+  set_cell(b, sx + 12, sy + 8, 1);
+  set_cell(b, sx + 13, sy + 8, 1);
 }
 
 int main() {
-  int width = 20;
-  int height = 10;
+  int width = 60;
+  int height = 30;
 
   Board *board = new_board(width, height);
 
-  // Place some patterns
-  place_glider(board, 1, 1);
-  place_blinker(board, 10, 4);
-  place_block(board, 15, 1);
-  set_cell(board, 1, 1, 1);
+  // Place a Gosper Glider Gun
+  place_glider_gun(board, 1, 1);
 
-  // Run 50 generations
-  for (int gen = 0; gen < 50; gen++) {
+  // Place some extra gliders
+  place_glider(board, 45, 20);
+  place_glider(board, 50, 15);
+
+  // Place blinkers
+  place_blinker(board, 40, 5);
+  place_blinker(board, 45, 10);
+
+  // Run 200 generations
+  for (int gen = 0; gen < 2000; gen++) {
+    print_board(board, gen);
+    cc_sleep(30); // 100ms zwischen Generationen
     board = step(board);
   }
 
-  return get_cell(board, 1, 1);
+  return 0;
 }

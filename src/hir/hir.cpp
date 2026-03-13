@@ -454,18 +454,12 @@ Function *Module::get_function(std::string_view name) const {
   return nullptr;
 }
 
+std::vector<std::unique_ptr<ConstantInt>> constants{};
 ConstantInt *Module::const_int(type::IntegerType *type, int64_t value) {
-  // Deduplicate by combining type width and value into a single key
-  uint64_t key = (static_cast<uint64_t>(type->width) << 56) |
-                 (static_cast<uint64_t>(value) & 0x00FFFFFFFFFFFFFF);
-
-  auto it = int_constants.find(key);
-  if (it != int_constants.end())
-    return it->second.get();
-
+  // Erstelle JEDES MAL ein neues Objekt — keine Deduplizierung
   auto c = std::make_unique<ConstantInt>(type, static_cast<uint64_t>(value));
   auto *ptr = c.get();
-  int_constants[key] = std::move(c);
+  constants.push_back(std::move(c)); // Einfach in einen Vector
   return ptr;
 }
 

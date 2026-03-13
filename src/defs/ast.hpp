@@ -855,18 +855,20 @@ private:
   TypeAnnotation *ret_type;
   std::vector<ParameterDeclaration *> parameters;
   CompoundStmt *body{};
+  bool extern_ = false;
 
 public:
   FunctionDeclaration(std::string_view name, TypeAnnotation *ret_type,
-                      SourceLocation loc = {})
-      : Declaration(Kind::Function, name, loc), name(name), ret_type(ret_type) {
-  }
+                      bool is_extern = false, SourceLocation loc = {})
+      : Declaration(Kind::Function, name, loc), name(name), ret_type(ret_type),
+        extern_(is_extern) {}
   void accept(ASTVisitor &visitor) override;
 
   void add_parameter_declaration(ParameterDeclaration *paramDecl) {
     parameters.push_back(paramDecl);
   }
   void set_body(CompoundStmt *stmt) { body = stmt; }
+  [[nodiscard]] bool is_extern() const { return extern_; }
 
   [[nodiscard]] const std::vector<ParameterDeclaration *> &
   get_parameter_declarations() {

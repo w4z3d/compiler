@@ -599,11 +599,12 @@ ParameterDeclaration *Parser::parse_parameter_declaration() {
 }
 
 FunctionDeclaration *Parser::parse_function_declaration() {
+  const auto extern_qual = match(token::TokenKind::Extern);
   const auto ret_type = parse_type();
   const auto ident{expect(token::TokenKind::Identifier)};
   expect(token::TokenKind::LParen);
   const auto declaration =
-      arena.create<FunctionDeclaration>(ident->text, ret_type);
+      arena.create<FunctionDeclaration>(ident->text, ret_type, extern_qual);
   if (!is_next(token::TokenKind::RParen)) {
     declaration->add_parameter_declaration(parse_parameter_declaration());
     while (check_sequence({token::TokenKind::Comma})) {

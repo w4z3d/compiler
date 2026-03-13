@@ -79,6 +79,7 @@ enum class TokenKind {
   PipeEquals,
 
   // Keywords
+  Extern,
   Return,
   If,
   Else,
@@ -103,25 +104,16 @@ enum class TokenKind {
 };
 
 const std::unordered_map<std::string_view, TokenKind> keyword_table = {
-    {"return", TokenKind::Return},
-    {"if", TokenKind::If},
-    {"else", TokenKind::Else},
-    {"while", TokenKind::While},
-    {"for", TokenKind::For},
-    {"assert", TokenKind::Assert},
-    {"error", TokenKind::Error},
-    {"struct", TokenKind::Struct},
-    {"typedef", TokenKind::Typedef},
-    {"alloc", TokenKind::Alloc},
-    {"alloc_array", TokenKind::AllocArray},
-    {"true", TokenKind::True},
-    {"false", TokenKind::False},
-    {"NULL", TokenKind::Null},
-    {"int", TokenKind::Int},
-    {"bool", TokenKind::Bool},
-    {"string", TokenKind::String},
-    {"char", TokenKind::Char},
-    {"void", TokenKind::Void}};
+    {"extern", TokenKind::Extern}, {"return", TokenKind::Return},
+    {"if", TokenKind::If},         {"else", TokenKind::Else},
+    {"while", TokenKind::While},   {"for", TokenKind::For},
+    {"assert", TokenKind::Assert}, {"error", TokenKind::Error},
+    {"struct", TokenKind::Struct}, {"typedef", TokenKind::Typedef},
+    {"alloc", TokenKind::Alloc},   {"alloc_array", TokenKind::AllocArray},
+    {"true", TokenKind::True},     {"false", TokenKind::False},
+    {"NULL", TokenKind::Null},     {"int", TokenKind::Int},
+    {"bool", TokenKind::Bool},     {"string", TokenKind::String},
+    {"char", TokenKind::Char},     {"void", TokenKind::Void}};
 
 const std::unordered_set<token::TokenKind> binary_ops = {
     token::TokenKind::Plus,          token::TokenKind::Minus,
@@ -302,6 +294,8 @@ inline std::string token_kind_to_string(TokenKind kind) {
     return "Char";
   case TokenKind::Void:
     return "Void";
+  case TokenKind::Extern:
+    return "Extern";
   default:
     return "Unsupported";
   }

@@ -90,15 +90,26 @@ class AsmEmitter {
   void emit_line(const std::string &line) { out << "    " << line << "\n"; }
 
   void emit_label(const std::string &label) { out << "." << label << ":\n"; }
-
+  void emit_mov_imm(const std::string &dst, int64_t val) {
+    if (val >= 0 && val <= 65535) {
+      emit_line(std::format("mov {}, #{}", dst, val));
+    } else if (val >= -65536 && val < 0) {
+      emit_line(std::format("mov {}, #{}", dst, val));
+    } else {
+      auto uval = static_cast<uint32_t>(val);
+      emit_line(std::format("movz {}, #0x{:x}", dst, uval & 0xFFFF));
+      if ((uval >> 16) & 0xFFFF)
+        emit_line(std::format("movk {}, #0x{:x}, lsl #16", dst,
+                              (uval >> 16) & 0xFFFF));
+    }
+  }
   void emit_instruction(lir::Instruction *inst) {
     switch (inst->opcode) {
     case lir::Opcode::Mov: {
       auto dst = inst->def(0);
       auto src = inst->use(0);
       if (src.is_imm()) {
-        emit_line(std::format("mov {}, #{}", get_reg_name(dst.get_reg()),
-                              src.get_imm()));
+        emit_mov_imm(get_reg_name(dst.get_reg()), src.get_imm());
       } else {
         emit_line(std::format("mov {}, {}", get_reg_name(dst.get_reg()),
                               operand(src)));

@@ -16,3 +16,17 @@ add_executable(cc0 ${SOURCES})
 
 add_subdirectory(tests)
 
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/runtime.o
+    COMMAND clang -c -O2
+        ${CMAKE_SOURCE_DIR}/runtime/runtime.c
+        -o ${CMAKE_BINARY_DIR}/runtime.o
+    DEPENDS ${CMAKE_SOURCE_DIR}/runtime/runtime.c
+    COMMENT "Compiling runtime"
+)
+
+add_custom_target(runtime ALL
+    DEPENDS ${CMAKE_BINARY_DIR}/runtime.o
+)
+
+add_dependencies(cc0 runtime)

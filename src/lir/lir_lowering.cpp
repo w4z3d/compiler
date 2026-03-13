@@ -193,8 +193,9 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     return;
   }
   case hir::Opcode::Neg: {
-    auto dst = builder.emit_unop(lir::Opcode::Neg,
-                                 lower_operand(hir_instr->operand(0)));
+    auto reg = ensure_reg(lower_operand(hir_instr->operand(0)),
+                          class_from_type(hir_instr->type));
+    auto dst = builder.emit_unop(lir::Opcode::Neg, reg);
     if (hir_instr->type->is_pointer())
       dst.set_class(lir::Register::RegClass::GPR64);
     vreg_map[hir_instr] = dst;
@@ -281,7 +282,8 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     }
     lir::Register::RegClass clazz = class_from_type(hir_instr->type);
     auto *callee = dynamic_cast<hir::Function *>(hir_instr->operand(0));
-    auto dst = builder.emit_call(callee->name, std::move(args), clazz);
+    auto dst = builder.emit_call(callee->name, std::move(args), clazz,
+                                 !function_type->return_type->is_void());
     dst.set_class(clazz);
     vreg_map[hir_instr] = dst;
     return;

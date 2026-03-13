@@ -19,11 +19,30 @@
 #include "parser/parser.hpp"
 #include "report/report_builder.hpp"
 #include "type/source_type_registry.hpp"
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
 
 void clear_last_line() { std::cout << "\033[A\033[2K" << std::flush; }
+
+std::string find_runtime(const std::string &compiler_path) {
+  // Runtime liegt neben dem Compiler Binary
+  auto compiler_dir = std::filesystem::path(compiler_path).parent_path();
+  auto runtime = compiler_dir / "runtime.o";
+  if (std::filesystem::exists(runtime))
+    return runtime.string();
+
+  // Fallback: aktuelles Verzeichnis
+  if (std::filesystem::exists("runtime.o"))
+    return "runtime.o";
+
+  // Fallback: relativ zum Source
+  if (std::filesystem::exists("runtime/runtime.o"))
+    return "runtime/runtime.o";
+
+  return "";
+}
 
 int main(int argc, char *argv[]) {
   const auto file = io::read_file(argv[1]);
@@ -68,9 +87,9 @@ int main(int argc, char *argv[]) {
 
   clear_last_line();
   printf("[+] Optimizing HIR\n");
-  for (auto &function : module.functions) {
-    opt.optimize(function.get());
-  }
+  // for (auto &function : module.functions) {
+  //   opt.optimize(function.get());
+  // }
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
 
@@ -113,11 +132,19 @@ int main(int argc, char *argv[]) {
   std::ofstream out("output.s");
   out << asm_output;
   out.close();
+  std::string runtime_path = find_runtime(argv[0]);
+  if (runtime_path.empty()) {
+    std::cerr << "Error: cannot find runtime.o\n";
+    std::cerr << "Run: clang -c runtime/runtime.c -o runtime.o\n";
+    return 1;
+  }
 
+  const std::string link_cmd = "ld -o output output.o " + runtime_path +
+                               " -lSystem -syslibroot $(xcrun --sdk macosx "
+                               "--show-sdk-path) -arch arm64";
   // Assemble and link
   system("as -o output.o output.s");
-  system("ld -o output output.o -lSystem -syslibroot $(xcrun --sdk macosx "
-         "--show-sdk-path) -arch arm64");
+  system(link_cmd.c_str());
   if (diagnostics->has_errors()) {
     diagnostics->print_all();
     return 7;
