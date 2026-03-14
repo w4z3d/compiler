@@ -1,18 +1,8 @@
 int main() {
-    int[] arr = alloc_array(int, 5);
-
-    // Fill array
-    arr[0] = 5;
-    arr[1] = 5;
-    arr[2] = 5;
-    arr[3] = 5;
-    arr[4] = 5;
-
-    // Sum sorted array
-    int sum = 0;
-    for (int i = 0; i < 5; i += 1) {
-        sum += arr[i];
-    }
-
-    return sum;
+  int[] dirs = alloc_array(int, 4);
+  dirs[0] = 0;
+  dirs[1] = 1;
+  dirs[2] = 2;
+  dirs[3] = 3;
+  return dirs[0];
 }

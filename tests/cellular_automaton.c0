@@ -3,75 +3,91 @@ extern void print_int(int x);
 extern void println();
 extern void cc_sleep(int ms);
 
-struct World {
-  int width;
-  int height;
-  int count;
-  int[] xs;
-  int[] ys;
-  int[] speeds;
+struct Visualizer {
+  int size;
+  int max_height;
+  int[] arr;
 };
 
-World *new_world(int width, int height, int count) {
-  World *w = alloc(World);
-  w->width = width;
-  w->height = height;
-  w->count = count;
-
-  w->xs = alloc_array(int, count);
-  w->ys = alloc_array(int, count);
-  w->speeds = alloc_array(int, count);
-
-  for (int i = 0; i < count; i++) {
-    w->xs[i] = width - 1 - (i % width);
-    w->ys[i] = i % height;
-    w->speeds[i] = 1 + (i % 3);
-  }
-
-  return w;
-}
-
 void clear_screen() {
-  // ESC [ 2 J
   print_char(27);
   print_char(91);
   print_char(50);
   print_char(74);
 
-  // ESC [ H
   print_char(27);
   print_char(91);
   print_char(72);
 }
 
-int star_at(World *w, int x, int y) {
-  for (int i = 0; i < w->count; i++) {
-    if (w->xs[i] == x && w->ys[i] == y) {
-      int s = w->speeds[i];
-      if (s == 1) {
-        return 46; // .
-      } else if (s == 2) {
-        return 43; // +
-      } else {
-        return 42; // *
-      }
-    }
+Visualizer *new_visualizer(int size, int max_height) {
+  Visualizer *v = alloc(Visualizer);
+  v->size = size;
+  v->max_height = max_height;
+  v->arr = alloc_array(int, size);
+
+  // Fill ascending
+  for (int i = 0; i < size; i++) {
+    v->arr[i] = 1 + (i * max_height) / size;
   }
-  return 0;
+
+  // Shuffle with simple deterministic RNG
+  int seed = 1337;
+  for (int i = size - 1; i > 0; i--) {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    int j = seed % (i + 1);
+
+    int tmp = v->arr[i];
+    v->arr[i] = v->arr[j];
+    v->arr[j] = tmp;
+  }
+
+  return v;
 }
 
-void print_world(World *w, int step) {
+void print_bar_char(int active, int filled) {
+  if (filled == 0) {
+    print_char(32); // space
+  } else if (active == 1) {
+    print_char(42); // *
+  } else {
+    print_char(35); // #
+  }
+}
+
+void print_array(Visualizer *v, int a, int b, int pass, int step) {
   clear_screen();
 
-  print_char(83);  // S
-  print_char(116); // t
-  print_char(97);  // a
-  print_char(114); // r
-  print_char(102); // f
-  print_char(105); // i
-  print_char(101); // e
+  print_char(66);  // B
+  print_char(117); // u
+  print_char(98);  // b
+  print_char(98);  // b
   print_char(108); // l
-  print_char(100); // d
+  print_char(101); // e
+  print_char(32);  // space
+  print_char(83);  // S
+  print_char(111); // o
+  print_char(114); // r
+  print_char(116); // t
+  print_char(32);  // space
+  print_char(86);  // V
+  print_char(105); // i
+  print_char(115); // s
+  print_char(117); // u
+  print_char(97);  // a
+  print_char(108); // l
+  print_char(105); // i
+  print_char(122); // z
+  print_char(101); // e
+  print_char(114); // r
+  println();
+
+  print_char(80);  // P
+  print_char(97);  // a
+  print_char(115); // s
+  print_char(115); // s
+  print_char(32);  // space
+  print_int(pass);
   print_char(32);  // space
   print_char(83);  // S
   print_char(116); // t
@@ -81,57 +97,71 @@ void print_world(World *w, int step) {
   print_int(step);
   println();
 
+  // Top border
   print_char(43); // +
-  for (int x = 0; x < w->width; x++) {
+  for (int x = 0; x < v->size; x++) {
     print_char(45); // -
   }
   print_char(43); // +
   println();
 
-  for (int y = 0; y < w->height; y++) {
+  for (int y = v->max_height; y >= 1; y--) {
     print_char(124); // |
-    for (int x = 0; x < w->width; x++) {
-      int ch = star_at(w, x, y);
-      if (ch != 0) {
-        print_char(ch);
-      } else {
-        print_char(32); // space
+
+    for (int x = 0; x < v->size; x++) {
+      int filled = 0;
+      if (v->arr[x] >= y) {
+        filled = 1;
       }
+
+      int active = 0;
+      if (x == a || x == b) {
+        active = 1;
+      }
+
+      print_bar_char(active, filled);
     }
+
     print_char(124); // |
     println();
   }
 
+  // Bottom border
   print_char(43); // +
-  for (int x = 0; x < w->width; x++) {
+  for (int x = 0; x < v->size; x++) {
     print_char(45); // -
   }
   print_char(43); // +
   println();
 }
 
-void update_world(World *w) {
-  for (int i = 0; i < w->count; i++) {
-    w->xs[i] = w->xs[i] - w->speeds[i];
-    if (w->xs[i] < 0) {
-      w->xs[i] = w->width - 1;
-      w->ys[i] = (w->ys[i] + 3) % w->height;
+void bubble_sort_visualized(Visualizer *v) {
+  int step = 0;
+
+  for (int i = 0; i < v->size; i++) {
+    for (int j = 0; j < v->size - i - 1; j++) {
+      print_array(v, j, j + 1, i, step);
+      cc_sleep(5);
+      step = step + 1;
+
+      if (v->arr[j] > v->arr[j + 1]) {
+        int tmp = v->arr[j];
+        v->arr[j] = v->arr[j + 1];
+        v->arr[j + 1] = tmp;
+
+        print_array(v, j, j + 1, i, step);
+        cc_sleep(5);
+        step = step + 1;
+      }
     }
   }
+
+  // Final frame without active comparison
+  print_array(v, -1, -1, v->size, step);
 }
 
 int main() {
-  int width = 60;
-  int height = 20;
-  int count = 40;
-
-  World *w = new_world(width, height, count);
-
-  for (int step = 0; step < 2000; step++) {
-    print_world(w, step);
-    cc_sleep(40);
-    update_world(w);
-  }
-
+  Visualizer *v = new_visualizer(40, 20);
+  bubble_sort_visualized(v);
   return 0;
 }

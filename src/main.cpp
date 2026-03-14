@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
   printf("[+] Emitting HIR\n");
   unit->accept(hir_visitor);
 
-  std::cout << module.to_string() << std::endl;
+  std::cout << module.to_dot() << std::endl;
   OptPipeline opt{};
 
   clear_last_line();
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
   printf("[+] lowering to lir\n");
 
   lowering.lower_module(module);
-  std::cout << lir_module.to_string() << std::endl;
+  // std::cout << lir_module.to_string() << std::endl;
 
   clear_last_line();
   printf("[+] Performing Register Allocation\n");

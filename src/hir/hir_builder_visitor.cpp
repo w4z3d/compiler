@@ -53,11 +53,6 @@ HIRBuilderVisitor::get_source_lvalue_type(LValue *lval) {
       auto *at = static_cast<const source_type::ArrayType *>(base_type);
       return at->element;
     }
-    // Pointer arithmetic fallback
-    if (base_type->is_pointer()) {
-      auto *pt = static_cast<const source_type::PointerType *>(base_type);
-      return pt->pointee.unqualified();
-    }
     assert(false && "array access on non-array, non-pointer");
     return nullptr;
   }
@@ -110,17 +105,29 @@ hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
 
   case LValue::Kind::Array: {
     auto *arr = static_cast<ArrayAccessLValue *>(lval);
-    auto *base_ptr = resolve_lvalue_to_ptr(arr->get_base());
+    auto *base_value = resolve_lvalue_to_ptr(arr->get_base());
     auto *base_src_type = get_source_lvalue_type(arr->get_base());
+
+    std::cout << "Method " << current_function->name << std::endl;
+    std::cout << "Array LValue in resolve_lvalue_ptr base_value is "
+              << base_value->to_string() << " base_src_type is "
+              << base_src_type->to_string() << " Base Value Type is "
+              << base_value->type->to_string() << std::endl;
+    assert(base_src_type->is_array() && "Fick dich");
 
     arr->get_index()->accept(*this);
     auto *index = pop_stack();
 
-    if (base_src_type->is_array() || base_src_type->is_pointer()) {
+    if (base_value->type->is_pointer()) {
+      auto *arr_ptr = builder.build_load(types.ptr(), base_value);
+      auto *at = static_cast<const source_type::ArrayType *>(base_src_type);
+      auto *elem_ir_type = lower_type(at->element);
+      return builder.build_gep(elem_ir_type, arr_ptr, {index});
+    } else {
 
       auto *at = static_cast<const source_type::ArrayType *>(base_src_type);
       auto *elem_ir_type = lower_type(at->element);
-      return builder.build_gep(elem_ir_type, base_ptr, {index});
+      return builder.build_gep(elem_ir_type, base_value, {index});
     }
   }
 
@@ -415,9 +422,6 @@ void HIRBuilderVisitor::visit(VarExpr &expr) {
   // and inserts phi nodes where needed
 
   hir::Value *val = read_variable(symbol->get_id(), current_block);
-  std::cerr << "VarExpr " << symbol->get_name()
-            << " val_type: " << (void *)val->type << " ("
-            << val->type->to_string() << ")" << std::endl;
 
   value_stack.push(val);
 }
@@ -428,9 +432,6 @@ void HIRBuilderVisitor::visit(AssignmentStatement &stmt) {
   if (stmt.get_lvalue()->get_kind() == LValue::Kind::Variable) {
     auto *var_lval = static_cast<VariableLValue *>(stmt.get_lvalue());
     size_t symbol_id = var_lval->get_symbol()->get_id();
-    std::cerr << "Assign " << var_lval->get_symbol()->get_name()
-              << " val_type: " << (void *)rhs_var->type << " ("
-              << rhs_var->type->to_string() << ")" << std::endl;
     if (stmt.get_op() == AssignmentOperator::Equals) {
       write_variable(symbol_id, current_block, rhs_var);
     } else {
@@ -666,10 +667,6 @@ void HIRBuilderVisitor::visit(NumericExpr &expr) {
   }
   auto *val = module.const_int(types.i32(), static_cast<int64_t>(num));
 
-  // Debug:
-  std::cerr << "NumericExpr: " << num << " type: " << val->type->to_string()
-            << " type_ptr: " << val->type << std::endl;
-
   value_stack.push(val);
 }
 void HIRBuilderVisitor::visit(CallExpr &expr) {
@@ -713,11 +710,6 @@ void HIRBuilderVisitor::visit(BinaryOperatorExpression &expr) {
 
   expr.get_right_expression()->accept(*this);
   auto *rhs = pop_stack();
-  std::cerr << "BinOp " << (int)expr.get_operator_kind()
-            << " lhs_type: " << (void *)lhs->type << " ("
-            << lhs->type->to_string() << ")"
-            << " rhs_type: " << (void *)rhs->type << " ("
-            << rhs->type->to_string() << ")" << std::endl;
   hir::Value *result;
   switch (expr.get_operator_kind()) {
   case BinaryOperator::Add:
@@ -893,6 +885,7 @@ void HIRBuilderVisitor::visit(AllocArrayExpression &expr) {
     malloc->is_extern = true;
   }
   hir::Value *ptr = builder.build_call(malloc, {mul});
+  ptr->type = types.get_array(0, elem_ir_type);
 
   value_stack.push(ptr);
 }

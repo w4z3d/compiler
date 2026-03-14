@@ -14,6 +14,13 @@ Board *new_board(int width, int height) {
   b->width = width;
   b->height = height;
   b->cells = alloc_array(int, width *height);
+  // mov x0, #2
+  // mov x1, #8
+  // mul x0, x1, x0
+  // add x0, x19, x0
+  // ldr x1, [x0]
+  //
+  // str rhs, [x1]
   for (int i = 0; i < width * height; i++) {
     b->cells[i] = 0;
   }
@@ -31,6 +38,27 @@ int get_cell(Board *b, int x, int y) {
     return 0;
   return b->cells[y * b->width + x];
 }
+
+// x0 = malloc(struct Board);
+// x19 = copy x0
+// ...
+// ...
+// mov x0, #4
+// mov x1, #4
+// mul x0, x1, x0
+// add x0, x19, x0
+// ldr x0, [x0]
+//
+//
+// mov x0, #4
+// mov x1, #0
+// mul x0, x1, x0
+// add x0, x19, x0
+// ldr x2, [x0]
+//
+// mul x1, x21, x2
+// add x0, x1, x20
+// mul
 
 void set_cell(Board *b, int x, int y, int val) {
   b->cells[y * b->width + x] = val;
