@@ -1,121 +1,334 @@
 extern void print_char(int c);
+extern void print_int(int x);
 extern void println();
+extern void cc_sleep(int ms);
 
 struct Maze {
-    int width;
-    int height;
-    int[] walls;
-    int[] visited;
+  int width;
+  int height;
+  int[] walls;
+  int[] visited;
+  int[] path;
 };
 
-Maze* new_maze(int w, int h) {
-    Maze* m = alloc(Maze);
-    m->width = w;
-    m->height = h;
-    m->walls = alloc_array(int, w * h * 4);
-    m->visited = alloc_array(int, w * h);
-    for (int i = 0; i < w * h; i++) {
-        m->visited[i] = 0;
-    }
-    for (int i = 0; i < w * h * 4; i++) {
-        m->walls[i] = 1;
-    }
-    return m;
+void clear_screen() {
+  print_char(27);
+  print_char(91);
+  print_char(50);
+  print_char(74);
+
+  print_char(27);
+  print_char(91);
+  print_char(72);
 }
 
-int maze_idx(Maze* m, int x, int y) {
-    return y * m->width + x;
+Maze *new_maze(int w, int h) {
+  Maze *m = alloc(Maze);
+  m->width = w;
+  m->height = h;
+  m->walls = alloc_array(int, w * h * 4);
+  m->visited = alloc_array(int, w *h);
+  m->path = alloc_array(int, w *h);
+
+  for (int i = 0; i < w * h; i++) {
+    m->visited[i] = 0;
+    m->path[i] = 0;
+  }
+
+  for (int i = 0; i < w * h * 4; i++) {
+    m->walls[i] = 1;
+  }
+
+  return m;
 }
 
-void remove_wall(Maze* m, int x, int y, int dir) {
-    m->walls[maze_idx(m, x, y) * 4 + dir] = 0;
+int maze_idx(Maze *m, int x, int y) { return y * m->width + x; }
+
+int in_bounds(Maze *m, int x, int y) {
+  if (x < 0)
+    return 0;
+  if (y < 0)
+    return 0;
+  if (x >= m->width)
+    return 0;
+  if (y >= m->height)
+    return 0;
+  return 1;
 }
 
-int has_wall(Maze* m, int x, int y, int dir) {
-    return m->walls[maze_idx(m, x, y) * 4 + dir];
+int wall_idx(Maze *m, int x, int y, int dir) {
+  return maze_idx(m, x, y) * 4 + dir;
 }
 
-void carve(Maze* m, int x, int y, int seed) {
-    m->visited[maze_idx(m, x, y)] = 1;
-
-    int[] dirs = alloc_array(int, 4);
-    dirs[0] = 0; dirs[1] = 1; dirs[2] = 2; dirs[3] = 3;
-
-    // Fisher-Yates shuffle
-    for (int i = 3; i > 0; i--) {
-        seed = (seed * 11035152 + 12345) & 0x7fffffff;
-        int j = seed % (i + 1);
-        int tmp = dirs[i];
-        dirs[i] = dirs[j];
-        dirs[j] = tmp;
-    }
-
-    // dx: 0=right, 1=down, 2=left, 3=up
-    int[] dx = alloc_array(int, 4);
-    int[] dy = alloc_array(int, 4);
-    dx[0] = 1; dx[1] = 0; dx[2] = -1; dx[3] = 0;
-    dy[0] = 0; dy[1] = 1; dy[2] = 0;  dy[3] = -1;
-
-    for (int i = 0; i < 4; i++) {
-        int d = dirs[i];
-        int nx = x + dx[d];
-        int ny = y + dy[d];
-
-        if (nx >= 0 && nx < m->width && ny >= 0 && ny < m->height) {
-            if (m->visited[maze_idx(m, nx, ny)] == 0) {
-                remove_wall(m, x, y, d);
-                int opposite = (d + 2) % 4;
-                remove_wall(m, nx, ny, opposite);
-                carve(m, nx, ny, seed + nx * 31 + ny * 17);
-            }
-        }
-    }
+void remove_wall(Maze *m, int x, int y, int dir) {
+  m->walls[wall_idx(m, x, y, dir)] = 0;
 }
 
-void print_maze(Maze* m) {
-    // Top border
+int has_wall(Maze *m, int x, int y, int dir) {
+  return m->walls[wall_idx(m, x, y, dir)];
+}
+
+int opposite_dir(int d) {
+  if (d == 0)
+    return 2;
+  if (d == 1)
+    return 3;
+  if (d == 2)
+    return 0;
+  return 1;
+}
+
+// 0=right 1=down 2=left 3=up
+int dir_dx(int d) {
+  if (d == 0)
+    return 1;
+  if (d == 1)
+    return 0;
+  if (d == 2)
+    return -1;
+  return 0;
+}
+
+int dir_dy(int d) {
+  if (d == 0)
+    return 0;
+  if (d == 1)
+    return 1;
+  if (d == 2)
+    return 0;
+  return -1;
+}
+
+int next_seed(int seed) { return (seed * 1103515245 + 12345) & 0x7fffffff; }
+
+void reset_solver_state(Maze *m) {
+  for (int i = 0; i < m->width * m->height; i++) {
+    m->visited[i] = 0;
+    m->path[i] = 0;
+  }
+}
+
+void print_maze(Maze *m, int cx, int cy, int step, int extra) {
+  clear_screen();
+
+  print_char(77);  // M
+  print_char(97);  // a
+  print_char(122); // z
+  print_char(101); // e
+  print_char(32);
+  print_char(83);  // S
+  print_char(116); // t
+  print_char(101); // e
+  print_char(112); // p
+  print_char(32);
+  print_int(step);
+  print_char(32);
+  print_char(73);  // I
+  print_char(110); // n
+  print_char(102); // f
+  print_char(111); // o
+  print_char(32);
+  print_int(extra);
+  println();
+
+  for (int x = 0; x < m->width; x++) {
+    print_char(43);
+    print_char(45);
+    print_char(45);
+  }
+  print_char(43);
+  println();
+
+  for (int y = 0; y < m->height; y++) {
+    print_char(124);
+
     for (int x = 0; x < m->width; x++) {
-        print_char(43);  // +
-        print_char(45);  // -
+      int idx = maze_idx(m, x, y);
+
+      if (x == cx && y == cy) {
+        print_char(64); // @
+      } else if (m->path[idx] == 1) {
+        print_char(42); // *
+      } else if (m->visited[idx] == 1) {
+        print_char(46); // .
+      } else {
+        print_char(32);
+      }
+
+      print_char(32);
+
+      if (x < m->width - 1) {
+        if (has_wall(m, x, y, 0) == 1) {
+          print_char(124);
+        } else {
+          print_char(32);
+        }
+      }
+    }
+
+    print_char(124);
+    println();
+
+    for (int x = 0; x < m->width; x++) {
+      print_char(43);
+      if (has_wall(m, x, y, 1) == 1) {
         print_char(45);
+        print_char(45);
+      } else {
+        print_char(32);
+        print_char(32);
+      }
     }
     print_char(43);
     println();
+  }
+}
 
-    for (int y = 0; y < m->height; y++) {
-        // Cell row
-        print_char(124); // |
-        for (int x = 0; x < m->width; x++) {
-            print_char(32); // space (cell)
-            if (x < m->width - 1 && has_wall(m, x, y, 0) == 1) {
-                print_char(124); // |
-            } else if (x < m->width - 1) {
-                print_char(32);
-            }
-        }
-        print_char(32);
-        print_char(124);
-        println();
+void generate_maze(Maze *m, int seed) {
+  int total = m->width * m->height;
 
-        // Bottom wall row
-        for (int x = 0; x < m->width; x++) {
-            print_char(43); // +
-            if (has_wall(m, x, y, 1) == 1) {
-                print_char(45); // -
-                print_char(45);
-            } else {
-                print_char(32);
-                print_char(32);
-            }
+  int[] stack_x = alloc_array(int, total);
+  int[] stack_y = alloc_array(int, total);
+
+  int sp = 0;
+  int step = 0;
+
+  stack_x[0] = 0;
+  stack_y[0] = 0;
+  m->visited[maze_idx(m, 0, 0)] = 1;
+
+  while (sp >= 0) {
+    int x = stack_x[sp];
+    int y = stack_y[sp];
+
+    print_maze(m, x, y, step, sp + 1);
+    cc_sleep(15);
+    step = step + 1;
+
+    int[] dirs = alloc_array(int, 4);
+    int count = 0;
+
+    for (int d = 0; d < 4; d++) {
+      int nx = x + dir_dx(d);
+      int ny = y + dir_dy(d);
+
+      if (in_bounds(m, nx, ny) == 1) {
+        if (m->visited[maze_idx(m, nx, ny)] == 0) {
+          dirs[count] = d;
+          count = count + 1;
         }
-        print_char(43);
-        println();
+      }
     }
+
+    if (count == 0) {
+      sp = sp - 1;
+    } else {
+      seed = next_seed(seed);
+      int pick = seed % count;
+      int d = dirs[pick];
+
+      int nx = x + dir_dx(d);
+      int ny = y + dir_dy(d);
+
+      remove_wall(m, x, y, d);
+      remove_wall(m, nx, ny, opposite_dir(d));
+
+      sp = sp + 1;
+      stack_x[sp] = nx;
+      stack_y[sp] = ny;
+      m->visited[maze_idx(m, nx, ny)] = 1;
+    }
+  }
+}
+
+void solve_maze_bfs(Maze *m, int sx, int sy, int tx, int ty) {
+  reset_solver_state(m);
+
+  int total = m->width * m->height;
+
+  int[] qx = alloc_array(int, total);
+  int[] qy = alloc_array(int, total);
+  int[] parent_x = alloc_array(int, total);
+  int[] parent_y = alloc_array(int, total);
+
+  for (int i = 0; i < total; i++) {
+    parent_x[i] = -1;
+    parent_y[i] = -1;
+  }
+
+  int head = 0;
+  int tail = 0;
+  int step = 0;
+
+  qx[tail] = sx;
+  qy[tail] = sy;
+  tail = tail + 1;
+  m->visited[maze_idx(m, sx, sy)] = 1;
+
+  while (head < tail) {
+    int x = qx[head];
+    int y = qy[head];
+    head = head + 1;
+
+    print_maze(m, x, y, step, tail - head);
+    cc_sleep(20);
+    step = step + 1;
+
+    for (int d = 0; d < 4; d++) {
+      if (has_wall(m, x, y, d) == 0) {
+        int nx = x + dir_dx(d);
+        int ny = y + dir_dy(d);
+
+        if (in_bounds(m, nx, ny) == 1) {
+          int nidx = maze_idx(m, nx, ny);
+          if (m->visited[nidx] == 0) {
+            m->visited[nidx] = 1;
+            parent_x[nidx] = x;
+            parent_y[nidx] = y;
+
+            qx[tail] = nx;
+            qy[tail] = ny;
+            tail = tail + 1;
+          }
+        }
+      }
+    }
+  }
+
+  // Reconstruct path
+  int x = tx;
+  int y = ty;
+
+  while (!(x == sx && y == sy)) {
+    int idx = maze_idx(m, x, y);
+    m->path[idx] = 1;
+
+    print_maze(m, x, y, step, 0);
+    cc_sleep(35);
+    step = step + 1;
+
+    int px = parent_x[idx];
+    int py = parent_y[idx];
+
+    if (px == -1 && py == -1) {
+      // no path found
+      return;
+    }
+
+    x = px;
+    y = py;
+  }
+
+  m->path[maze_idx(m, sx, sy)] = 1;
+  print_maze(m, sx, sy, step, 0);
 }
 
 int main() {
-    Maze* m = new_maze(12, 8);
-    carve(m, 0, 0, 42069);
-    print_maze(m);
-    return 0;
+  Maze *m = new_maze(30, 10);
+
+  generate_maze(m, 1337);
+  cc_sleep(300);
+
+  solve_maze_bfs(m, 0, 0, m->width - 1, m->height - 1);
+  return 0;
 }

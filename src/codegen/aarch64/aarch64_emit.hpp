@@ -13,7 +13,12 @@ namespace aarch64 {
 class AsmEmitter {
   std::ostringstream out;
   const TargetInfo &target;
+  int slot_offset(int slot) const { return -8 * (slot + 1); }
 
+  size_t spill_area_size(lir::Function *func) const {
+    size_t raw = func->next_spill_slot * 8;
+    return (raw + 15) & ~15ULL;
+  }
   // Emit a register name (w for 32-bit, x for 64-bit)
   // For now assume 32-bit (int) for everything
   std::string get_reg_name(lir::Register reg) {
@@ -221,14 +226,33 @@ class AsmEmitter {
     }
     case lir::Opcode::Load: {
       auto dst = get_reg_name(inst->def(0).get_reg());
-      auto addr = xreg(inst->use(0).get_reg());
-      emit_line(std::format("ldr {}, [{}]", dst, addr));
+      auto src = inst->use(0);
+
+      if (src.is_reg()) {
+        auto addr = xreg(src.get_reg());
+        emit_line(std::format("ldr {}, [{}]", dst, addr));
+      } else if (src.is_slot()) {
+        int off = slot_offset(src.get_slot());
+        emit_line(std::format("ldur {}, [fp, #{}]", dst, off));
+      } else {
+        throw std::runtime_error("invalid load operand");
+      }
       break;
     }
+
     case lir::Opcode::Store: {
-      auto addr = xreg(inst->use(0).get_reg());
-      auto src = get_reg_name(inst->use(1).get_reg());
-      emit_line(std::format("str {}, [{}]", src, addr));
+      auto dst = inst->operands[0];
+      auto src = get_reg_name(inst->operands[1].get_reg());
+
+      if (dst.is_reg()) {
+        auto addr = xreg(dst.get_reg());
+        emit_line(std::format("str {}, [{}]", src, addr));
+      } else if (dst.is_slot()) {
+        int off = slot_offset(dst.get_slot());
+        emit_line(std::format("stur {}, [fp, #{}]", src, off));
+      } else {
+        throw std::runtime_error("invalid store operand");
+      }
       break;
     }
     case lir::Opcode::Jump: {
@@ -277,33 +301,28 @@ class AsmEmitter {
 
   void emit_prologue(lir::Function *func) {
     auto callee_regs = used_callee_saved(func);
+    bool save_fp_lr = func->has_calls || func->next_spill_slot > 0;
 
-    // Always save fp and lr if function has calls
-    bool save_fp_lr = func->has_calls;
-
-    // Calculate frame size: callee-saved pairs + alignment
-    size_t frame_size = 0;
+    size_t save_area = 0;
     if (save_fp_lr)
-      frame_size += 16;
-    // Round callee-saved to pairs
+      save_area += 16;
+
     size_t callee_pairs = (callee_regs.size() + 1) / 2;
-    frame_size += callee_pairs * 16;
+    save_area += callee_pairs * 16;
+    save_area = (save_area + 15) & ~15ULL;
 
-    // Align to 16 bytes
-    frame_size = (frame_size + 15) & ~15ULL;
+    size_t spill_area = spill_area_size(func);
 
-    if (frame_size == 0)
+    if (save_area == 0 && spill_area == 0)
       return;
 
-    // Save fp and lr
     if (save_fp_lr) {
-      emit_line(std::format("stp fp, lr, [sp, #-{}]!", frame_size));
+      emit_line(std::format("stp fp, lr, [sp, #-{}]!", save_area));
       emit_line("mov fp, sp");
-    } else if (frame_size > 0) {
-      emit_line(std::format("sub sp, sp, #{}", frame_size));
+    } else {
+      emit_line(std::format("sub sp, sp, #{}", save_area));
     }
 
-    // Save callee-saved registers
     size_t offset = save_fp_lr ? 16 : 0;
     for (size_t i = 0; i < callee_regs.size(); i += 2) {
       if (i + 1 < callee_regs.size()) {
@@ -315,24 +334,35 @@ class AsmEmitter {
       }
       offset += 16;
     }
+
+    if (spill_area != 0) {
+      emit_line(std::format("sub sp, sp, #{}", spill_area));
+    }
   }
 
   void emit_epilogue(lir::Function *func) {
     auto callee_regs = used_callee_saved(func);
+    bool save_fp_lr = func->has_calls || func->next_spill_slot > 0;
 
-    bool save_fp_lr = func->has_calls;
-
-    size_t frame_size = 0;
+    size_t save_area = 0;
     if (save_fp_lr)
-      frame_size += 16;
-    size_t callee_pairs = (callee_regs.size() + 1) / 2;
-    frame_size += callee_pairs * 16;
-    frame_size = (frame_size + 15) & ~15ULL;
+      save_area += 16;
 
-    if (frame_size == 0)
+    size_t callee_pairs = (callee_regs.size() + 1) / 2;
+    save_area += callee_pairs * 16;
+    save_area = (save_area + 15) & ~15ULL;
+
+    size_t spill_area = spill_area_size(func);
+
+    if (save_area == 0 && spill_area == 0)
       return;
 
-    // Restore callee-saved registers
+    if (save_fp_lr) {
+      emit_line("mov sp, fp");
+    } else if (spill_area != 0) {
+      emit_line(std::format("add sp, sp, #{}", spill_area));
+    }
+
     size_t offset = save_fp_lr ? 16 : 0;
     for (size_t i = 0; i < callee_regs.size(); i += 2) {
       if (i + 1 < callee_regs.size()) {
@@ -345,11 +375,10 @@ class AsmEmitter {
       offset += 16;
     }
 
-    // Restore fp and lr
     if (save_fp_lr) {
-      emit_line(std::format("ldp fp, lr, [sp], #{}", frame_size));
-    } else {
-      emit_line(std::format("add sp, sp, #{}", frame_size));
+      emit_line(std::format("ldp fp, lr, [sp], #{}", save_area));
+    } else if (save_area != 0) {
+      emit_line(std::format("add sp, sp, #{}", save_area));
     }
   }
 

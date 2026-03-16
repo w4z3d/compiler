@@ -4,11 +4,9 @@
 #include "analysis/type_check.hpp"
 #include "codegen/aarch64/aarch64_defs.hpp"
 #include "codegen/aarch64/aarch64_emit.hpp"
-#include "codegen/aarch64/precolor_info.hpp"
 #include "codegen/regalloc.hpp"
 #include "defs/ast.hpp"
 #include "defs/ast_printer.hpp"
-#include "graph_coloring/graph_coloring.hpp"
 #include "hir/hir.hpp"
 #include "hir/hir_builder_visitor.hpp"
 #include "hir/opt/optimization_pipeline.hpp"
@@ -101,27 +99,7 @@ int main(int argc, char *argv[]) {
 
   clear_last_line();
   printf("[+] Performing Register Allocation\n");
-  for (auto *func : lir_module.functions) {
-    auto info = liveness::compute_liveness(func);
-    UndirectedGraph graph(info.num_vregs);
-    liveness::build_interference_graph(func, info, graph);
-
-    auto coalesce_info =
-        regalloc::coalesce(func, graph, aarch64::target.num_allocatable);
-
-    auto precolored = precolor(func);
-
-    auto coloring = graph.color(precolored, info.num_vregs);
-
-    for (auto &[removed, kept] : coalesce_info.representative) {
-      unsigned root = coalesce_info.find(removed);
-      if (coloring.contains(root)) {
-        coloring[removed] = coloring[root];
-      }
-    }
-
-    regalloc::rewrite_registers(func, coloring);
-  }
+  regalloc::allocate_registers(lir_module, aarch64::target);
 
   aarch64::AsmEmitter emitter(aarch64::target);
   clear_last_line();

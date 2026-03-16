@@ -4,10 +4,12 @@
 #include <cassert>
 #include <cstdint>
 #include <iostream>
+#include <list>
 #include <optional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace lir {
@@ -277,7 +279,8 @@ struct Function {
   bool has_return_value = true;
   bool has_calls = false;
   bool is_extern = false;
-
+  std::unordered_map<size_t, size_t> spill_slots;
+  size_t next_spill_slot = 0;
   [[nodiscard]] BasicBlock *entry_block() const {
     assert(!blocks.empty());
     return blocks.front();

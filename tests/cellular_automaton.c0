@@ -3,10 +3,14 @@ extern void print_int(int x);
 extern void println();
 extern void cc_sleep(int ms);
 
-struct Visualizer {
-  int size;
-  int max_height;
-  int[] arr;
+struct VM {
+  int[] code;
+  int code_size;
+  int[] stack;
+  int sp;
+  int pc;
+  int halted;
+  int last_output;
 };
 
 void clear_screen() {
@@ -20,148 +24,322 @@ void clear_screen() {
   print_char(72);
 }
 
-Visualizer *new_visualizer(int size, int max_height) {
-  Visualizer *v = alloc(Visualizer);
-  v->size = size;
-  v->max_height = max_height;
-  v->arr = alloc_array(int, size);
+VM *new_vm() {
+  VM *vm = alloc(VM);
+  vm->code = alloc_array(int, 64);
+  vm->stack = alloc_array(int, 64);
+  vm->code_size = 0;
+  vm->sp = 0;
+  vm->pc = 0;
+  vm->halted = 0;
+  vm->last_output = -1;
 
-  // Fill ascending
-  for (int i = 0; i < size; i++) {
-    v->arr[i] = 1 + (i * max_height) / size;
+  for (int i = 0; i < 64; i++) {
+    vm->code[i] = 0;
+    vm->stack[i] = 0;
   }
 
-  // Shuffle with simple deterministic RNG
-  int seed = 1337;
-  for (int i = size - 1; i > 0; i--) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    int j = seed % (i + 1);
-
-    int tmp = v->arr[i];
-    v->arr[i] = v->arr[j];
-    v->arr[j] = tmp;
-  }
-
-  return v;
+  return vm;
 }
 
-void print_bar_char(int active, int filled) {
-  if (filled == 0) {
-    print_char(32); // space
-  } else if (active == 1) {
-    print_char(42); // *
+void emit(VM *vm, int x) {
+  vm->code[vm->code_size] = x;
+  vm->code_size = vm->code_size + 1;
+}
+
+void push(VM *vm, int x) {
+  vm->stack[vm->sp] = x;
+  vm->sp = vm->sp + 1;
+}
+
+int pop(VM *vm) {
+  vm->sp = vm->sp - 1;
+  return vm->stack[vm->sp];
+}
+
+int peek(VM *vm) { return vm->stack[vm->sp - 1]; }
+
+void print_opcode_name(int op) {
+  if (op == 0) {
+    print_char(72);
+    print_char(65);
+    print_char(76);
+    print_char(84);
+  } else if (op == 1) {
+    print_char(80);
+    print_char(85);
+    print_char(83);
+    print_char(72);
+  } else if (op == 2) {
+    print_char(65);
+    print_char(68);
+    print_char(68);
+  } else if (op == 3) {
+    print_char(83);
+    print_char(85);
+    print_char(66);
+  } else if (op == 4) {
+    print_char(77);
+    print_char(85);
+    print_char(76);
+  } else if (op == 5) {
+    print_char(68);
+    print_char(85);
+    print_char(80);
+  } else if (op == 6) {
+    print_char(80);
+    print_char(79);
+    print_char(80);
+  } else if (op == 7) {
+    print_char(83);
+    print_char(87);
+    print_char(65);
+    print_char(80);
+  } else if (op == 8) {
+    print_char(74);
+    print_char(77);
+    print_char(80);
+  } else if (op == 9) {
+    print_char(74);
+    print_char(90);
+  } else if (op == 10) {
+    print_char(80);
+    print_char(82);
+    print_char(73);
+    print_char(78);
+    print_char(84);
   } else {
-    print_char(35); // #
+    print_char(63);
   }
 }
 
-void print_array(Visualizer *v, int a, int b, int pass, int step) {
+void print_vm(VM *vm, int step) {
   clear_screen();
 
-  print_char(66);  // B
-  print_char(117); // u
-  print_char(98);  // b
-  print_char(98);  // b
-  print_char(108); // l
-  print_char(101); // e
-  print_char(32);  // space
-  print_char(83);  // S
-  print_char(111); // o
-  print_char(114); // r
-  print_char(116); // t
-  print_char(32);  // space
-  print_char(86);  // V
+  print_char(77);  // M
   print_char(105); // i
-  print_char(115); // s
-  print_char(117); // u
-  print_char(97);  // a
-  print_char(108); // l
+  print_char(110); // n
   print_char(105); // i
-  print_char(122); // z
-  print_char(101); // e
-  print_char(114); // r
-  println();
-
-  print_char(80);  // P
-  print_char(97);  // a
-  print_char(115); // s
-  print_char(115); // s
-  print_char(32);  // space
-  print_int(pass);
-  print_char(32);  // space
+  print_char(32);
+  print_char(86); // V
+  print_char(77);
+  print_char(32);
   print_char(83);  // S
   print_char(116); // t
   print_char(101); // e
   print_char(112); // p
-  print_char(32);  // space
+  print_char(32);
   print_int(step);
   println();
 
-  // Top border
-  print_char(43); // +
-  for (int x = 0; x < v->size; x++) {
-    print_char(45); // -
-  }
-  print_char(43); // +
+  print_char(80); // P
+  print_char(67); // C
+  print_char(32);
+  print_int(vm->pc);
+  print_char(32);
+  print_char(83); // S
+  print_char(80); // P
+  print_char(32);
+  print_int(vm->sp);
+  print_char(32);
+  print_char(79);  // O
+  print_char(117); // u
+  print_char(116); // t
+  print_char(32);
+  print_int(vm->last_output);
   println();
 
-  for (int y = v->max_height; y >= 1; y--) {
-    print_char(124); // |
+  print_char(67);  // C
+  print_char(117); // u
+  print_char(114); // r
+  print_char(114); // r
+  print_char(101); // e
+  print_char(110); // n
+  print_char(116); // t
+  print_char(32);
+  print_char(79);  // O
+  print_char(112); // p
+  print_char(32);
 
-    for (int x = 0; x < v->size; x++) {
-      int filled = 0;
-      if (v->arr[x] >= y) {
-        filled = 1;
-      }
+  if (vm->pc < vm->code_size) {
+    print_opcode_name(vm->code[vm->pc]);
+  } else {
+    print_char(69); // E
+    print_char(78); // N
+    print_char(68); // D
+  }
+  println();
+  println();
 
-      int active = 0;
-      if (x == a || x == b) {
-        active = 1;
-      }
+  print_char(67);  // C
+  print_char(111); // o
+  print_char(100); // d
+  print_char(101); // e
+  print_char(58);  // :
+  println();
 
-      print_bar_char(active, filled);
+  for (int i = 0; i < vm->code_size; i++) {
+    if (i == vm->pc) {
+      print_char(62); // >
+      print_char(62);
+    } else {
+      print_char(32);
+      print_char(32);
     }
-
-    print_char(124); // |
+    print_int(i);
+    print_char(58);
+    print_char(32);
+    print_int(vm->code[i]);
     println();
   }
 
-  // Bottom border
-  print_char(43); // +
-  for (int x = 0; x < v->size; x++) {
-    print_char(45); // -
-  }
-  print_char(43); // +
   println();
-}
 
-void bubble_sort_visualized(Visualizer *v) {
-  int step = 0;
+  print_char(83);  // S
+  print_char(116); // t
+  print_char(97);  // a
+  print_char(99);  // c
+  print_char(107); // k
+  print_char(58);  // :
+  println();
 
-  for (int i = 0; i < v->size; i++) {
-    for (int j = 0; j < v->size - i - 1; j++) {
-      print_array(v, j, j + 1, i, step);
-      cc_sleep(5);
-      step = step + 1;
-
-      if (v->arr[j] > v->arr[j + 1]) {
-        int tmp = v->arr[j];
-        v->arr[j] = v->arr[j + 1];
-        v->arr[j + 1] = tmp;
-
-        print_array(v, j, j + 1, i, step);
-        cc_sleep(5);
-        step = step + 1;
+  if (vm->sp == 0) {
+    print_char(40);  // (
+    print_char(101); // e
+    print_char(109); // m
+    print_char(112); // p
+    print_char(116); // t
+    print_char(121); // y
+    print_char(41);  // )
+    println();
+  } else {
+    for (int i = vm->sp - 1; i >= 0; i--) {
+      if (i == vm->sp - 1) {
+        print_char(84); // T
+        print_char(79); // O
+        print_char(80); // P
+        print_char(32);
+      } else {
+        print_char(32);
+        print_char(32);
+        print_char(32);
+        print_char(32);
       }
+      print_int(vm->stack[i]);
+      println();
     }
   }
+}
 
-  // Final frame without active comparison
-  print_array(v, -1, -1, v->size, step);
+void step_vm(VM *vm) {
+  if (vm->halted == 1) {
+    return;
+  }
+
+  int op = vm->code[vm->pc];
+
+  if (op == 0) {
+    vm->halted = 1;
+    vm->pc = vm->pc + 1;
+  } else if (op == 1) {
+    int imm = vm->code[vm->pc + 1];
+    push(vm, imm);
+    vm->pc = vm->pc + 2;
+  } else if (op == 2) {
+    int b = pop(vm);
+    int a = pop(vm);
+    push(vm, a + b);
+    vm->pc = vm->pc + 1;
+  } else if (op == 3) {
+    int b = pop(vm);
+    int a = pop(vm);
+    push(vm, a - b);
+    vm->pc = vm->pc + 1;
+  } else if (op == 4) {
+    int b = pop(vm);
+    int a = pop(vm);
+    push(vm, a * b);
+    vm->pc = vm->pc + 1;
+  } else if (op == 5) {
+    int a = peek(vm);
+    push(vm, a);
+    vm->pc = vm->pc + 1;
+  } else if (op == 6) {
+    pop(vm);
+    vm->pc = vm->pc + 1;
+  } else if (op == 7) {
+    int a = pop(vm);
+    int b = pop(vm);
+    push(vm, a);
+    push(vm, b);
+    vm->pc = vm->pc + 1;
+  } else if (op == 8) {
+    int addr = vm->code[vm->pc + 1];
+    vm->pc = addr;
+  } else if (op == 9) {
+    int addr = vm->code[vm->pc + 1];
+    int cond = pop(vm);
+    if (cond == 0) {
+      vm->pc = addr;
+    } else {
+      vm->pc = vm->pc + 2;
+    }
+  } else if (op == 10) {
+    int a = peek(vm);
+    vm->last_output = a;
+    vm->pc = vm->pc + 1;
+  } else {
+    vm->halted = 1;
+  }
+}
+
+void build_program(VM *vm) {
+  // Program:
+  // push 5
+  // loop:
+  //   dup
+  //   print
+  //   push 1
+  //   sub
+  //   dup
+  //   jz end
+  //   jmp loop
+  // end:
+  //   pop
+  //   halt
+
+  emit(vm, 1); // PUSH
+  emit(vm, 5);
+
+  emit(vm, 5);  // DUP
+  emit(vm, 10); // PRINT
+  emit(vm, 1);  // PUSH
+  emit(vm, 1);
+  emit(vm, 3);  // SUB
+  emit(vm, 5);  // DUP
+  emit(vm, 9);  // JZ
+  emit(vm, 12); // end
+  emit(vm, 8);  // JMP
+  emit(vm, 2);  // loop start
+
+  emit(vm, 6); // POP
+  emit(vm, 0); // HALT
 }
 
 int main() {
-  Visualizer *v = new_visualizer(40, 20);
-  bubble_sort_visualized(v);
+  VM *vm = new_vm();
+  build_program(vm);
+
+  int step = 0;
+
+  while (vm->halted == 0) {
+    print_vm(vm, step);
+    cc_sleep(200);
+    step_vm(vm);
+    step = step + 1;
+  }
+
+  print_vm(vm, step);
+
   return 0;
 }

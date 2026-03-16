@@ -1,6 +1,6 @@
 #ifndef SRC_ANALYSIS_LIVENESS_HPP
 #define SRC_ANALYSIS_LIVENESS_HPP
-#include "../graph_coloring/graph_coloring.hpp"
+#include "../codegen/graph_coloring/graph_coloring.hpp"
 #include "../lir/lir.hpp"
 #include <unordered_map>
 #include <unordered_set>

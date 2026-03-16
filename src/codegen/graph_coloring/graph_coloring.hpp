@@ -1,7 +1,7 @@
 #ifndef COMPILER_GRAPH_COLORING_H
 #define COMPILER_GRAPH_COLORING_H
 
-#include "../util/graph_helper.hpp"
+#include "../../util/graph_helper.hpp"
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
