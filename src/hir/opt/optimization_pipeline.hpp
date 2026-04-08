@@ -1,6 +1,7 @@
 #ifndef SRC_HIR_OPT_OPTIMIZATION_PIPELINE_HPP
 #define SRC_HIR_OPT_OPTIMIZATION_PIPELINE_HPP
 #include "../hir.hpp"
+#include <cstdint>
 bool constant_folding(hir::Function *func) {
   bool changed = false;
 
@@ -15,66 +16,66 @@ bool constant_folding(hir::Function *func) {
       if (!lhs || !rhs)
         continue;
 
-      int64_t result;
+      int32_t result;
       switch (inst->opcode) {
       case hir::Opcode::Add:
-        result = lhs->signed_value() + rhs->signed_value();
+        result = lhs->as_signed_qword() + rhs->as_signed_qword();
         break;
       case hir::Opcode::Sub:
-        result = lhs->signed_value() - rhs->signed_value();
+        result = lhs->as_signed_qword() - rhs->as_signed_qword();
         break;
       case hir::Opcode::Mul:
-        result = lhs->signed_value() * rhs->signed_value();
+        result = lhs->as_signed_qword() * rhs->as_signed_qword();
         break;
       case hir::Opcode::SDiv:
-        if (rhs->signed_value() == 0)
+        if (rhs->as_signed_qword() == 0)
           continue;
-        result = lhs->signed_value() / rhs->signed_value();
+        result = lhs->as_signed_qword() / rhs->as_signed_qword();
         break;
       case hir::Opcode::SRem:
-        if (rhs->signed_value() == 0)
+        if (rhs->as_signed_qword() == 0)
           continue;
-        result = lhs->signed_value() % rhs->signed_value();
+        result = lhs->as_signed_qword() % rhs->as_signed_qword();
         break;
       case hir::Opcode::And:
-        result = lhs->signed_value() & rhs->signed_value();
+        result = lhs->as_signed_qword() & rhs->as_signed_qword();
         break;
       case hir::Opcode::Or:
-        result = lhs->signed_value() | rhs->signed_value();
+        result = lhs->as_signed_qword() | rhs->as_signed_qword();
         break;
       case hir::Opcode::Xor:
-        result = lhs->signed_value() ^ rhs->signed_value();
+        result = lhs->as_signed_qword() ^ rhs->as_signed_qword();
         break;
       case hir::Opcode::Shl:
-        result = lhs->signed_value() << rhs->signed_value();
+        result = lhs->as_signed_qword() << rhs->as_signed_qword();
         break;
       case hir::Opcode::AShr:
-        result = lhs->signed_value() >> rhs->signed_value();
+        result = lhs->as_signed_qword() >> rhs->as_signed_qword();
         break;
       case hir::Opcode::LShr:
-        result =
-            static_cast<int64_t>(lhs->signed_value()) >> rhs->signed_value();
+        result = static_cast<int32_t>(lhs->as_signed_qword()) >>
+                 rhs->as_signed_qword();
         break;
       case hir::Opcode::ICmp: {
         bool cmp_result;
         switch (inst->predicate.value()) {
         case hir::ICmpPredicate::EQ:
-          cmp_result = lhs->signed_value() == rhs->signed_value();
+          cmp_result = lhs->as_signed_qword() == rhs->as_signed_qword();
           break;
         case hir::ICmpPredicate::NE:
-          cmp_result = lhs->signed_value() != rhs->signed_value();
+          cmp_result = lhs->as_signed_qword() != rhs->as_signed_qword();
           break;
         case hir::ICmpPredicate::SLT:
-          cmp_result = lhs->signed_value() < rhs->signed_value();
+          cmp_result = lhs->as_signed_qword() < rhs->as_signed_qword();
           break;
         case hir::ICmpPredicate::SLE:
-          cmp_result = lhs->signed_value() <= rhs->signed_value();
+          cmp_result = lhs->as_signed_qword() <= rhs->as_signed_qword();
           break;
         case hir::ICmpPredicate::SGT:
-          cmp_result = lhs->signed_value() > rhs->signed_value();
+          cmp_result = lhs->as_signed_qword() > rhs->as_signed_qword();
           break;
         case hir::ICmpPredicate::SGE:
-          cmp_result = lhs->signed_value() >= rhs->signed_value();
+          cmp_result = lhs->as_signed_qword() >= rhs->as_signed_qword();
           break;
         default:
           continue;

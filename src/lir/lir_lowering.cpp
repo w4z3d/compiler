@@ -261,7 +261,7 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
         source_operand.get_reg_mut().set_class(lir::Register::GPR64);
       }
       auto *instr = arena.create<lir::Instruction>();
-      instr->opcode = lir::Opcode::Copy;
+      instr->opcode = lir::Opcode::Mov;
       instr->num_defs = 1;
       instr->operands.push_back(ret_register);
       instr->operands.push_back(source_operand);

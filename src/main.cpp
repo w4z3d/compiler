@@ -85,9 +85,9 @@ int main(int argc, char *argv[]) {
 
   clear_last_line();
   printf("[+] Optimizing HIR\n");
-  // for (auto &function : module.functions) {
-  //   opt.optimize(function.get());
-  // }
+  for (auto &function : module.functions) {
+    opt.optimize(function.get());
+  }
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
 

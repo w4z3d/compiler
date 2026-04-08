@@ -56,6 +56,9 @@ struct ConstantInt : Value {
   [[nodiscard]] int64_t signed_value() const {
     return static_cast<int64_t>(raw_bits);
   }
+  [[nodiscard]] int32_t as_signed_qword() const {
+    return static_cast<int32_t>(raw_bits);
+  }
   [[nodiscard]] uint64_t unsigned_value() const { return raw_bits; }
 
   [[nodiscard]] bool is_zero() const { return raw_bits == 0; }
