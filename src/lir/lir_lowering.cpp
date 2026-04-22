@@ -27,7 +27,7 @@ void LIRLowering::lower_function(hir::Function *hir_function) {
   for (int i = 0; i < hir_function->arguments.size(); i++) {
     auto arg = hir_function->arguments[i];
     auto arg_reg = lir::Register::preg(i);
-    auto callee_saved_reg = target_info.callee_saved[i];
+    auto callee_saved_reg = builder.new_vreg();
     if (arg->type->is_array() || arg->type->is_pointer()) {
       arg_reg.set_class(lir::Register::GPR64);
       callee_saved_reg.set_class(lir::Register::GPR64);
@@ -312,14 +312,26 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto base = lower_operand(hir_instr->operand(0));
     auto index = lower_operand(hir_instr->operand(1));
     auto size = hir_instr->type_arg->size_of();
-    auto size_op = lir::Operand::from_imm(size);
+    std::println("GEP: index.is_imm={} index.imm={} size={} result_offset={}",
+                 index.is_imm(), index.is_imm() ? index.imm : -1, size,
+                 index.is_imm() ? index.imm * size : -1);
+    // If index is a constant, fold the multiply at compile time
+    if (index.is_imm()) {
+      auto offset = index.imm * size;
+      auto ptr = builder.emit_binop(lir::Opcode::Add, base,
+                                    lir::Operand::from_imm(offset),
+                                    lir::Register::GPR64);
+      vreg_map[hir_instr] = ptr;
+      return;
+    }
 
+    // Dynamic index — emit runtime multiply
     auto index_reg = ensure_reg(index, class_from_type(hir_instr->type_arg));
-    auto size_reg = ensure_reg(size_op, class_from_type(hir_instr->type_arg));
+    auto size_reg = ensure_reg(lir::Operand::from_imm(size),
+                               class_from_type(hir_instr->type_arg));
     auto offset = builder.emit_binop(lir::Opcode::Mul, index_reg, size_reg,
                                      class_from_type(hir_instr->type_arg));
     offset.set_class(lir::Register::RegClass::GPR64);
-
     auto ptr = builder.emit_binop(lir::Opcode::Add, base,
                                   lir::Operand::from_reg(offset),
                                   lir::Register::GPR64);

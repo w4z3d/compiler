@@ -138,6 +138,7 @@ class AsmEmitter {
       auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
+
       emit_line(std::format("add {}, {}, {}", dst, lhs, rhs));
       break;
     }

@@ -56,7 +56,7 @@ void allocate_registers(lir::Module &module, TargetInfo target) {
       UndirectedGraph graph(info.num_vregs);
       liveness::build_interference_graph(func, info, graph);
 
-      auto precolored = precolor(func);
+      auto precolored = precolor(func, target);
 
       auto coalesce_info =
           regalloc::coalesce(func, graph, target.num_allocatable);

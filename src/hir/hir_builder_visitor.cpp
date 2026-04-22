@@ -3,6 +3,7 @@
 #include "hir_type.hpp"
 #include <cassert>
 #include <cstdint>
+#include <print>
 #include <stdexcept>
 
 const source_type::StructType *
@@ -28,6 +29,7 @@ HIRBuilderVisitor::find_struct_field(const source_type::StructType *st,
   for (size_t i = 0; i < st->fields.size(); i++) {
     if (st->fields[i].first == field_name) {
       auto *src_type = st->fields[i].second.unqualified();
+      std::println("Field index is {}", i);
       return {i, lower_type(src_type), src_type};
     }
   }
@@ -108,11 +110,6 @@ hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
     auto *base_value = resolve_lvalue_to_ptr(arr->get_base());
     auto *base_src_type = get_source_lvalue_type(arr->get_base());
 
-    std::cout << "Method " << current_function->name << std::endl;
-    std::cout << "Array LValue in resolve_lvalue_ptr base_value is "
-              << base_value->to_string() << " base_src_type is "
-              << base_src_type->to_string() << " Base Value Type is "
-              << base_value->type->to_string() << std::endl;
     assert(base_src_type->is_array() && "Fick dich");
 
     arr->get_index()->accept(*this);
@@ -157,7 +154,11 @@ hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
     auto *base_src_type = get_source_lvalue_type(ptr_lval->get_base());
     auto *st = get_struct_through_pointer(base_src_type);
     auto field = find_struct_field(st, ptr_lval->get_field());
-
+    std::println("Struct has {} fields, accessing '{}' at index {}",
+                 st->fields.size(), ptr_lval->get_field(), field.index);
+    for (size_t i = 0; i < st->fields.size(); i++) {
+      std::println("  [{}] {}", i, st->fields[i].first);
+    }
     auto *index = module.const_int(types.i64(), (int64_t)field.index);
     return builder.build_gep(types.i64(), base, {index});
   }

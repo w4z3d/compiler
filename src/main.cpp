@@ -64,7 +64,6 @@ int main(int argc, char *argv[]) {
   type_check::TypeVisitor type_check_visitor{diagnostics, source_manager,
                                              symbol_table, source_types};
 
-  clear_last_line();
   printf("[+] Performing type checking\n");
   unit->accept(type_check_visitor);
 
@@ -80,29 +79,24 @@ int main(int argc, char *argv[]) {
   printf("[+] Emitting HIR\n");
   unit->accept(hir_visitor);
 
-  std::cout << module.to_dot() << std::endl;
   OptPipeline opt{};
 
   clear_last_line();
   printf("[+] Optimizing HIR\n");
-  for (auto &function : module.functions) {
-    opt.optimize(function.get());
-  }
+  opt.optimize(module);
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
+  std::cout << module.to_dot() << std::endl;
 
-  clear_last_line();
   printf("[+] lowering to lir\n");
 
   lowering.lower_module(module);
   // std::cout << lir_module.to_string() << std::endl;
 
-  clear_last_line();
   printf("[+] Performing Register Allocation\n");
   regalloc::allocate_registers(lir_module, aarch64::target);
 
   aarch64::AsmEmitter emitter(aarch64::target);
-  clear_last_line();
   printf("[+] Emitting Assembly\n");
   std::string asm_output = emitter.emit_module(&lir_module);
 

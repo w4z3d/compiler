@@ -170,8 +170,6 @@ hir::Value *HIRBuilder::build_load(hir::type::Type *loaded_type,
                                    hir::Value *ptr, std::string_view name) {
   auto *instruction = arena.create<hir::Instruction>(
       hir::Opcode::Load, loaded_type, std::vector<hir::Value *>{ptr});
-  std::cout << "Emitting load for types " << loaded_type->to_string()
-            << " ptr type: " << ptr->type->to_string() << std::endl;
   instruction->name = name;
   instruction->type_arg = loaded_type;
   return insert(instruction);
