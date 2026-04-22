@@ -312,10 +312,6 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto base = lower_operand(hir_instr->operand(0));
     auto index = lower_operand(hir_instr->operand(1));
     auto size = hir_instr->type_arg->size_of();
-    std::println("GEP: index.is_imm={} index.imm={} size={} result_offset={}",
-                 index.is_imm(), index.is_imm() ? index.imm : -1, size,
-                 index.is_imm() ? index.imm * size : -1);
-    // If index is a constant, fold the multiply at compile time
     if (index.is_imm()) {
       auto offset = index.imm * size;
       auto ptr = builder.emit_binop(lir::Opcode::Add, base,
