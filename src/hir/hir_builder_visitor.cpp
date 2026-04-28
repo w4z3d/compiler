@@ -29,7 +29,6 @@ HIRBuilderVisitor::find_struct_field(const source_type::StructType *st,
   for (size_t i = 0; i < st->fields.size(); i++) {
     if (st->fields[i].first == field_name) {
       auto *src_type = st->fields[i].second.unqualified();
-      std::println("Field index is {}", i);
       return {i, lower_type(src_type), src_type};
     }
   }
@@ -154,11 +153,6 @@ hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
     auto *base_src_type = get_source_lvalue_type(ptr_lval->get_base());
     auto *st = get_struct_through_pointer(base_src_type);
     auto field = find_struct_field(st, ptr_lval->get_field());
-    std::println("Struct has {} fields, accessing '{}' at index {}",
-                 st->fields.size(), ptr_lval->get_field(), field.index);
-    for (size_t i = 0; i < st->fields.size(); i++) {
-      std::println("  [{}] {}", i, st->fields[i].first);
-    }
     auto *index = module.const_int(types.i64(), (int64_t)field.index);
     return builder.build_gep(types.i64(), base, {index});
   }
@@ -693,7 +687,7 @@ void HIRBuilderVisitor::visit(StringLiteralExpr &expr) {
   // allocatable but iirc not)
 }
 void HIRBuilderVisitor::visit(CharLiteralExpr &expr) {
-  ASTVisitor::visit(expr);
+  value_stack.push(module.const_int(types.i8(), expr.get_value().at(0)));
 }
 void HIRBuilderVisitor::visit(BoolConstExpr &expr) {
   auto *bool_ = module.const_bool(expr.get_value());

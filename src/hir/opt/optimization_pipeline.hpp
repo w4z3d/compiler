@@ -2,14 +2,12 @@
 #define SRC_HIR_OPT_OPTIMIZATION_PIPELINE_HPP
 #include "../hir.hpp"
 #include <cstdint>
-#include <unordered_set>
+
 bool constant_folding(hir::Function *func) {
   bool changed = false;
 
   for (auto *bb : func->blocks) {
     for (auto *inst : bb->instructions) {
-
-
 
       // Skip non-binary ops
       if (inst->operand_count() != 2)
@@ -123,26 +121,8 @@ bool dead_code_elimination(hir::Function *func) {
   return changed;
 }
 
-bool gep_combination(hir::Function *func) {
-  bool changed = false;
-  for (auto *bb : func->blocks) {
-    auto inst_it = bb->instructions.begin();
-    while(inst_it != bb->instructions.end()){
-      auto inst = *inst_it;
-      if((*inst_it)->opcode == hir::Opcode::GetElementPtr) {
-        auto next_inst = *++inst_it;
-        if((*++inst_it)->opcode == hir::Opcode::GetElementPtr) {
-          for(int i = 1; i < next_inst->operands.size(); i++) {
-            inst->operands.push_back(next_inst->operands[i]);  
-          }
-        }
-      }
-    }
-  }
-}
-
 struct OptPipeline {
-  void optimize(hir::Module &module) {
+  static void optimize(hir::Module &module) {
     bool changed = true;
     for (auto &function : module.functions) {
       while (changed) {

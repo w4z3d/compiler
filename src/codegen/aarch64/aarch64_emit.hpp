@@ -5,6 +5,7 @@
 #include "aarch64_defs.hpp"
 #include <format>
 #include <iostream>
+#include <print>
 #include <sstream>
 #include <string>
 
@@ -137,9 +138,17 @@ class AsmEmitter {
     case lir::Opcode::Add: {
       auto dst = get_reg_name(inst->def(0).get_reg());
       auto lhs = operand(inst->use(0));
-      auto rhs = operand(inst->use(1));
+      // TODO: Maybe make this part of some legalization pass as this is not the
+      // job of the emitter
+      if (inst->use(1).is_imm() && inst->use(1).imm > 4095) {
+        emit_mov_imm(dst, inst->use(0).imm);
+        emit_line(std::format("add {}, {}, {}", dst, lhs, dst));
+      } else {
 
-      emit_line(std::format("add {}, {}, {}", dst, lhs, rhs));
+        auto rhs = operand(inst->use(1));
+        emit_line(std::format("add {}, {}, {}", dst, lhs, rhs));
+      }
+
       break;
     }
     case lir::Opcode::Sub: {
@@ -214,6 +223,8 @@ class AsmEmitter {
       break;
     }
     case lir::Opcode::Cmp: {
+      // TODO: Really need legalization pass here, because for materializing
+      // immediates, we need a new register
       auto lhs = operand(inst->use(0));
       auto rhs = operand(inst->use(1));
       emit_line(std::format("cmp {}, {}", lhs, rhs));

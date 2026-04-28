@@ -1,8 +1,8 @@
 #include "lexer.hpp"
 #include <cctype>
+#include <iostream>
 #include <string_view>
 #include <tuple>
-#include <iostream>
 
 Lexer::Lexer(std::string_view file_name, std::string_view source)
     : file_name(file_name), source(source) {}
@@ -161,12 +161,11 @@ token::Token Lexer::lex_string_literal() {
 }
 
 token::Token Lexer::lex_char_literal() {
-  size_t start_index = index;
   const auto start = std::make_tuple(line, column);
   bool is_invalid = false;
 
   get(); // consume opening '
-
+  size_t start_index = index;
   if (eof() || peek() == '\n' || peek() == '\'') {
     is_invalid = true;
   } else if (peek() == '\\') {
@@ -194,10 +193,11 @@ token::Token Lexer::lex_char_literal() {
   if (peek() != '\'') {
     is_invalid = true;
   } else {
-    get(); // consume closing '
   }
 
   std::string_view text = source.substr(start_index, index - start_index);
+  // wat
+  get();
   const auto end = std::make_tuple(line, column);
   token::Span span{file_name, start, end};
   return token::Token{token::TokenKind::CharLiteral, text, span, is_invalid};

@@ -1,4 +1,5 @@
 #include "parser.hpp"
+#include <print>
 #include <vector>
 
 // Grammar reference:
@@ -337,6 +338,7 @@ NumericExpr *Parser::parse_integer_literal() {
 
 CharLiteralExpr *Parser::parse_char_literal() {
   const auto ctok = expect(token::TokenKind::CharLiteral);
+  std::println("Parsing char literal {}", ctok->text);
   const auto expr = arena.create<CharLiteralExpr>(
       ctok->text,
       SourceLocation{lexer.get_file_name(), ctok->span.start, ctok->span.end});

@@ -73,8 +73,11 @@ lir::Register LIRBuilder::emit_binop(lir::Opcode op, lir::Operand lhs,
                                      lir::Register::RegClass clazz) {
   auto dst = new_vreg();
   dst.set_class(clazz);
-  rhs.get_reg_mut().set_class(clazz);
-  lhs.get_reg_mut().set_class(clazz);
+  if (lhs.is_reg() && rhs.is_reg()) {
+
+    rhs.get_reg_mut().set_class(clazz);
+    lhs.get_reg_mut().set_class(clazz);
+  }
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = op;
   instr->num_defs = 1;

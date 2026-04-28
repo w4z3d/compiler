@@ -1,5 +1,6 @@
 #include "lir_lowering.hpp"
 #include "lir.hpp"
+#include <print>
 #include <unordered_set>
 #include <utility>
 
