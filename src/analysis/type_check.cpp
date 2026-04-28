@@ -645,7 +645,7 @@ void TypeVisitor::visit(ArrayAccessExpr &expr) {
         .with_snippet(*source_manager);
 
   auto *arr = resolve_underlying(expr.get_array()->get_resolved_type());
-  if (arr && arr->is_array()) {
+  if (arr && arr->is_array() || arr->is_pointer()) {
     auto *at = static_cast<const source_type::ArrayType *>(arr);
     expr.set_resolved_type(at->element);
   } else if (arr) {

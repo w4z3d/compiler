@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
   clear_last_line();
   printf("[+] Optimizing HIR\n");
-  opt.optimize(module);
+  OptPipeline::optimize(module);
   lir::Module lir_module{};
   LIRLowering lowering{lir_module, aarch64::target};
   std::cout << module.to_dot() << std::endl;

@@ -109,7 +109,8 @@ hir::Value *HIRBuilderVisitor::resolve_lvalue_to_ptr(LValue *lval) {
     auto *base_value = resolve_lvalue_to_ptr(arr->get_base());
     auto *base_src_type = get_source_lvalue_type(arr->get_base());
 
-    assert(base_src_type->is_array() && "Fick dich");
+    assert(base_src_type->is_array() ||
+           base_src_type->is_pointer() && "Fick dich");
 
     arr->get_index()->accept(*this);
     auto *index = pop_stack();
@@ -687,7 +688,7 @@ void HIRBuilderVisitor::visit(StringLiteralExpr &expr) {
   // allocatable but iirc not)
 }
 void HIRBuilderVisitor::visit(CharLiteralExpr &expr) {
-  value_stack.push(module.const_int(types.i8(), expr.get_value().at(0)));
+  value_stack.push(module.const_int(types.i8(), expr.char_literal_value()));
 }
 void HIRBuilderVisitor::visit(BoolConstExpr &expr) {
   auto *bool_ = module.const_bool(expr.get_value());

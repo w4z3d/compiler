@@ -1,9 +1,29 @@
 extern void print_char(char x);
+extern void println();
 
-int main(int argc, char[][] argv) {
+struct Args {
+  int count;
+  char *[] arguments;
+};
 
-    for(int i = 0; i < 10; i++) {
-        print_char(argv[0][i]);
-    }
-    return 0;
+void print_string(char *str) {
+  for (int i = 0; str[i] != '\0'; i++) {
+    print_char(str[i]);
+  }
+  println();
+}
+
+int main(int argc, char **argv) {
+  Args *arguments = alloc(struct Args);
+  arguments->arguments = alloc_array(char *, 100);
+  arguments->count = argc;
+  for (int i = 0; i < argc; i++) {
+    arguments->arguments[i] = argv[i];
+  }
+
+  for (int i = 0; i < arguments->count; i++) {
+    print_string(arguments->arguments[i]);
+  }
+
+  return arguments->count;
 }

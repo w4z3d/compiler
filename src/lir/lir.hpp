@@ -132,8 +132,12 @@ enum class Opcode : uint8_t {
   CSet, // dst = 1 if condition, 0 otherwise (reads flags)
 
   // Memory
-  Load,  // dst = mem[addr]
-  Store, // mem[addr] = src
+  Load,     // dst = mem[addr]
+  Loadi8,   // dst = mem[addr]
+  Loadi32,  // dst = mem[addr]
+  Store,    // mem[addr] = src
+  Storei8,  // mem[addr] = src
+  Storei32, // mem[addr] = src
 
   // Control flow
   Jump,     // unconditional branch to block
@@ -180,6 +184,7 @@ struct Instruction {
   std::vector<Register> implicit_defs;
   std::vector<Register> implicit_uses;
   unsigned num_defs = 0;
+  int type_width = 0; // Used for determining load, store and mov emission
 
   std::optional<CmpPredicate> predicate; // for Cmp, CSet, CondJump
   std::string callee;                    // for Call

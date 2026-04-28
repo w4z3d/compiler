@@ -445,6 +445,29 @@ public:
   explicit CharLiteralExpr(std::string_view value, SourceLocation loc = {})
       : Expression(Expression::Kind::Char, "CharLiteral", loc), value(value) {}
   [[nodiscard]] std::string_view get_value() const { return value; }
+  [[nodiscard]] int char_literal_value() const {
+    if (value[0] == '\\') {
+      switch (value[1]) {
+      case 'n':
+        return 10;
+      case 't':
+        return 9;
+      case 'r':
+        return 13;
+      case '\\':
+        return 92;
+      case '\'':
+        return 39;
+      case '\"':
+        return 34;
+      case '0':
+        return 0;
+      default:
+        return value[1];
+      }
+    }
+    return value[0];
+  }
   void accept(class ASTVisitor &visitor) override;
 };
 

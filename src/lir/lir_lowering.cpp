@@ -294,7 +294,15 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     if (ptr.is_reg())
       ptr.get_reg_mut().set_class(lir::Register::GPR64);
     auto clazz = class_from_type(hir_instr->type_arg);
-    auto dst = builder.emit_load(lower_operand(hir_instr->operand(0)), clazz);
+    lir::Register dst{};
+    if (hir_instr->type_arg->is_integer() &&
+        static_cast<hir::type::IntegerType *>(hir_instr->type_arg)->width ==
+            8) {
+      dst = builder.emit_loadi8(lower_operand(hir_instr->operand(0)), clazz);
+    } else {
+
+      dst = builder.emit_load(lower_operand(hir_instr->operand(0)), clazz);
+    }
     vreg_map[hir_instr] = dst;
     return;
   }
@@ -304,9 +312,15 @@ void LIRLowering::lower_instruction(hir::Instruction *hir_instr) {
     auto base_reg = ensure_reg(base, class_from_type(hir_instr->type));
     auto value_reg = ensure_reg(value, class_from_type(hir_instr->type_arg));
 
+    if (hir_instr->type_arg->is_integer() &&
+        static_cast<hir::type::IntegerType *>(hir_instr->type_arg)->width ==
+            8) {
+      builder.emit_storei8(base_reg, value_reg);
+    } else {
+      builder.emit_store(base_reg, value_reg);
+    }
     if (base.is_reg())
       base.get_reg_mut().set_class(lir::Register::GPR64);
-    builder.emit_store(base_reg, value_reg);
     return;
   }
   case hir::Opcode::GetElementPtr: {

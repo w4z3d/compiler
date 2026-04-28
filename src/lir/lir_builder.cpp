@@ -136,10 +136,42 @@ lir::Register LIRBuilder::emit_load(lir::Operand addr,
   insert(instr);
   return dst;
 }
+lir::Register LIRBuilder::emit_loadi8(lir::Operand addr,
+                                      lir::Register::RegClass clazz) {
+  auto dst = new_vreg();
+  dst.set_class(clazz);
+  auto *instr = arena.create<lir::Instruction>();
+  instr->opcode = lir::Opcode::Loadi8;
+  instr->num_defs = 1;
+  instr->operands.push_back(lir::Operand::from_reg(dst));
+  instr->operands.push_back(addr);
+  insert(instr);
+  return dst;
+}
+lir::Register LIRBuilder::emit_loadi32(lir::Operand addr,
+                                       lir::Register::RegClass clazz) {
+  auto dst = new_vreg();
+  dst.set_class(clazz);
+  auto *instr = arena.create<lir::Instruction>();
+  instr->opcode = lir::Opcode::Loadi32;
+  instr->num_defs = 1;
+  instr->operands.push_back(lir::Operand::from_reg(dst));
+  instr->operands.push_back(addr);
+  insert(instr);
+  return dst;
+}
 
 void LIRBuilder::emit_store(lir::Operand addr, lir::Operand value) {
   auto *instr = arena.create<lir::Instruction>();
   instr->opcode = lir::Opcode::Store;
+  instr->num_defs = 0;
+  instr->operands.push_back(value);
+  instr->operands.push_back(addr);
+  insert(instr);
+}
+void LIRBuilder::emit_storei8(lir::Operand addr, lir::Operand value) {
+  auto *instr = arena.create<lir::Instruction>();
+  instr->opcode = lir::Opcode::Storei8;
   instr->num_defs = 0;
   instr->operands.push_back(value);
   instr->operands.push_back(addr);

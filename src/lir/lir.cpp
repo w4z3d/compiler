@@ -57,8 +57,16 @@ std::string_view opcode_name(Opcode op) {
     return "cset";
   case Opcode::Load:
     return "load";
+  case Opcode::Loadi8:
+    return "loadi8";
+  case Opcode::Loadi32:
+    return "loadi32";
   case Opcode::Store:
     return "store";
+  case Opcode::Storei8:
+    return "storei8";
+  case Opcode::Storei32:
+    return "storei32";
   case Opcode::Jump:
     return "jmp";
   case Opcode::CondJump:

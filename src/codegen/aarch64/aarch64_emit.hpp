@@ -251,7 +251,39 @@ class AsmEmitter {
       }
       break;
     }
+    case lir::Opcode::Loadi8: {
+      auto dst = get_reg_name(inst->def(0).get_reg());
+      auto src = inst->use(0);
 
+      if (src.is_reg()) {
+        auto addr = xreg(src.get_reg());
+        emit_line(std::format("ldrb {}, [{}]", dst, addr));
+      } else if (src.is_slot()) {
+        int off = slot_offset(src.get_slot());
+        emit_line(std::format("ldur {}, [fp, #{}]", dst, off));
+      } else {
+        throw std::runtime_error("invalid load operand");
+      }
+      break;
+    }
+
+      // Maybe duplicate
+    case lir::Opcode::Loadi32: {
+      auto dst = get_reg_name(inst->def(0).get_reg());
+      auto src = inst->use(0);
+
+      if (src.is_reg()) {
+        auto addr = xreg(src.get_reg());
+        emit_line(std::format("ldr {}, [{}]", dst, addr));
+      } else if (src.is_slot()) {
+        int off = slot_offset(src.get_slot());
+        emit_line(std::format("ldur {}, [fp, #{}]", dst, off));
+      } else {
+        throw std::runtime_error("invalid load operand");
+      }
+      break;
+    }
+    case lir::Opcode::Storei32:
     case lir::Opcode::Store: {
       auto dst = inst->operands[0];
       auto src = get_reg_name(inst->operands[1].get_reg());
@@ -259,6 +291,21 @@ class AsmEmitter {
       if (dst.is_reg()) {
         auto addr = xreg(dst.get_reg());
         emit_line(std::format("str {}, [{}]", src, addr));
+      } else if (dst.is_slot()) {
+        int off = slot_offset(dst.get_slot());
+        emit_line(std::format("stur {}, [fp, #{}]", src, off));
+      } else {
+        throw std::runtime_error("invalid store operand");
+      }
+      break;
+    }
+    case lir::Opcode::Storei8: {
+      auto dst = inst->operands[0];
+      auto src = get_reg_name(inst->operands[1].get_reg());
+
+      if (dst.is_reg()) {
+        auto addr = xreg(dst.get_reg());
+        emit_line(std::format("strb {}, [{}]", src, addr));
       } else if (dst.is_slot()) {
         int off = slot_offset(dst.get_slot());
         emit_line(std::format("stur {}, [fp, #{}]", src, off));
